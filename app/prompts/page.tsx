@@ -7,20 +7,16 @@ import { promptCategories } from '@/lib/promptCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
 import { FaFeatherAlt, FaFilter, FaPlus } from 'react-icons/fa';
-import { useAuth } from '@/contexts/AuthContext';
 import { categories } from '@/lib/categories';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<Prompt['category'] | 'all'>('all');
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      loadPrompts();
-    }
-  }, [selectedCategory, user]);
+    loadPrompts();
+  }, [selectedCategory]);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -36,37 +32,6 @@ export default function PromptsPage() {
       setLoading(false);
     }
   };
-
-  if (authLoading) {
-    return (
-      <div className="flex flex-col justify-center items-center py-20 md:py-32">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900"></div>
-        </div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">인증 상태를 확인하는 중...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <div className="inline-flex items-center space-x-3 px-4 py-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 mb-4">
-          <FaFeatherAlt />
-          <span>로그인 후 프롬프트를 볼 수 있습니다</span>
-        </div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">로그인이 필요합니다</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-8">가입자 전용 프롬프트 목록입니다. Google 계정으로 로그인해주세요.</p>
-        <button
-          onClick={signInWithGoogle}
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow-lg hover:opacity-90 transition"
-        >
-          Google 로그인
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
