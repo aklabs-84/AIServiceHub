@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FaGoogle, FaSignOutAlt, FaPlus, FaMoon, FaSun, FaBars, FaTimes, FaHeart, FaFeatherAlt } from 'react-icons/fa';
@@ -17,8 +18,15 @@ export default function Header() {
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* 로고 */}
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-200">
-              <span className="text-white font-bold text-xl">AI</span>
+            <div className="w-10 h-10 rounded-xl overflow-hidden transform group-hover:scale-110 transition-transform duration-200 border border-gray-200 dark:border-gray-700 bg-white p-1">
+              <Image
+                src="/favicon_io/android-chrome-192x192.png"
+                alt="AI Service Hub"
+                width={48}
+                height={48}
+                className="w-full h-full object-contain"
+                priority
+              />
             </div>
             <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent hidden sm:block">
               AI Service Hub

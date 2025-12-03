@@ -2,7 +2,7 @@ import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaCalendar, FaExternalLinkAlt, FaUser, FaShareAlt } from 'react-icons/fa';
+import { FaCalendar, FaExternalLinkAlt, FaUser, FaEye, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -18,6 +18,7 @@ export default function PromptCard({ prompt }: PromptCardProps) {
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
+  const [expanded, setExpanded] = useState(false);
 
   const snsPreview = useMemo(() => prompt.snsUrls.slice(0, 2), [prompt.snsUrls]);
   const formatHost = (url: string) => {
@@ -48,7 +49,7 @@ export default function PromptCard({ prompt }: PromptCardProps) {
 
   return (
     <div
-      className="group h-full overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg card-hover cursor-pointer"
+      className="group overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg card-hover cursor-pointer"
       onClick={() => router.push(`/prompts/${prompt.id}`)}
       role="button"
       tabIndex={0}
@@ -90,25 +91,6 @@ export default function PromptCard({ prompt }: PromptCardProps) {
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
             {prompt.name}
           </h3>
-          <FaShareAlt className="text-emerald-500/70" />
-        </div>
-
-        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-          <div className="prose prose-sm prose-emerald dark:prose-invert max-w-none prose-p:m-0 prose-ul:m-0 prose-li:m-0">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                h1: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                h2: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                h3: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                p: ({ children }) => <span className="m-0">{children}</span>,
-                ul: ({ children }) => <ul className="m-0 list-disc list-inside">{children}</ul>,
-                li: ({ children }) => <li className="m-0">{children}</li>,
-              }}
-            >
-              {prompt.description}
-            </ReactMarkdown>
-          </div>
         </div>
 
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
@@ -119,33 +101,68 @@ export default function PromptCard({ prompt }: PromptCardProps) {
           <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
-            <FaExternalLinkAlt />
-            <span>프롬프트/링크는 로그인 후 확인</span>
-          </div>
-          {user && (
-            <>
-              {snsPreview.map((url, idx) => (
-                <a
-                  key={idx}
-                  href={url}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center space-x-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  target="_blank"
-                  rel="noopener noreferrer"
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((prev) => !prev);
+            }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+          >
+            <FaEye className="text-emerald-500" />
+            <span>{expanded ? '접기' : '자세히 보기'}</span>
+            {expanded ? <FaChevronUp /> : <FaChevronDown />}
+          </button>
+        </div>
+
+        {expanded && (
+          <>
+            <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              <div className="prose prose-sm prose-emerald dark:prose-invert max-w-none prose-p:m-0 prose-ul:m-0 prose-li:m-0">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                    h2: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                    h3: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                    p: ({ children }) => <span className="m-0">{children}</span>,
+                    ul: ({ children }) => <ul className="m-0 list-disc list-inside">{children}</ul>,
+                    li: ({ children }) => <li className="m-0">{children}</li>,
+                  }}
                 >
-                  <span className="truncate max-w-[120px]">{formatHost(url)}</span>
-                </a>
-              ))}
-              {prompt.snsUrls.length > 2 && (
+                  {prompt.description}
+                </ReactMarkdown>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              {!user && (
+                <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
+                  <FaExternalLinkAlt />
+                  <span>프롬프트/링크는 로그인 후 확인</span>
+                </div>
+              )}
+              {user &&
+                snsPreview.map((url, idx) => (
+                  <a
+                    key={idx}
+                    href={url}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center space-x-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span className="truncate max-w-[120px]">{formatHost(url)}</span>
+                  </a>
+                ))}
+              {user && prompt.snsUrls.length > 2 && (
                 <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                   +{prompt.snsUrls.length - 2}
                 </span>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

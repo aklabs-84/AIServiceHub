@@ -124,26 +124,61 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-3 gap-4 mt-20">
             <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
               <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">AI 앱</div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">바이브코딩 스튜디오</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">카테고리 필터, 좋아요, 썸네일까지 포함한 AI 서비스 갤러리.</p>
+          </div>
+          <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+            <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">프롬프트</div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">프롬프트 아카이브</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">본문과 SNS 링크를 함께 저장해, 바로 실행하거나 더 알아볼 수 있습니다.</p>
+          </div>
+          <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+            <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">보안 & 협업</div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">로그인 보호 + 공유</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 내용은 가입자만 열람, 앱/프롬프트 등록과 좋아요로 협업.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 뉴스레터 섹션 */}
+      <div className="mt-16 md:mt-20">
+        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-emerald-50 via-cyan-50 to-blue-50 dark:from-emerald-900/20 dark:via-cyan-900/20 dark:to-blue-900/20 p-6 sm:p-10 shadow-lg">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">뉴스레터</p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">AI 활용 팁과 최신 소식을 받아보세요</h3>
+              <p className="text-gray-700 dark:text-gray-300">
+                다양한 인공지능 활용 방법과 새로운 업데이트를 가장 빠르게 받아볼 수 있는 뉴스레터입니다.
+              </p>
+              <div className="pt-2">
+                <Link
+                  href="https://tally.so/r/mepkae"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+                >
+                  뉴스레터 신청하기
+                </Link>
+              </div>
             </div>
-            <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">프롬프트</div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">프롬프트 아카이브</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">본문과 SNS 링크를 함께 저장해, 바로 실행하거나 더 알아볼 수 있습니다.</p>
-            </div>
-            <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">보안 & 협업</div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">로그인 보호 + 공유</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 내용은 가입자만 열람, 앱/프롬프트 등록과 좋아요로 협업.</p>
+            <div className="flex justify-center">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-200/60 via-cyan-200/50 to-blue-200/60 dark:from-emerald-800/40 dark:via-cyan-800/30 dark:to-blue-800/40" />
+                <img
+                  src="/newsletter.png"
+                  alt="뉴스레터 일러스트"
+                  className="relative max-h-56 w-auto object-contain"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <Footer />
     </div>
+    <Footer />
+  </div>
   );
 }

@@ -8,6 +8,7 @@ import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
 import { FaFeatherAlt, FaFilter, FaPlus } from 'react-icons/fa';
 import { categories } from '@/lib/categories';
+import Footer from '@/components/Footer';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -34,13 +35,14 @@ export default function PromptsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      {/* 히어로 */}
-      <div className="text-center mb-12 md:mb-16 animate-fadeIn">
-        <div className="inline-flex items-center space-x-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-4 py-2 rounded-full mb-6 text-sm font-medium">
-          <FaFeatherAlt />
-          <span>프롬프트, 아이디어를 더 깊게</span>
-        </div>
+    <>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        {/* 히어로 */}
+        <div className="text-center mb-12 md:mb-16 animate-fadeIn">
+          <div className="inline-flex items-center space-x-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-4 py-2 rounded-full mb-6 text-sm font-medium">
+            <FaFeatherAlt />
+            <span>프롬프트, 아이디어를 더 깊게</span>
+          </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-gray-50">
           <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">
@@ -113,50 +115,52 @@ export default function PromptsPage() {
         </div>
       </div>
 
-      {/* 목록 */}
-      {loading ? (
-        <div className="flex flex-col justify-center items-center py-20 md:py-32">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900"></div>
+        {/* 목록 */}
+        {loading ? (
+          <div className="flex flex-col justify-center items-center py-20 md:py-32">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900"></div>
+            </div>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">프롬프트를 불러오는 중...</p>
           </div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">프롬프트를 불러오는 중...</p>
-        </div>
-      ) : prompts.length === 0 ? (
-        <div className="text-center py-20 md:py-32 animate-fadeIn">
-          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <FaFeatherAlt className="text-white text-3xl" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-            등록된 프롬프트가 없습니다
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-8">
-            첫 번째 프롬프트를 공유해 주세요.
-          </p>
-        </div>
-      ) : (
-        <div className="animate-fadeIn">
-          <div className="mb-6 flex items-center justify-between">
-            <p className="text-gray-600 dark:text-gray-400">
-              <span className="font-semibold text-gray-800 dark:text-gray-200">{prompts.length}개</span>의 프롬프트를 찾았습니다
+        ) : prompts.length === 0 ? (
+          <div className="text-center py-20 md:py-32 animate-fadeIn">
+            <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaFeatherAlt className="text-white text-3xl" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+              등록된 프롬프트가 없습니다
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
+              첫 번째 프롬프트를 공유해 주세요.
             </p>
           </div>
+        ) : (
+          <div className="animate-fadeIn">
+            <div className="mb-6 flex items-center justify-between">
+              <p className="text-gray-600 dark:text-gray-400">
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{prompts.length}개</span>의 프롬프트를 찾았습니다
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {prompts.map((prompt, index) => (
-              <div
-                key={prompt.id}
-                style={{
-                  animationDelay: `${index * 0.05}s`
-                }}
-                className="animate-fadeIn"
-              >
-                <PromptCard prompt={prompt} />
-              </div>
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl-grid-cols-4 gap-4 sm:gap-6 items-start">
+              {prompts.map((prompt, index) => (
+                <div
+                  key={prompt.id}
+                  style={{
+                    animationDelay: `${index * 0.05}s`
+                  }}
+                  className="animate-fadeIn"
+                >
+                  <PromptCard prompt={prompt} />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+      <Footer />
+    </>
   );
 }

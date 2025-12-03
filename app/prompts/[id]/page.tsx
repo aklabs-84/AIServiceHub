@@ -20,22 +20,11 @@ export default function PromptDetailPage() {
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    // user가 준비된 뒤에만 로드 (비로그인 상태에선 호출 안 함)
-    if (user) {
-      loadPrompt();
-    } else if (authChecked) {
-      setLoading(false);
-    }
-  }, [params.id, user, authChecked]);
-
-  useEffect(() => {
-    // auth context가 초기화되면 플래그 설정
-    setAuthChecked(true);
-  }, [user]);
+    loadPrompt();
+  }, [params.id]);
 
   const loadPrompt = async () => {
     setLoading(true);
@@ -53,25 +42,6 @@ export default function PromptDetailPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-          로그인이 필요합니다
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          프롬프트 본문과 링크는 로그인한 사용자만 볼 수 있습니다.
-        </p>
-        <button
-          onClick={signInWithGoogle}
-          className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-6 py-3 rounded-lg hover:opacity-90 transition"
-        >
-          Google 로그인
-        </button>
       </div>
     );
   }
