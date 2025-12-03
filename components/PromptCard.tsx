@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react';
 import { FaCalendar, FaExternalLinkAlt, FaUser, FaShareAlt } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -92,7 +94,18 @@ export default function PromptCard({ prompt }: PromptCardProps) {
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
-          {prompt.description}
+          <div className="prose prose-sm prose-emerald dark:prose-invert max-w-none prose-p:m-0 prose-ul:m-0 prose-li:m-0">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+              h1: ({children}) => <p className="m-0 font-semibold">{children}</p>,
+              h2: ({children}) => <p className="m-0 font-semibold">{children}</p>,
+              h3: ({children}) => <p className="m-0 font-semibold">{children}</p>,
+              p: ({children}) => <p className="m-0">{children}</p>,
+              ul: ({children}) => <ul className="m-0 list-disc list-inside">{children}</ul>,
+              li: ({children}) => <li className="m-0">{children}</li>,
+            }}>
+              {prompt.description}
+            </ReactMarkdown>
+          </div>
         </p>
 
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
