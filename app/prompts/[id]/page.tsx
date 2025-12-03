@@ -9,6 +9,8 @@ import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaCalendar, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock } from 'react-icons/fa';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function PromptDetailPage() {
   const params = useParams();
@@ -165,9 +167,9 @@ export default function PromptDetailPage() {
                     <FaLink />
                     <span>프롬프트 본문</span>
                   </h2>
-                  <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-100 leading-relaxed">
-                    {prompt.promptContent}
-                  </pre>
+                  <div className="prose prose-emerald dark:prose-invert max-w-none text-sm leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.promptContent}</ReactMarkdown>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
