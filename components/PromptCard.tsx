@@ -93,20 +93,23 @@ export default function PromptCard({ prompt }: PromptCardProps) {
           <FaShareAlt className="text-emerald-500/70" />
         </div>
 
-        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
+        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
           <div className="prose prose-sm prose-emerald dark:prose-invert max-w-none prose-p:m-0 prose-ul:m-0 prose-li:m-0">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-              h1: ({children}) => <p className="m-0 font-semibold">{children}</p>,
-              h2: ({children}) => <p className="m-0 font-semibold">{children}</p>,
-              h3: ({children}) => <p className="m-0 font-semibold">{children}</p>,
-              p: ({children}) => <p className="m-0">{children}</p>,
-              ul: ({children}) => <ul className="m-0 list-disc list-inside">{children}</ul>,
-              li: ({children}) => <li className="m-0">{children}</li>,
-            }}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                h2: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                h3: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
+                p: ({ children }) => <span className="m-0">{children}</span>,
+                ul: ({ children }) => <ul className="m-0 list-disc list-inside">{children}</ul>,
+                li: ({ children }) => <li className="m-0">{children}</li>,
+              }}
+            >
               {prompt.description}
             </ReactMarkdown>
           </div>
-        </p>
+        </div>
 
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
           <FaUser className="text-emerald-500" />
