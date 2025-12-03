@@ -159,11 +159,9 @@ export default function PromptDetailPage() {
               </div>
             </div>
 
-            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              <div className="prose prose-emerald dark:prose-invert max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.description}</ReactMarkdown>
-              </div>
-            </p>
+            <div className="prose prose-emerald dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.description}</ReactMarkdown>
+            </div>
 
             {!user ? (
               <div className="p-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-4">
