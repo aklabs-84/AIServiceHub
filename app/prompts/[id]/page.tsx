@@ -8,7 +8,8 @@ import { getPromptById } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaCalendar, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock } from 'react-icons/fa';
+import { FaCalendar, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash } from 'react-icons/fa';
+import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -20,6 +21,7 @@ export default function PromptDetailPage() {
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // user가 준비된 뒤에만 로드 (비로그인 상태에선 호출 안 함)
@@ -89,6 +91,23 @@ export default function PromptDetailPage() {
 
   const categoryInfo = getPromptCategoryInfo(prompt.category);
   const CategoryIcon = categoryInfo.icon;
+  const isOwner = user?.uid === prompt.createdBy;
+
+  const handleDelete = async () => {
+    if (!prompt || !isOwner) return;
+    if (!confirm('정말 이 프롬프트를 삭제하시겠습니까?')) return;
+    setDeleting(true);
+    try {
+      await deletePrompt(prompt.id);
+      alert('프롬프트가 삭제되었습니다.');
+      router.push('/prompts');
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -141,7 +160,9 @@ export default function PromptDetailPage() {
             </div>
 
             <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              {prompt.description}
+              <div className="prose prose-emerald dark:prose-invert max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.description}</ReactMarkdown>
+              </div>
             </p>
 
             {!user ? (
@@ -200,12 +221,33 @@ export default function PromptDetailPage() {
             )}
 
             <div className="flex justify-end">
-              <button
-                onClick={() => router.push('/prompts')}
-                className="px-5 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-              >
-                목록으로 돌아가기
-              </button>
+              <div className="flex gap-2">
+                {isOwner && (
+                  <>
+                    <button
+                      onClick={() => router.push(`/prompts/${prompt.id}/edit`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                    >
+                      <FaEdit />
+                      <span>수정</span>
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-60"
+                    >
+                      <FaTrash />
+                      <span>{deleting ? '삭제 중...' : '삭제'}</span>
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => router.push('/prompts')}
+                  className="px-5 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                >
+                  목록으로 돌아가기
+                </button>
+              </div>
             </div>
           </div>
         </div>

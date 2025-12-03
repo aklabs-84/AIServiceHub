@@ -213,6 +213,12 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
   await updateDoc(docRef, payload);
 }
 
+// 프롬프트 삭제
+export async function deletePrompt(id: string): Promise<void> {
+  const docRef = doc(db, PROMPTS_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+
 // 앱 삭제
 export async function deleteApp(id: string): Promise<void> {
   const docRef = doc(db, APPS_COLLECTION, id);
