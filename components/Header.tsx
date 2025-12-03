@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { FaGoogle, FaSignOutAlt, FaPlus, FaMoon, FaSun, FaBars, FaTimes, FaHeart } from 'react-icons/fa';
+import { FaGoogle, FaSignOutAlt, FaPlus, FaMoon, FaSun, FaBars, FaTimes, FaHeart, FaFeatherAlt } from 'react-icons/fa';
 import { useState } from 'react';
 
 export default function Header() {
@@ -41,16 +41,22 @@ export default function Header() {
                     <FaSun className="text-yellow-500" />
                   )}
                 </button>
+                <Link
+                  href="/apps"
+                  className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium"
+                >
+                  바이브코딩
+                </Link>
+                <Link
+                  href="/prompts"
+                  className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium"
+                >
+                  프롬프트
+                </Link>
 
                 {user ? (
                   <>
-                    <Link
-                      href="/apps/new"
-                      className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all transform hover:scale-105 shadow-md"
-                    >
-                      <FaPlus />
-                      <span className="hidden lg:inline">앱 등록</span>
-                    </Link>
+                    {/* 상단 글로벌 등록 버튼 제거: 각 페이지에서 노출 */}
                     <Link
                       href="/my-apps"
                       className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -130,16 +136,23 @@ export default function Header() {
             <div className="flex flex-col space-y-2 pt-2">
               {!loading && (
                 <>
+                  <Link
+                    href="/apps"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-center font-medium"
+                  >
+                    바이브코딩 둘러보기
+                  </Link>
+                  <Link
+                    href="/prompts"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-center font-medium"
+                  >
+                    프롬프트 둘러보기
+                  </Link>
                   {user ? (
                     <>
-                      <Link
-                        href="/apps/new"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 rounded-lg transition-all"
-                      >
-                        <FaPlus />
-                        <span>앱 등록</span>
-                      </Link>
+                      {/* 모바일 글로벌 등록 버튼 제거: 각 페이지에서 노출 */}
                       <Link
                         href="/my-apps"
                         onClick={() => setMobileMenuOpen(false)}

@@ -16,8 +16,10 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { AIApp, CreateAppInput, UpdateAppInput, AppCategory } from '@/types/app';
+import { Prompt, CreatePromptInput, UpdatePromptInput, PromptCategory } from '@/types/prompt';
 
 const APPS_COLLECTION = 'apps';
+const PROMPTS_COLLECTION = 'prompts';
 
 // Firestore 데이터를 AIApp 타입으로 변환
 function docToApp(id: string, data: any): AIApp {
@@ -35,6 +37,23 @@ function docToApp(id: string, data: any): AIApp {
     updatedAt: data.updatedAt?.toDate() || new Date(),
     likes,
     likeCount: likes.length,
+  };
+}
+
+// Firestore 데이터를 Prompt 타입으로 변환
+function docToPrompt(id: string, data: any): Prompt {
+  return {
+    id,
+    name: data.name,
+    description: data.description,
+    promptContent: data.promptContent,
+    snsUrls: data.snsUrls || [],
+    category: data.category,
+    thumbnailUrl: data.thumbnailUrl,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName || '익명',
+    createdAt: data.createdAt?.toDate() || new Date(),
+    updatedAt: data.updatedAt?.toDate() || new Date(),
   };
 }
 
@@ -72,6 +91,18 @@ export async function getAppById(id: string): Promise<AIApp | null> {
   return docToApp(docSnap.id, docSnap.data());
 }
 
+// 프롬프트 가져오기
+export async function getPromptById(id: string): Promise<Prompt | null> {
+  const docRef = doc(db, PROMPTS_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
+
+  if (!docSnap.exists()) {
+    return null;
+  }
+
+  return docToPrompt(docSnap.id, docSnap.data());
+}
+
 // 사용자가 만든 앱 가져오기
 export async function getAppsByUser(userId: string): Promise<AIApp[]> {
   const appsCol = collection(db, APPS_COLLECTION);
@@ -83,6 +114,28 @@ export async function getAppsByUser(userId: string): Promise<AIApp[]> {
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+}
+
+// 프롬프트 가져오기 - 전체
+export async function getAllPrompts(): Promise<Prompt[]> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const q = query(promptsCol, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+}
+
+// 프롬프트 가져오기 - 카테고리별
+export async function getPromptsByCategory(category: PromptCategory): Promise<Prompt[]> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const q = query(
+    promptsCol,
+    where('category', '==', category),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
 }
 
 // 앱 생성
@@ -117,6 +170,42 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   };
 
   // undefined 필드는 제거
+  if (payload.thumbnailUrl === undefined) {
+    delete payload.thumbnailUrl;
+  }
+
+  await updateDoc(docRef, payload);
+}
+
+// 프롬프트 생성
+export async function createPrompt(input: CreatePromptInput, userId: string): Promise<string> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const payload: Record<string, any> = {
+    ...input,
+    snsUrls: input.snsUrls || [],
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  if (payload.thumbnailUrl === undefined) {
+    delete payload.thumbnailUrl;
+  }
+
+  const docRef = await addDoc(promptsCol, payload);
+  return docRef.id;
+}
+
+// 프롬프트 수정
+export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
+  const { id, ...data } = input;
+  const docRef = doc(db, PROMPTS_COLLECTION, id);
+
+  const payload: Record<string, any> = {
+    ...data,
+    updatedAt: serverTimestamp(),
+  };
+
   if (payload.thumbnailUrl === undefined) {
     delete payload.thumbnailUrl;
   }
