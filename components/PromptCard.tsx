@@ -29,14 +29,16 @@ export default function PromptCard({ prompt }: PromptCardProps) {
 
   const badgeTone = (() => {
     switch (prompt.category) {
-      case 'content-generation':
-        return 'from-amber-400 via-orange-500 to-rose-500';
-      case 'data-analysis':
-        return 'from-emerald-400 via-teal-500 to-cyan-500';
-      case 'image-generation':
-        return 'from-pink-400 via-fuchsia-500 to-purple-500';
-      case 'code-assistant':
-        return 'from-indigo-400 via-sky-500 to-blue-500';
+      case 'daily':
+        return 'from-emerald-300 via-teal-400 to-emerald-500';
+      case 'work':
+        return 'from-blue-400 via-sky-500 to-blue-600';
+      case 'fun':
+        return 'from-purple-400 via-fuchsia-500 to-pink-500';
+      case 'relationship':
+        return 'from-rose-400 via-pink-500 to-red-500';
+      case 'education':
+        return 'from-amber-400 via-orange-500 to-yellow-400';
       default:
         return 'from-slate-200 via-slate-300 to-slate-400 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900';
     }

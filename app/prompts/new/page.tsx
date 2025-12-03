@@ -171,7 +171,7 @@ export default function NewPromptPage() {
               id="category"
               required
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as AppCategory })}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value as Prompt['category'] })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             >
               {promptCategories.map((cat) => (
