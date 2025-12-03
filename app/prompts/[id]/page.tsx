@@ -92,6 +92,15 @@ export default function PromptDetailPage() {
   const categoryInfo = getPromptCategoryInfo(prompt.category);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === prompt.createdBy;
+  const parsedSns = prompt.snsUrls.map((entry) => {
+    const parts = entry.split(':');
+    if (parts.length >= 2) {
+      const label = parts.shift()?.trim() || '';
+      const url = parts.join(':').trim();
+      return { label, url };
+    }
+    return { label: '', url: entry };
+  });
 
   const handleDelete = async () => {
     if (!prompt || !isOwner) return;
@@ -196,19 +205,20 @@ export default function PromptDetailPage() {
                     <FaExternalLinkAlt />
                     <span>SNS / 채널</span>
                   </h2>
-                  {prompt.snsUrls.length === 0 ? (
+                  {parsedSns.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
                   ) : (
                     <ul className="space-y-2">
-                      {prompt.snsUrls.map((url, idx) => (
+                      {parsedSns.map((item, idx) => (
                         <li key={idx}>
                           <a
-                            href={url}
+                            href={item.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 dark:text-blue-300 hover:underline break-all"
                           >
-                            {url}
+                            {item.label ? `${item.label}: ` : ''}
+                            {item.url}
                           </a>
                         </li>
                       ))}
