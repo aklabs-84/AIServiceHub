@@ -1,5 +1,5 @@
 import { PromptCategory } from '@/types/prompt';
-import { FaSmile, FaBriefcase, FaMagic, FaHeart, FaGraduationCap } from 'react-icons/fa';
+import { FaSmile, FaBriefcase, FaMagic, FaHeart, FaGraduationCap, FaImage } from 'react-icons/fa';
 
 export interface PromptCategoryInfo {
   value: PromptCategory;
@@ -26,6 +26,12 @@ export const promptCategories: PromptCategoryInfo[] = [
     label: '재미',
     icon: FaMagic,
     color: 'bg-purple-500',
+  },
+  {
+    value: 'image',
+    label: '이미지',
+    icon: FaImage,
+    color: 'bg-cyan-500',
   },
   {
     value: 'relationship',

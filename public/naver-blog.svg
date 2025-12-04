@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Naver Blog">
+  <defs>
+    <linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#27d17c" />
+      <stop offset="100%" stop-color="#00a968" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#nbg)" />
+  <rect x="12" y="12" width="40" height="40" rx="10" fill="#f4fdf8" />
+  <path d="M22 24h4l6 9.3V24h4v16h-4l-6-9.2V40h-4V24Z" fill="#0db46e" />
+  <circle cx="44" cy="44" r="6" fill="#0db46e" />
+  <path d="M44 41c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3Z" fill="#f4fdf8" />
+</svg>

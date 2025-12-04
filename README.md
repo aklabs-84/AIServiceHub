@@ -1,6 +1,6 @@
-# AI Service Hub
+# AI LABS
 
-Google AI Studio로 만든 AI 서비스들을 소개하고 공유하는 플랫폼입니다.
+바이브코딩으로 만든 AI 앱과 프롬프트를 실험·보관·공유하는 플랫폼입니다.
 
 ## 주요 기능
 

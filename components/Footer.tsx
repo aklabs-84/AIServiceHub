@@ -22,17 +22,19 @@ export default function Footer() {
               <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/30 bg-white p-1">
                 <Image
                   src="/favicon_io/android-chrome-192x192.png"
-                  alt="AI Service Hub"
+                  alt="AI LABS"
                   width={36}
                   height={36}
                   className="w-full h-full object-contain"
                   priority
                 />
               </div>
-              <h3 className="text-lg font-semibold text-white">AI Service Hub</h3>
+              <h3 className="text-lg font-semibold text-white">AI LABS</h3>
             </div>
             <p className="text-sm text-slate-200/80">
-              아이디어를 서비스로 연결하는 허브. 바이브코딩이 만든 앱과 프롬프트를 한 곳에서 만나보세요.
+              바이브코딩이 만든 AI 앱과 프롬프트를 실험하고 공유하는 AI LABS.
+              <br />
+              아이디어를 빠르게 검증하고 팀과 나눠보세요.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 justify-start md:justify-end">

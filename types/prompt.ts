@@ -1,4 +1,4 @@
-export type PromptCategory = 'daily' | 'work' | 'fun' | 'relationship' | 'education';
+export type PromptCategory = 'daily' | 'work' | 'fun' | 'relationship' | 'education' | 'image';
 
 export interface Prompt {
   id: string;
@@ -12,6 +12,8 @@ export interface Prompt {
   createdByName: string;
   createdAt: Date;
   updatedAt: Date;
+  likes: string[];
+  likeCount: number;
 }
 
 export interface CreatePromptInput {

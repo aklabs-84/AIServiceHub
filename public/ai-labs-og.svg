@@ -1,0 +1,35 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI LABS">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#0ea5e9" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.95"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="24" flood-color="#0f172a" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="56" y="72" width="1088" height="486" rx="32" fill="#0b1120" fill-opacity="0.55" stroke="#38bdf8" stroke-opacity="0.25" filter="url(#shadow)"/>
+  <g transform="translate(120,160)">
+    <rect x="0" y="-8" width="180" height="44" rx="22" fill="url(#pill)" opacity="0.95"/>
+    <text x="24" y="21" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="18" font-weight="700" fill="#0b1120">AI LABS</text>
+    <circle cx="140" cy="14" r="6" fill="#0b1120"/>
+  </g>
+  <text x="120" y="250" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="64" font-weight="800" fill="#e2e8f0" letter-spacing="-1.5">바이브코딩 AI 앱 &amp; 프롬프트 실험실</text>
+  <text x="120" y="330" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="30" font-weight="600" fill="#cbd5e1">아이디어를 모으고 검증해 팀과 공유하는 랩 공간</text>
+  <g transform="translate(120,390)">
+    <rect x="0" y="0" width="360" height="90" rx="18" fill="#0ea5e9" fill-opacity="0.12" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="24" y="36" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="22" font-weight="700" fill="#e0f2fe">앱 둘러보기 · 프롬프트 아카이브 · 팀 공유</text>
+    <text x="24" y="66" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="18" font-weight="500" fill="#bae6fd">AI 실험과 실행 링크를 한 곳에</text>
+  </g>
+  <g transform="translate(540,390)">
+    <rect x="0" y="0" width="540" height="90" rx="18" fill="#22c55e" fill-opacity="0.12" stroke="#22c55e" stroke-opacity="0.35"/>
+    <text x="24" y="36" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="22" font-weight="700" fill="#dcfce7">프롬프트 본문 보호 · SNS 링크 저장 · 협업</text>
+    <text x="24" y="66" font-family="'Inter', 'Pretendard', 'Noto Sans KR', system-ui" font-size="18" font-weight="500" fill="#bbf7d0">로그인한 팀과 안전하게 쓰는 AI LABS</text>
+  </g>
+</svg>

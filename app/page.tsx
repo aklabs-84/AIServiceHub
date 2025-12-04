@@ -13,16 +13,19 @@ export default function Home() {
           <div className="space-y-6">
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold">
               <FaRocket />
-              <span>AI Service Hub</span>
+              <span>AI LABS</span>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
-              아이디어를
+              AI LABS에서
               <br />
-              서비스로 연결하는 허브
+              아이디어를 실험하고
+              <br />
+              공유하세요
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl leading-relaxed">
-              바이브코딩으로 만든 AI 앱과 프롬프트를 한 곳에서 탐색하고 공유하세요.
-              필요한 영감과 실행 링크를 빠르게 찾을 수 있도록 심플하게 구성했습니다.
+              바이브코딩으로 만든 AI 앱과 프롬프트를 실험하고 기록하는 랩입니다.
+              <br />
+              실행 링크와 본문을 안전하게 모아두고 팀과 빠르게 검증해 보세요.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -157,7 +160,7 @@ export default function Home() {
       </div>
 
       {/* 뉴스레터 섹션 */}
-      <div className="mt-10 md:mt-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
         <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-emerald-50 via-cyan-50 to-blue-50 dark:from-emerald-900/20 dark:via-cyan-900/20 dark:to-blue-900/20 p-6 sm:p-10 shadow-lg">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-3">

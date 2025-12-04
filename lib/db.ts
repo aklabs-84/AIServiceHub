@@ -45,6 +45,7 @@ function docToApp(id: string, data: any): AIApp {
 
 // Firestore 데이터를 Prompt 타입으로 변환
 function docToPrompt(id: string, data: any): Prompt {
+  const likes = data.likes || [];
   return {
     id,
     name: data.name,
@@ -57,6 +58,8 @@ function docToPrompt(id: string, data: any): Prompt {
     createdByName: data.createdByName || '익명',
     createdAt: data.createdAt?.toDate() || new Date(),
     updatedAt: data.updatedAt?.toDate() || new Date(),
+    likes,
+    likeCount: likes.length,
   };
 }
 
@@ -215,6 +218,7 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
     ...input,
     snsUrls: input.snsUrls || [],
     createdBy: userId,
+    likes: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -283,6 +287,34 @@ export async function getLikedAppsByUser(userId: string): Promise<AIApp[]> {
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+}
+
+// 사용자가 좋아요한 프롬프트 가져오기
+export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const q = query(
+    promptsCol,
+    where('likes', 'array-contains', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+}
+
+// 프롬프트 좋아요 추가/취소
+export async function likePrompt(promptId: string, userId: string): Promise<void> {
+  const docRef = doc(db, PROMPTS_COLLECTION, promptId);
+  await updateDoc(docRef, {
+    likes: arrayUnion(userId)
+  });
+}
+
+export async function unlikePrompt(promptId: string, userId: string): Promise<void> {
+  const docRef = doc(db, PROMPTS_COLLECTION, promptId);
+  await updateDoc(docRef, {
+    likes: arrayRemove(userId)
+  });
 }
 
 // 댓글 추가

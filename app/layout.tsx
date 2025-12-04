@@ -16,8 +16,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Service Hub - Google AI Studio 앱 소개",
-  description: "Google AI Studio로 만든 AI 서비스들을 공유하고 발견하세요",
+  title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
+  description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+  openGraph: {
+    title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
+    description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+    images: [
+      {
+        url: "/ai-labs-og.svg",
+        width: 1200,
+        height: 630,
+        alt: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
+    description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+    images: ["/ai-labs-og.svg"],
+  },
 };
 
 export default function RootLayout({

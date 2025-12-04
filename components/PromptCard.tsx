@@ -1,41 +1,87 @@
+'use client';
+
 import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaCalendar, FaExternalLinkAlt, FaUser } from 'react-icons/fa';
+import { FaCalendar, FaExternalLinkAlt, FaUser, FaHeart, FaRegHeart, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaGlobe, FaBlog, FaFileAlt, FaClipboardList } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { likePrompt, unlikePrompt } from '@/lib/db';
 
 interface PromptCardProps {
   prompt: Prompt;
+  onLikeChange?: () => void;
 }
 
-export default function PromptCard({ prompt }: PromptCardProps) {
+export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
   const router = useRouter();
   const categoryInfo = getPromptCategoryInfo(prompt.category);
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
+  const [isLiked, setIsLiked] = useState(user ? prompt.likes.includes(user.uid) : false);
+  const [likeCount, setLikeCount] = useState(prompt.likeCount ?? prompt.likes.length);
+  const [isLiking, setIsLiking] = useState(false);
 
   const snsPreview = useMemo(() => prompt.snsUrls.slice(0, 2), [prompt.snsUrls]);
   const getLinkPreview = (url: string) => {
-    const blogFallback = '/blog-placeholder.svg';
+    const blogFallback = '/naver-blog.svg';
     const instagramFallback = '/instagram-icon.svg';
+    const youtubeFallback = '/youtube.svg';
     const defaultFallback = '/globe.svg';
 
+    const extractUrl = (raw: string) => {
+      const httpMatch = raw.match(/https?:\/\/[^\s]+/);
+      if (httpMatch) return httpMatch[0];
+      const afterColon = raw.split(':').slice(1).join(':').trim();
+      if (afterColon) return afterColon;
+      return raw.trim();
+    };
+
+    const normalizeUrl = (raw: string) => {
+      try {
+        return new URL(raw);
+      } catch {
+        return new URL(`https://${raw}`);
+      }
+    };
+
     try {
-      const parsed = new URL(url);
+      const parsed = normalizeUrl(extractUrl(url));
       const hostname = parsed.hostname.replace('www.', '');
-      const isBlog = hostname.includes('blog.') || hostname.includes('naver.com');
-      const isInstagram = hostname.includes('instagram.com');
-      const fallback = isBlog ? blogFallback : isInstagram ? instagramFallback : defaultFallback;
-      const favicon = isBlog || isInstagram
+      const host = hostname.toLowerCase();
+      const isBlog = host.includes('blog.') || host.includes('naver.com') || host.includes('tistory') || host.includes('medium.com');
+      const isInstagram = host.includes('instagram.com');
+      const isYoutube = host.includes('youtube.com') || host.includes('youtu.be');
+      const isTiktok = host.includes('tiktok.com');
+      const isTwitter = host.includes('twitter.com') || host === 'x.com';
+      const isNotion = host.includes('notion.site') || host.includes('notion.so');
+      const isGoogleForm = host.includes('forms.gle') || host.includes('docs.google.com');
+
+      let icon: 'instagram' | 'youtube' | 'tiktok' | 'twitter' | 'notion' | 'form' | 'blog' | undefined;
+      if (isInstagram) icon = 'instagram';
+      else if (isYoutube) icon = 'youtube';
+      else if (isTiktok) icon = 'tiktok';
+      else if (isTwitter) icon = 'twitter';
+      else if (isNotion) icon = 'notion';
+      else if (isGoogleForm) icon = 'form';
+      else if (isBlog) icon = 'blog';
+
+      const fallback = icon === 'instagram'
+        ? instagramFallback
+        : icon === 'youtube'
+          ? youtubeFallback
+        : icon === 'blog'
+          ? blogFallback
+          : defaultFallback;
+      const favicon = icon
         ? fallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
 
-      return { hostname, favicon, fallback };
+      return { hostname, favicon, fallback, icon };
     } catch {
       return {
         hostname: url,
@@ -62,10 +108,36 @@ export default function PromptCard({ prompt }: PromptCardProps) {
         return 'from-rose-400 via-pink-500 to-red-500';
       case 'education':
         return 'from-amber-400 via-orange-500 to-yellow-400';
+      case 'image':
+        return 'from-cyan-400 via-sky-500 to-blue-600';
       default:
         return 'from-slate-200 via-slate-300 to-slate-400 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900';
     }
   })();
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || isLiking) return;
+
+    setIsLiking(true);
+    try {
+      if (isLiked) {
+        await unlikePrompt(prompt.id, user.uid);
+        setIsLiked(false);
+        setLikeCount((prev) => prev - 1);
+      } else {
+        await likePrompt(prompt.id, user.uid);
+        setIsLiked(true);
+        setLikeCount((prev) => prev + 1);
+      }
+      onLikeChange?.();
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   return (
     <div
@@ -107,18 +179,13 @@ export default function PromptCard({ prompt }: PromptCardProps) {
       </div>
 
       <div className="p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
-            {prompt.name}
-          </h3>
-        </div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+          {prompt.name}
+        </h3>
 
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
           <FaUser className="text-emerald-500" />
           <span>{prompt.createdByName}</span>
-          <span className="text-gray-300 dark:text-gray-700">•</span>
-          <FaCalendar className="text-emerald-400" />
-          <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
         </div>
 
         <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4">
@@ -146,6 +213,26 @@ export default function PromptCard({ prompt }: PromptCardProps) {
           {user &&
             snsPreview.map((url, idx) => {
               const preview = getLinkPreview(url);
+              const renderIcon = () => {
+                switch (preview.icon) {
+                  case 'instagram':
+                    return <Image src="/instagram-icon.svg" alt="Instagram" width={20} height={20} />;
+                  case 'youtube':
+                    return <Image src="/youtube.svg" alt="YouTube" width={20} height={20} />;
+                  case 'tiktok':
+                    return <FaTiktok className="text-gray-800 dark:text-white" />;
+                  case 'twitter':
+                    return <FaTwitter className="text-sky-500" />;
+                  case 'notion':
+                    return <FaFileAlt className="text-gray-700 dark:text-gray-200" />;
+                  case 'form':
+                    return <FaClipboardList className="text-emerald-500" />;
+                  case 'blog':
+                    return <Image src="/naver-blog.svg" alt="Naver Blog" width={20} height={20} />;
+                  default:
+                    return null;
+                }
+              };
               return (
                 <a
                   key={idx}
@@ -156,20 +243,24 @@ export default function PromptCard({ prompt }: PromptCardProps) {
                   rel="noopener noreferrer"
                   aria-label={preview.hostname}
                 >
-                  <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden">
-                    <Image
-                      src={preview.favicon}
-                      alt={preview.hostname}
-                      fill
-                      sizes="20px"
-                      className="object-contain"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        if (!target.src.includes(preview.fallback)) {
-                          target.src = preview.fallback;
-                        }
-                      }}
-                    />
+                  <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {renderIcon() ? (
+                      renderIcon()
+                    ) : (
+                      <Image
+                        src={preview.favicon}
+                        alt={preview.hostname}
+                        fill
+                        sizes="20px"
+                        className="object-contain"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (!target.src.includes(preview.fallback)) {
+                            target.src = preview.fallback;
+                          }
+                        }}
+                      />
+                    )}
                   </span>
                 </a>
               );
@@ -179,6 +270,28 @@ export default function PromptCard({ prompt }: PromptCardProps) {
               +{prompt.snsUrls.length - 2}
             </span>
           )}
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+            <FaCalendar className="text-emerald-400" />
+            <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <button
+              onClick={handleLike}
+              disabled={!user || isLiking}
+              className={`flex items-center space-x-1 transition-all ${
+                isLiked
+                  ? 'text-red-500'
+                  : 'text-gray-400 hover:text-red-500'
+              } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              aria-label="좋아요 토글"
+            >
+              {isLiked ? <FaHeart /> : <FaRegHeart />}
+              <span>{likeCount}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

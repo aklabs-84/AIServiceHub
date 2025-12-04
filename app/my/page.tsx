@@ -21,7 +21,7 @@ import {
 } from 'react-icons/fa';
 import AppCard from '@/components/AppCard';
 import PromptCard from '@/components/PromptCard';
-import { getAppsByUser, getLikedAppsByUser, getPromptsByUser } from '@/lib/db';
+import { getAppsByUser, getLikedAppsByUser, getLikedPromptsByUser, getPromptsByUser } from '@/lib/db';
 import { useSearchParams } from 'next/navigation';
 import { getCategoryInfo } from '@/lib/categories';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
@@ -39,8 +39,9 @@ function MyPageInner() {
   const [myApps, setMyApps] = useState<AIApp[]>([]);
   const [likedApps, setLikedApps] = useState<AIApp[]>([]);
   const [myPrompts, setMyPrompts] = useState<Prompt[]>([]);
+  const [likedPrompts, setLikedPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'apps' | 'prompts' | 'likes'>('apps');
+  const [activeTab, setActiveTab] = useState<'apps' | 'prompts' | 'likes' | 'likedPrompts'>('apps');
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const searchParams = useSearchParams();
   const formatDate = (value?: string | null) => {
@@ -52,7 +53,7 @@ function MyPageInner() {
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'prompts' || tab === 'likes' || tab === 'apps') {
+    if (tab === 'prompts' || tab === 'likes' || tab === 'apps' || tab === 'likedPrompts') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -63,14 +64,16 @@ function MyPageInner() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [apps, prompts, likes] = await Promise.all([
+        const [apps, prompts, likes, likedPromptsData] = await Promise.all([
           getAppsByUser(user.uid),
           getPromptsByUser(user.uid),
           getLikedAppsByUser(user.uid),
+          getLikedPromptsByUser(user.uid),
         ]);
         setMyApps(apps);
         setMyPrompts(prompts);
         setLikedApps(likes);
+        setLikedPrompts(likedPromptsData);
       } catch (error) {
         console.error('Error loading my page data:', error);
       } finally {
@@ -81,13 +84,15 @@ function MyPageInner() {
     fetchData();
   }, [user]);
 
-  const stats = useMemo(() => (
-    [
+  const stats = useMemo(
+    () => [
       { key: 'apps', label: '내 앱', value: myApps.length, icon: FaLaptopCode, color: 'from-blue-500 to-purple-500' },
       { key: 'prompts', label: '내 프롬프트', value: myPrompts.length, icon: FaPenFancy, color: 'from-emerald-500 to-teal-500' },
       { key: 'likes', label: '좋아요한 앱', value: likedApps.length, icon: FaHeart, color: 'from-rose-500 to-pink-500' },
-    ]
-  ), [myApps.length, myPrompts.length, likedApps.length]);
+      { key: 'likedPrompts', label: '좋아요한 프롬프트', value: likedPrompts.length, icon: FaHeart, color: 'from-orange-500 to-amber-500' },
+    ],
+    [myApps.length, myPrompts.length, likedApps.length, likedPrompts.length]
+  );
 
   const appBadgeTone = (category: AppCategory) => {
     switch (category) {
@@ -448,6 +453,61 @@ function MyPageInner() {
                           <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                             <FaUser className="text-purple-500 dark:text-purple-400" />
                             <span className="truncate">{app.createdByName}</span>
+                          </div>
+                        </div>
+                        <div className="hidden sm:flex items-center">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
+                            {categoryInfo.label}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'likedPrompts' && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <FaHeart className="text-orange-500" /> 좋아요한 프롬프트
+                </h2>
+                <Link href="/prompts" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">프롬프트 둘러보기</Link>
+              </div>
+              {likedPrompts.length === 0 ? (
+                <p className="text-gray-600 dark:text-gray-400">아직 좋아요한 프롬프트가 없습니다.</p>
+              ) : viewMode === 'card' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {likedPrompts.map((prompt, index) => (
+                    <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
+                      <PromptCard prompt={prompt} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3 sm:space-y-4">
+                  {likedPrompts.map((prompt, index) => {
+                    const categoryInfo = getPromptCategoryInfo(prompt.category);
+                    const CategoryIcon = categoryInfo.icon;
+                    return (
+                      <Link
+                        key={prompt.id}
+                        href={`/prompts/${prompt.id}`}
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                        className="group flex items-center gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 sm:px-5 py-3 sm:py-4 shadow-sm hover:shadow-md transition hover:-translate-y-0.5 animate-fadeIn"
+                      >
+                        <div className={`h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center rounded-xl bg-gradient-to-br ${promptBadgeTone(prompt.category)} text-white shadow-inner`}>
+                          <CategoryIcon className="text-lg sm:text-xl" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                            {prompt.name}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                            <FaUser className="text-emerald-500" />
+                            <span className="truncate">{prompt.createdByName}</span>
                           </div>
                         </div>
                         <div className="hidden sm:flex items-center">

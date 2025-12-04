@@ -22,7 +22,7 @@ export default function Header() {
             <div className="w-10 h-10 rounded-xl overflow-hidden transform group-hover:scale-110 transition-transform duration-200 border border-slate-700 bg-white p-1">
               <Image
                 src="/favicon_io/android-chrome-192x192.png"
-                alt="AI Service Hub"
+                alt="AI LABS"
                 width={48}
                 height={48}
                 className="w-full h-full object-contain"
@@ -30,7 +30,7 @@ export default function Header() {
               />
             </div>
             <h1 className="text-xl md:text-2xl font-bold text-white hidden sm:block">
-              AI Service Hub
+              AI LABS
             </h1>
           </Link>
 
