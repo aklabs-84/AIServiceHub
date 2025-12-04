@@ -163,6 +163,7 @@ export default function PromptDetailPage() {
       const host = hostname.toLowerCase();
       const isBlog = host.includes('blog.') || host.includes('naver.com') || host.includes('tistory') || host.includes('medium.com');
       const isInstagram = host.includes('instagram.com');
+      const isYoutube = host.includes('youtube.com') || host.includes('youtu.be');
 
       const fallback = isInstagram
         ? instagramFallback
