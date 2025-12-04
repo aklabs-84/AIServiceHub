@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { AIApp, AppCategory } from '@/types/app';
@@ -27,6 +27,14 @@ import { getCategoryInfo } from '@/lib/categories';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 
 export default function MyPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-gray-500 dark:text-gray-400">로딩 중...</div>}>
+      <MyPageInner />
+    </Suspense>
+  );
+}
+
+function MyPageInner() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [myApps, setMyApps] = useState<AIApp[]>([]);
   const [likedApps, setLikedApps] = useState<AIApp[]>([]);
