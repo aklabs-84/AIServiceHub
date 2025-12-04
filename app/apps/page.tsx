@@ -92,30 +92,27 @@ export default function AppsPage() {
         <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
           바이브코딩으로 만든 다양한 AI 서비스를 발견하고 공유하세요
         </p>
-        <div className="mt-6 flex justify-center">
-          <Link
-            href="/apps/new"
-            className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-          >
-            <FaPlus />
-            <span>앱 등록</span>
-          </Link>
-        </div>
-
-        {/* 통계 정보 */}
-        <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-8">
-          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+        {/* 통계 + 등록 버튼 */}
+        <div className="mt-8 flex flex-wrap items-stretch justify-center gap-4 sm:gap-6">
+          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center min-h-[78px]">
             <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               {apps.length}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">등록된 앱</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center min-h-[78px]">
             <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               {categories.length}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">카테고리</div>
           </div>
+          <Link
+            href="/apps/new"
+            className="inline-flex items-center justify-center space-x-2 px-6 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all h-full min-h-[78px]"
+          >
+            <FaPlus />
+            <span>앱 등록</span>
+          </Link>
         </div>
       </div>
 

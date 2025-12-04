@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AIApp } from '@/types/app';
 import { getCategoryInfo } from '@/lib/categories';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FaCalendar, FaHeart, FaRegHeart, FaUser } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { likeApp, unlikeApp } from '@/lib/db';
@@ -47,6 +47,32 @@ export default function AppCard({ app, onLikeChange }: AppCardProps) {
         return 'bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900';
     }
   })();
+
+  const snsPreview = useMemo(() => app.snsUrls.slice(0, 3), [app.snsUrls]);
+  const getLinkPreview = (url: string) => {
+    const blogFallback = '/blog-placeholder.svg';
+    const instagramFallback = '/instagram-icon.svg';
+    const defaultFallback = '/globe.svg';
+
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname.replace('www.', '');
+      const isBlog = hostname.includes('blog.') || hostname.includes('naver.com');
+      const isInstagram = hostname.includes('instagram.com');
+      const fallback = isBlog ? blogFallback : isInstagram ? instagramFallback : defaultFallback;
+      const favicon = isBlog || isInstagram
+        ? fallback
+        : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
+
+      return { hostname, favicon, fallback };
+    } catch {
+      return {
+        hostname: url,
+        favicon: defaultFallback,
+        fallback: defaultFallback,
+      };
+    }
+  };
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -116,6 +142,57 @@ export default function AppCard({ app, onLikeChange }: AppCardProps) {
           <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 flex-1 leading-relaxed">
             {app.description}
           </p>
+
+          {/* SNS 미리보기 */}
+          {app.snsUrls.length > 0 && (
+            <div className="mt-3">
+              {user ? (
+                <div className="flex flex-wrap gap-2">
+                  {snsPreview.map((url, idx) => {
+                    const preview = getLinkPreview(url);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        aria-label={preview.hostname}
+                      >
+                        <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden">
+                          <Image
+                            src={preview.favicon}
+                            alt={preview.hostname}
+                            fill
+                            sizes="20px"
+                            className="object-contain"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              if (!target.src.includes(preview.fallback)) {
+                                target.src = preview.fallback;
+                              }
+                            }}
+                          />
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {app.snsUrls.length > snsPreview.length && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                      +{app.snsUrls.length - snsPreview.length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
+                  <span>로그인 후 SNS 확인</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 하단 정보 */}
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">

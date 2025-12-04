@@ -135,6 +135,29 @@ export default function PromptDetailPage() {
     return { label: '', url: entry };
   });
 
+  const getLinkPreview = (url: string) => {
+    const blogFallback = '/blog-placeholder.svg';
+    const defaultFallback = '/globe.svg';
+
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname.replace('www.', '');
+      const isBlog = hostname.includes('blog.') || hostname.includes('naver.com');
+      const fallback = isBlog ? blogFallback : defaultFallback;
+      const favicon = isBlog
+        ? blogFallback
+        : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
+
+      return { hostname, favicon, fallback };
+    } catch {
+      return {
+        hostname: url,
+        favicon: blogFallback,
+        fallback: blogFallback,
+      };
+    }
+  };
+
   const handleDelete = async () => {
     if (!prompt || !isOwner) return;
     if (!confirm('정말 이 프롬프트를 삭제하시겠습니까?')) return;
@@ -241,21 +264,42 @@ export default function PromptDetailPage() {
                   {parsedSns.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
                   ) : (
-                    <ul className="space-y-2">
-                      {parsedSns.map((item, idx) => (
-                        <li key={idx}>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {parsedSns.map((item, idx) => {
+                        const preview = getLinkPreview(item.url);
+                        return (
                           <a
+                            key={idx}
                             href={item.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 dark:text-blue-300 hover:underline break-all"
+                            className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition"
                           >
-                            {item.label ? `${item.label}: ` : ''}
-                            {item.url}
+                            <div className="relative h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                              <Image
+                                src={preview.favicon}
+                                alt={item.label || preview.hostname}
+                                fill
+                                sizes="40px"
+                                className="object-contain"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  if (!target.src.includes(preview.fallback)) {
+                                    target.src = preview.fallback;
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                {item.label || preview.hostname}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{preview.hostname}</p>
+                            </div>
                           </a>
-                        </li>
-                      ))}
-                    </ul>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>

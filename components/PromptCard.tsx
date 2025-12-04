@@ -2,7 +2,7 @@ import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaCalendar, FaExternalLinkAlt, FaUser, FaEye, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaCalendar, FaExternalLinkAlt, FaUser } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -18,16 +18,36 @@ export default function PromptCard({ prompt }: PromptCardProps) {
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
-  const [expanded, setExpanded] = useState(false);
 
   const snsPreview = useMemo(() => prompt.snsUrls.slice(0, 2), [prompt.snsUrls]);
-  const formatHost = (url: string) => {
+  const getLinkPreview = (url: string) => {
+    const blogFallback = '/blog-placeholder.svg';
+    const instagramFallback = '/instagram-icon.svg';
+    const defaultFallback = '/globe.svg';
+
     try {
-      const { hostname } = new URL(url);
-      return hostname.replace('www.', '');
+      const parsed = new URL(url);
+      const hostname = parsed.hostname.replace('www.', '');
+      const isBlog = hostname.includes('blog.') || hostname.includes('naver.com');
+      const isInstagram = hostname.includes('instagram.com');
+      const fallback = isBlog ? blogFallback : isInstagram ? instagramFallback : defaultFallback;
+      const favicon = isBlog || isInstagram
+        ? fallback
+        : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
+
+      return { hostname, favicon, fallback };
     } catch {
-      return url;
+      return {
+        hostname: url,
+        favicon: defaultFallback,
+        fallback: defaultFallback,
+      };
     }
+  };
+
+  const getTrimmedDescription = (content: string, max = 220) => {
+    if (content.length <= max) return content;
+    return `${content.slice(0, max)}…`;
   };
 
   const badgeTone = (() => {
@@ -101,68 +121,65 @@ export default function PromptCard({ prompt }: PromptCardProps) {
           <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
         </div>
 
-        <div className="flex justify-end pt-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((prev) => !prev);
+        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <p className="m-0">{children}</p>,
+              ul: ({ children }) => <ul className="m-0 list-disc list-inside space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="m-0 list-decimal list-inside space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="m-0">{children}</li>,
+              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
             }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
           >
-            <FaEye className="text-emerald-500" />
-            <span>{expanded ? '접기' : '자세히 보기'}</span>
-            {expanded ? <FaChevronUp /> : <FaChevronDown />}
-          </button>
+            {getTrimmedDescription(prompt.description)}
+          </ReactMarkdown>
         </div>
 
-        {expanded && (
-          <>
-            <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              <div className="prose prose-sm prose-emerald dark:prose-invert max-w-none prose-p:m-0 prose-ul:m-0 prose-li:m-0">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                    h2: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                    h3: ({ children }) => <span className="m-0 font-semibold">{children}</span>,
-                    p: ({ children }) => <span className="m-0">{children}</span>,
-                    ul: ({ children }) => <ul className="m-0 list-disc list-inside">{children}</ul>,
-                    li: ({ children }) => <li className="m-0">{children}</li>,
-                  }}
+        <div className="flex flex-wrap gap-2 pt-2">
+          {!user && (
+            <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
+              <FaExternalLinkAlt />
+              <span>프롬프트/링크는 로그인 후 확인</span>
+            </div>
+          )}
+          {user &&
+            snsPreview.map((url, idx) => {
+              const preview = getLinkPreview(url);
+              return (
+                <a
+                  key={idx}
+                  href={url}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={preview.hostname}
                 >
-                  {prompt.description}
-                </ReactMarkdown>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
-              {!user && (
-                <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
-                  <FaExternalLinkAlt />
-                  <span>프롬프트/링크는 로그인 후 확인</span>
-                </div>
-              )}
-              {user &&
-                snsPreview.map((url, idx) => (
-                  <a
-                    key={idx}
-                    href={url}
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center space-x-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1 text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span className="truncate max-w-[120px]">{formatHost(url)}</span>
-                  </a>
-                ))}
-              {user && prompt.snsUrls.length > 2 && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                  +{prompt.snsUrls.length - 2}
-                </span>
-              )}
-            </div>
-          </>
-        )}
+                  <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden">
+                    <Image
+                      src={preview.favicon}
+                      alt={preview.hostname}
+                      fill
+                      sizes="20px"
+                      className="object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes(preview.fallback)) {
+                          target.src = preview.fallback;
+                        }
+                      }}
+                    />
+                  </span>
+                </a>
+              );
+            })}
+          {user && prompt.snsUrls.length > 2 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+              +{prompt.snsUrls.length - 2}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

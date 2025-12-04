@@ -8,6 +8,12 @@ import { AppCategory } from '@/types/app';
 import { categories } from '@/lib/categories';
 import { FaSave } from 'react-icons/fa';
 
+const detectUrls = (value: string) =>
+  value
+    .split(/[\n,]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+
 export default function NewAppPage() {
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
@@ -16,17 +22,33 @@ export default function NewAppPage() {
     name: '',
     description: '',
     appUrl: '',
-    snsUrls: '',
     category: 'chatbot' as AppCategory,
     thumbnailUrl: '',
     createdByName: user?.displayName || '',
   });
+  const [snsForm, setSnsForm] = useState({
+    blog: '',
+    instagram: '',
+    tiktok: '',
+    youtube: '',
+    etc: '',
+  });
 
-  const normalizeUrls = (value: string) =>
-    value
-      .split(/[\n,]/)
-      .map((v) => v.trim())
-      .filter(Boolean);
+  const buildSnsUrls = () => {
+    const urls: string[] = [];
+    const push = (label: string, url: string) => {
+      const trimmed = url.trim();
+      if (trimmed) urls.push(`${label}: ${trimmed}`);
+    };
+    push('네이버 블로그', snsForm.blog);
+    push('인스타그램', snsForm.instagram);
+    push('틱톡', snsForm.tiktok);
+    push('유튜브', snsForm.youtube);
+    detectUrls(snsForm.etc).forEach((entry) => {
+      urls.push(entry.includes(':') ? entry : `링크: ${entry}`);
+    });
+    return urls;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +65,7 @@ export default function NewAppPage() {
           name: formData.name,
           description: formData.description,
           appUrl: formData.appUrl,
-          snsUrls: normalizeUrls(formData.snsUrls),
+          snsUrls: buildSnsUrls(),
           category: formData.category,
           thumbnailUrl: formData.thumbnailUrl || undefined,
           createdByName: formData.createdByName || user.displayName || '익명',
@@ -145,19 +167,48 @@ export default function NewAppPage() {
 
           {/* SNS/채널 */}
           <div className="mb-6">
-            <label htmlFor="snsUrls" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-              SNS/채널 링크 (복수 입력 가능, 형식: 이름: URL)
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+              SNS/채널 링크
             </label>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <input
+                type="url"
+                placeholder="네이버 블로그 URL"
+                value={snsForm.blog}
+                onChange={(e) => setSnsForm({ ...snsForm, blog: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="url"
+                placeholder="인스타그램 URL"
+                value={snsForm.instagram}
+                onChange={(e) => setSnsForm({ ...snsForm, instagram: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="url"
+                placeholder="틱톡 URL"
+                value={snsForm.tiktok}
+                onChange={(e) => setSnsForm({ ...snsForm, tiktok: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <input
+                type="url"
+                placeholder="유튜브 URL"
+                value={snsForm.youtube}
+                onChange={(e) => setSnsForm({ ...snsForm, youtube: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
             <textarea
-              id="snsUrls"
-              rows={3}
-              value={formData.snsUrls}
-              onChange={(e) => setFormData({ ...formData, snsUrls: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="네이버 블로그: https://...\n인스타그램: https://...\n(한 줄에 하나씩, 또는 콤마로 구분)"
+              rows={2}
+              placeholder="기타 링크가 있다면 입력하세요 (한 줄에 하나씩)"
+              value={snsForm.etc}
+              onChange={(e) => setSnsForm({ ...snsForm, etc: e.target.value })}
+              className="mt-3 w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              예: YouTube 데모 영상, X 스레드, 블로그 포스트 등
+              입력한 순서대로 카드/상세 화면에 보여집니다.
             </p>
           </div>
 
