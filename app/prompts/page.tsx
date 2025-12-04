@@ -1,19 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getAllPrompts, getPromptsByCategory } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
-import { promptCategories } from '@/lib/promptCategories';
+import { getPromptCategoryInfo, promptCategories } from '@/lib/promptCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
-import { FaFeatherAlt, FaFilter, FaPlus } from 'react-icons/fa';
-import { categories } from '@/lib/categories';
+import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<Prompt['category'] | 'all'>('all');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadPrompts();
@@ -34,6 +35,34 @@ export default function PromptsPage() {
     }
   };
 
+  const filteredPrompts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return prompts;
+    return prompts.filter((prompt) => {
+      const name = prompt.name.toLowerCase();
+      const author = prompt.createdByName.toLowerCase();
+      const desc = prompt.description.toLowerCase();
+      return name.includes(term) || author.includes(term) || desc.includes(term);
+    });
+  }, [prompts, searchTerm]);
+
+  const badgeTone = (category: Prompt['category']) => {
+    switch (category) {
+      case 'daily':
+        return 'from-emerald-300 via-teal-400 to-emerald-500';
+      case 'work':
+        return 'from-blue-400 via-sky-500 to-blue-600';
+      case 'fun':
+        return 'from-purple-400 via-fuchsia-500 to-pink-500';
+      case 'relationship':
+        return 'from-rose-400 via-pink-500 to-red-500';
+      case 'education':
+        return 'from-amber-400 via-orange-500 to-yellow-400';
+      default:
+        return 'from-slate-200 via-slate-300 to-slate-400 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900';
+    }
+  };
+
   return (
     <>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -44,38 +73,38 @@ export default function PromptsPage() {
             <span>프롬프트, 아이디어를 더 깊게</span>
           </div>
 
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-gray-50">
-          <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">
-            프롬프트 아카이브
-          </span>
-        </h1>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 md:mb-6 text-gray-900 dark:text-gray-50">
+            <span className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 bg-clip-text text-transparent">
+              프롬프트 아카이브
+            </span>
+          </h1>
 
-        <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
-          실전에서 검증한 프롬프트와 상세한 활용 팁, SNS 소개 링크까지 한 곳에서 살펴보세요.
-        </p>
+          <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
+            실전에서 검증한 프롬프트와 상세한 활용 팁, SNS 소개 링크까지 한 곳에서 살펴보세요.
+          </p>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-6">
-          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
-              {prompts.length}
+          <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-6">
+            <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">
+                {prompts.length}
+              </div>
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">등록된 프롬프트</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">등록된 프롬프트</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
-            <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
-              {promptCategories.length}
+            <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                {promptCategories.length}
+              </div>
+              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">카테고리</div>
             </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">카테고리</div>
+            <Link
+              href="/prompts/new"
+              className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+            >
+              <FaPlus />
+              <span>프롬프트 등록</span>
+            </Link>
           </div>
-          <Link
-            href="/prompts/new"
-            className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-          >
-            <FaPlus />
-            <span>프롬프트 등록</span>
-          </Link>
         </div>
-      </div>
 
       {/* 카테고리 필터 */}
       <div className="mb-8 md:mb-12">
@@ -115,37 +144,81 @@ export default function PromptsPage() {
         </div>
       </div>
 
-        {/* 목록 */}
-        {loading ? (
-          <div className="flex flex-col justify-center items-center py-20 md:py-32">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900"></div>
-            </div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">프롬프트를 불러오는 중...</p>
+      {/* 목록 */}
+      {loading ? (
+        <div className="flex flex-col justify-center items-center py-20 md:py-32">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-emerald-200 dark:border-emerald-900"></div>
           </div>
-        ) : prompts.length === 0 ? (
-          <div className="text-center py-20 md:py-32 animate-fadeIn">
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FaFeatherAlt className="text-white text-3xl" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-              등록된 프롬프트가 없습니다
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">
-              첫 번째 프롬프트를 공유해 주세요.
-            </p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">프롬프트를 불러오는 중...</p>
+        </div>
+      ) : prompts.length === 0 ? (
+        <div className="text-center py-20 md:py-32 animate-fadeIn">
+          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FaFeatherAlt className="text-white text-3xl" />
           </div>
-        ) : (
-          <div className="animate-fadeIn">
-            <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
+            등록된 프롬프트가 없습니다
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">
+            첫 번째 프롬프트를 공유해 주세요.
+          </p>
+        </div>
+      ) : (
+        <div className="animate-fadeIn">
+          <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <p className="text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{prompts.length}개</span>의 프롬프트를 찾았습니다
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{filteredPrompts.length}개</span>의 프롬프트를 찾았습니다
               </p>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="제목 또는 작성자로 검색"
+                  className="w-full sm:w-64 lg:w-72 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-9 pr-4 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  aria-label="프롬프트 검색"
+                />
+              </div>
             </div>
+            <div className="inline-flex rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setViewMode('card')}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === 'card'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                aria-pressed={viewMode === 'card'}
+              >
+                <FaThLarge />
+                <span>카드형</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === 'list'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                aria-pressed={viewMode === 'list'}
+              >
+                <FaList />
+                <span>리스트형</span>
+              </button>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl-grid-cols-4 gap-4 sm:gap-6 items-start">
-              {prompts.map((prompt, index) => (
+          {filteredPrompts.length === 0 ? (
+            <div className="text-center py-16 sm:py-20">
+              <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">검색 결과가 없습니다</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">다른 키워드나 카테고리를 시도해 주세요.</p>
+            </div>
+          ) : viewMode === 'card' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 items-start">
+              {filteredPrompts.map((prompt, index) => (
                 <div
                   key={prompt.id}
                   style={{
@@ -157,6 +230,46 @@ export default function PromptsPage() {
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="space-y-3 sm:space-y-4">
+              {filteredPrompts.map((prompt, index) => {
+                const categoryInfo = getPromptCategoryInfo(prompt.category);
+                const CategoryIcon = categoryInfo.icon;
+                return (
+                  <Link
+                    key={prompt.id}
+                    href={`/prompts/${prompt.id}`}
+                    style={{
+                      animationDelay: `${index * 0.05}s`
+                    }}
+                    className="group flex items-center gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 sm:px-5 py-3 sm:py-4 shadow-sm hover:shadow-md transition hover:-translate-y-0.5 animate-fadeIn"
+                  >
+                    <div
+                      className={`h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center rounded-xl bg-gradient-to-br ${badgeTone(
+                        prompt.category
+                      )} text-white shadow-inner`}
+                    >
+                      <CategoryIcon className="text-lg sm:text-xl" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                        {prompt.name}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <FaUser className="text-emerald-500" />
+                        <span className="truncate">{prompt.createdByName}</span>
+                      </div>
+                    </div>
+                    <div className="hidden sm:flex items-center">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
+                        {categoryInfo.label}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
           </div>
         )}
       </div>

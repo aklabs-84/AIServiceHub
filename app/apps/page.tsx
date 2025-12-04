@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getAllApps, getAppsByCategory } from '@/lib/db';
 import { AIApp, AppCategory } from '@/types/app';
 import AppCard from '@/components/AppCard';
-import { categories } from '@/lib/categories';
-import { FaRocket, FaFilter, FaPlus } from 'react-icons/fa';
+import { categories, getCategoryInfo } from '@/lib/categories';
+import { FaFilter, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -13,6 +13,8 @@ export default function AppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<AppCategory | 'all'>('all');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadApps();
@@ -29,6 +31,43 @@ export default function AppsPage() {
       console.error('Error loading apps:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const filteredApps = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return apps;
+    return apps.filter((app) => {
+      const name = app.name.toLowerCase();
+      const author = app.createdByName.toLowerCase();
+      const desc = app.description.toLowerCase();
+      return name.includes(term) || author.includes(term) || desc.includes(term);
+    });
+  }, [apps, searchTerm]);
+
+  const badgeTone = (category: AppCategory) => {
+    switch (category) {
+      case 'chatbot':
+        return 'from-blue-400 via-blue-500 to-blue-600';
+      case 'content-generation':
+        return 'from-purple-400 via-purple-500 to-purple-600';
+      case 'data-analysis':
+        return 'from-emerald-400 via-emerald-500 to-emerald-600';
+      case 'image-generation':
+        return 'from-pink-400 via-pink-500 to-pink-600';
+      case 'code-assistant':
+        return 'from-amber-300 via-amber-400 to-amber-500';
+      case 'translation':
+        return 'from-indigo-400 via-indigo-500 to-indigo-600';
+      case 'education':
+        return 'from-red-400 via-red-500 to-red-600';
+      case 'game':
+        return 'from-orange-400 via-orange-500 to-orange-600';
+      case 'productivity':
+        return 'from-teal-400 via-teal-500 to-teal-600';
+      case 'other':
+      default:
+        return 'from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900';
     }
   };
 
@@ -141,25 +180,109 @@ export default function AppsPage() {
           </div>
         ) : (
           <div className="animate-fadeIn">
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{apps.length}개</span>의 앱을 찾았습니다
-              </p>
+            <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <p className="text-gray-600 dark:text-gray-400">
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">{filteredApps.length}개</span>의 앱을 찾았습니다
+                </p>
+                <div className="relative">
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="제목 또는 작성자로 검색"
+                    className="w-full sm:w-64 lg:w-72 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-9 pr-4 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    aria-label="앱 검색"
+                  />
+                </div>
+              </div>
+              <div className="inline-flex rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
+                    viewMode === 'card'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  aria-pressed={viewMode === 'card'}
+                >
+                  <FaThLarge />
+                  <span>카드형</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
+                    viewMode === 'list'
+                      ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  aria-pressed={viewMode === 'list'}
+                >
+                  <FaList />
+                  <span>리스트형</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {apps.map((app, index) => (
-                <div
-                  key={app.id}
-                  style={{
-                    animationDelay: `${index * 0.05}s`
-                  }}
-                  className="animate-fadeIn"
-                >
-                  <AppCard app={app} />
-                </div>
-              ))}
-            </div>
+            {filteredApps.length === 0 ? (
+              <div className="text-center py-16 sm:py-20">
+                <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">검색 결과가 없습니다</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">다른 키워드나 카테고리를 시도해 주세요.</p>
+              </div>
+            ) : viewMode === 'card' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                {filteredApps.map((app, index) => (
+                  <div
+                    key={app.id}
+                    style={{
+                      animationDelay: `${index * 0.05}s`
+                    }}
+                    className="animate-fadeIn"
+                  >
+                    <AppCard app={app} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {filteredApps.map((app, index) => {
+                  const categoryInfo = getCategoryInfo(app.category);
+                  const CategoryIcon = categoryInfo.icon;
+                  return (
+                    <Link
+                      key={app.id}
+                      href={`/apps/${app.id}`}
+                      style={{
+                        animationDelay: `${index * 0.05}s`
+                      }}
+                      className="group flex items-center gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 sm:px-5 py-3 sm:py-4 shadow-sm hover:shadow-md transition hover:-translate-y-0.5 animate-fadeIn"
+                    >
+                      <div
+                        className={`h-12 w-12 sm:h-14 sm:w-14 flex items-center justify-center rounded-xl bg-gradient-to-br ${badgeTone(
+                          app.category
+                        )} text-white shadow-inner`}
+                      >
+                        <CategoryIcon className="text-lg sm:text-xl" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {app.name}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                          <FaUser className="text-purple-500 dark:text-purple-400" />
+                          <span className="truncate">{app.createdByName}</span>
+                        </div>
+                      </div>
+                      <div className="hidden sm:flex items-center">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
+                          {categoryInfo.label}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

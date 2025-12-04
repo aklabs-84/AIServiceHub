@@ -4,21 +4,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { FaGoogle, FaSignOutAlt, FaPlus, FaMoon, FaSun, FaBars, FaTimes, FaHeart, FaFeatherAlt } from 'react-icons/fa';
+import { FaGoogle, FaSignOutAlt, FaMoon, FaSun, FaBars, FaTimes, FaHeart, FaUserCircle } from 'react-icons/fa';
 import { useState } from 'react';
 
 export default function Header() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-b border-slate-800 shadow-lg">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
           {/* 로고 */}
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 rounded-xl overflow-hidden transform group-hover:scale-110 transition-transform duration-200 border border-gray-200 dark:border-gray-700 bg-white p-1">
+            <div className="w-10 h-10 rounded-xl overflow-hidden transform group-hover:scale-110 transition-transform duration-200 border border-slate-700 bg-white p-1">
               <Image
                 src="/favicon_io/android-chrome-192x192.png"
                 alt="AI Service Hub"
@@ -28,7 +29,7 @@ export default function Header() {
                 priority
               />
             </div>
-            <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent hidden sm:block">
+            <h1 className="text-xl md:text-2xl font-bold text-white hidden sm:block">
               AI Service Hub
             </h1>
           </Link>
@@ -40,70 +41,85 @@ export default function Header() {
                 {/* 다크모드 토글 */}
                 <button
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
                   title={theme === 'light' ? '다크모드' : '라이트모드'}
                 >
                   {theme === 'light' ? (
-                    <FaMoon className="text-gray-700 dark:text-gray-300" />
+                    <FaMoon className="text-slate-200" />
                   ) : (
-                    <FaSun className="text-yellow-500" />
+                    <FaSun className="text-yellow-300" />
                   )}
                 </button>
                 <Link
                   href="/apps"
-                  className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium"
+                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
                 >
                   바이브코딩
                 </Link>
                 <Link
                   href="/prompts"
-                  className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium"
+                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
                 >
                   프롬프트
                 </Link>
+                <Link
+                  href="/guide"
+                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  Q&A
+                </Link>
 
                 {user ? (
-                  <>
-                    {/* 상단 글로벌 등록 버튼 제거: 각 페이지에서 노출 */}
-                    <Link
-                      href="/my-apps"
-                      className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  <div className="relative">
+                    <button
+                      onClick={() => setProfileMenuOpen((prev) => !prev)}
+                      className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      내 앱
-                    </Link>
-                    <Link
-                      href="/liked-apps"
-                      className="flex items-center space-x-2 px-4 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <FaHeart className="text-red-500" />
-                      <span className="hidden lg:inline">좋아요</span>
-                    </Link>
-                    <div className="flex items-center space-x-3 pl-2 border-l border-gray-300 dark:border-gray-700">
-                      <div className="flex items-center space-x-2">
-                        {user.photoURL && (
-                          <img
-                            src={user.photoURL}
-                            alt={user.displayName || '사용자'}
-                            className="w-9 h-9 rounded-full border-2 border-blue-500 dark:border-purple-500"
-                          />
-                        )}
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:inline">
-                          {user.displayName}
-                        </span>
+                      {user.photoURL ? (
+                        <img
+                          src={user.photoURL}
+                          alt={user.displayName || '사용자'}
+                          className="w-9 h-9 rounded-full border-2 border-blue-500 dark:border-purple-500"
+                        />
+                      ) : (
+                        <FaUserCircle className="w-9 h-9 text-white" />
+                      )}
+                      <span className="text-sm font-medium text-white hidden lg:inline">
+                        {user.displayName}
+                      </span>
+                    </button>
+
+                    {profileMenuOpen && (
+                      <div className="absolute right-0 mt-3 w-56 rounded-xl bg-white text-gray-800 shadow-2xl ring-1 ring-black/5 dark:bg-gray-800 dark:text-gray-100 dark:ring-white/10 animate-fadeIn">
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">로그인됨</p>
+                          <p className="font-semibold truncate">{user.displayName || '사용자'}</p>
+                        </div>
+                        <div className="py-2">
+                          <Link
+                            href="/my"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            마이페이지
+                          </Link>
+                        </div>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setProfileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-b-xl"
+                        >
+                          로그아웃
+                        </button>
                       </div>
-                      <button
-                        onClick={signOut}
-                        className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                        title="로그아웃"
-                      >
-                        <FaSignOutAlt />
-                      </button>
-                    </div>
-                  </>
+                    )}
+                  </div>
                 ) : (
                   <button
                     onClick={signInWithGoogle}
-                    className="flex items-center space-x-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all transform hover:scale-105 shadow-sm"
+                    className="flex items-center space-x-2 bg-white/10 border border-white/30 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 shadow-sm"
                   >
                     <FaGoogle className="text-red-500" />
                     <span>로그인</span>
@@ -117,22 +133,22 @@ export default function Header() {
           <div className="flex items-center space-x-2 md:hidden">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
             >
               {theme === 'light' ? (
-                <FaMoon className="text-gray-700 dark:text-gray-300" />
+                <FaMoon className="text-slate-200" />
               ) : (
-                <FaSun className="text-yellow-500" />
+                <FaSun className="text-yellow-300" />
               )}
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
             >
               {mobileMenuOpen ? (
-                <FaTimes className="text-gray-700 dark:text-gray-300" />
+                <FaTimes className="text-white" />
               ) : (
-                <FaBars className="text-gray-700 dark:text-gray-300" />
+                <FaBars className="text-white" />
               )}
             </button>
           </div>
@@ -147,36 +163,35 @@ export default function Header() {
                   <Link
                     href="/apps"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-center font-medium"
+                    className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
                   >
                     바이브코딩 둘러보기
                   </Link>
                   <Link
                     href="/prompts"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-center font-medium"
+                    className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
                   >
                     프롬프트 둘러보기
+                  </Link>
+                  <Link
+                    href="/guide"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
+                  >
+                    Q&A
                   </Link>
                   {user ? (
                     <>
                       {/* 모바일 글로벌 등록 버튼 제거: 각 페이지에서 노출 */}
                       <Link
-                        href="/my-apps"
+                        href="/my"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-center"
+                        className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center"
                       >
-                        내 앱
+                        마이페이지
                       </Link>
-                      <Link
-                        href="/liked-apps"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center justify-center space-x-2 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        <FaHeart className="text-red-500" />
-                        <span>좋아요한 앱</span>
-                      </Link>
-                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg">
                         <div className="flex items-center space-x-2">
                           {user.photoURL && (
                             <img
@@ -185,7 +200,7 @@ export default function Header() {
                               className="w-8 h-8 rounded-full border-2 border-blue-500"
                             />
                           )}
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <span className="text-sm font-medium text-white">
                             {user.displayName}
                           </span>
                         </div>
@@ -194,7 +209,7 @@ export default function Header() {
                             signOut();
                             setMobileMenuOpen(false);
                           }}
-                          className="p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className="p-2 rounded-lg text-red-300 hover:bg-red-500/10 transition-colors"
                         >
                           <FaSignOutAlt />
                         </button>

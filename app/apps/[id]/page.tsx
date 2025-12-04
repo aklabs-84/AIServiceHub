@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getAppById, deleteApp, likeApp, unlikeApp } from '@/lib/db';
+import { getAppById, deleteApp, likeApp, unlikeApp, addComment, getComments, updateComment, deleteComment } from '@/lib/db';
 import { AIApp } from '@/types/app';
+import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryInfo } from '@/lib/categories';
-import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane } from 'react-icons/fa';
 
 export default function AppDetailPage() {
   const params = useParams();
@@ -21,9 +22,15 @@ export default function AppDetailPage() {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
 
   useEffect(() => {
     loadApp();
+    loadComments();
   }, [params.id]);
 
   const loadApp = async () => {
@@ -39,6 +46,62 @@ export default function AppDetailPage() {
       console.error('Error loading app:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadComments = async () => {
+    try {
+      const data = await getComments(params.id as string, 'app');
+      setComments(data);
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    }
+  };
+
+  const handleSubmitComment = async () => {
+    if (!user || !app || !newComment.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await addComment(app.id, 'app', newComment.trim(), user.uid, user.displayName || '익명');
+      setNewComment('');
+      await loadComments();
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('댓글 작성 중 오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditComment = (comment: Comment) => {
+    setEditingId(comment.id);
+    setEditingContent(comment.content);
+  };
+
+  const handleUpdateComment = async () => {
+    if (!editingId || !editingContent.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await updateComment(editingId, editingContent.trim());
+      setEditingId(null);
+      setEditingContent('');
+      await loadComments();
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      alert('댓글 수정 중 오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!confirm('댓글을 삭제하시겠습니까?')) return;
+    try {
+      await deleteComment(commentId);
+      await loadComments();
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('댓글 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -107,6 +170,15 @@ export default function AppDetailPage() {
   const categoryInfo = getCategoryInfo(app.category);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === app.createdBy;
+  const parsedSns = app.snsUrls.map((entry) => {
+    const parts = entry.split(':');
+    if (parts.length >= 2) {
+      const label = parts.shift()?.trim() || '';
+      const url = parts.join(':').trim();
+      return { label, url };
+    }
+    return { label: '', url: entry };
+  });
 
   // 로그인하지 않은 경우
   if (!user) {
@@ -262,6 +334,32 @@ export default function AppDetailPage() {
               </a>
             </div>
 
+            <div className="mb-6 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
+                <FaExternalLinkAlt />
+                <span>SNS / 채널</span>
+              </h2>
+              {parsedSns.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {parsedSns.map((item, idx) => (
+                    <li key={idx}>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-300 hover:underline break-all"
+                      >
+                        {item.label ? `${item.label}: ` : ''}
+                        {item.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-800">
               <div></div>
 
@@ -285,6 +383,111 @@ export default function AppDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* 댓글 */}
+        <div className="mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-200 dark:border-gray-800 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FaCommentDots className="text-blue-500" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">댓글</h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">({comments.length})</span>
+          </div>
+
+          {user ? (
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">댓글을 남겨보세요</label>
+              <div className="flex items-center gap-3">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="내용을 입력하세요"
+                  className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                />
+                <button
+                  onClick={handleSubmitComment}
+                  disabled={!newComment.trim() || submitting}
+                  className="h-full px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {submitting ? '등록 중...' : (
+                    <div className="flex items-center gap-2">
+                      <FaPaperPlane />
+                      <span>등록</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 text-sm text-yellow-800 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-3">
+              로그인한 사용자만 댓글을 작성할 수 있습니다.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {comments.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">첫 댓글을 작성해 보세요.</p>
+            ) : (
+              comments.map((comment) => {
+                const isAuthor = user?.uid === comment.createdBy;
+                const isEditing = editingId === comment.id;
+                return (
+                  <div key={comment.id} className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{comment.createdByName}</span>
+                      <span>{comment.createdAt.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editingContent}
+                          onChange={(e) => setEditingContent(e.target.value)}
+                          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditingContent('');
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={handleUpdateComment}
+                            disabled={!editingContent.trim() || submitting}
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                          >
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{comment.content}</p>
+                    )}
+                    {isAuthor && !isEditing && (
+                      <div className="flex gap-2 justify-end text-xs">
+                        <button
+                          onClick={() => handleEditComment(comment)}
+                          className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="px-3 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

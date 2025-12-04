@@ -16,10 +16,17 @@ export default function NewAppPage() {
     name: '',
     description: '',
     appUrl: '',
+    snsUrls: '',
     category: 'chatbot' as AppCategory,
     thumbnailUrl: '',
     createdByName: user?.displayName || '',
   });
+
+  const normalizeUrls = (value: string) =>
+    value
+      .split(/[\n,]/)
+      .map((v) => v.trim())
+      .filter(Boolean);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +43,7 @@ export default function NewAppPage() {
           name: formData.name,
           description: formData.description,
           appUrl: formData.appUrl,
+          snsUrls: normalizeUrls(formData.snsUrls),
           category: formData.category,
           thumbnailUrl: formData.thumbnailUrl || undefined,
           createdByName: formData.createdByName || user.displayName || '익명',
@@ -132,6 +140,24 @@ export default function NewAppPage() {
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Google AI Studio에서 공유한 앱 URL을 입력하세요
+            </p>
+          </div>
+
+          {/* SNS/채널 */}
+          <div className="mb-6">
+            <label htmlFor="snsUrls" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              SNS/채널 링크 (복수 입력 가능, 형식: 이름: URL)
+            </label>
+            <textarea
+              id="snsUrls"
+              rows={3}
+              value={formData.snsUrls}
+              onChange={(e) => setFormData({ ...formData, snsUrls: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="네이버 블로그: https://...\n인스타그램: https://...\n(한 줄에 하나씩, 또는 콤마로 구분)"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              예: YouTube 데모 영상, X 스레드, 블로그 포스트 등
             </p>
           </div>
 

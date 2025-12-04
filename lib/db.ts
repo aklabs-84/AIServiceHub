@@ -17,9 +17,11 @@ import {
 import { db } from './firebase';
 import { AIApp, CreateAppInput, UpdateAppInput, AppCategory } from '@/types/app';
 import { Prompt, CreatePromptInput, UpdatePromptInput, PromptCategory } from '@/types/prompt';
+import { Comment, CommentTargetType } from '@/types/comment';
 
 const APPS_COLLECTION = 'apps';
 const PROMPTS_COLLECTION = 'prompts';
+const COMMENTS_COLLECTION = 'comments';
 
 // Firestore 데이터를 AIApp 타입으로 변환
 function docToApp(id: string, data: any): AIApp {
@@ -29,6 +31,7 @@ function docToApp(id: string, data: any): AIApp {
     name: data.name,
     description: data.description,
     appUrl: data.appUrl,
+    snsUrls: data.snsUrls || [],
     category: data.category,
     thumbnailUrl: data.thumbnailUrl,
     createdBy: data.createdBy,
@@ -54,6 +57,19 @@ function docToPrompt(id: string, data: any): Prompt {
     createdByName: data.createdByName || '익명',
     createdAt: data.createdAt?.toDate() || new Date(),
     updatedAt: data.updatedAt?.toDate() || new Date(),
+  };
+}
+
+// Firestore 데이터를 Comment 타입으로 변환
+function docToComment(id: string, data: any): Comment {
+  return {
+    id,
+    targetId: data.targetId,
+    targetType: data.targetType,
+    content: data.content,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName || '익명',
+    createdAt: data.createdAt?.toDate() || new Date(),
   };
 }
 
@@ -138,12 +154,26 @@ export async function getPromptsByCategory(category: PromptCategory): Promise<Pr
   return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
 }
 
+// 사용자가 만든 프롬프트 가져오기
+export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const q = query(
+    promptsCol,
+    where('createdBy', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+}
+
 // 앱 생성
 export async function createApp(input: CreateAppInput, userId: string): Promise<string> {
   const appsCol = collection(db, APPS_COLLECTION);
   const payload: Record<string, any> = {
     ...input,
     createdBy: userId,
+    snsUrls: input.snsUrls || [],
     likes: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -166,6 +196,7 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
 
   const payload: Record<string, any> = {
     ...data,
+    snsUrls: data.snsUrls || [],
     updatedAt: serverTimestamp(),
   };
 
@@ -252,4 +283,48 @@ export async function getLikedAppsByUser(userId: string): Promise<AIApp[]> {
   const snapshot = await getDocs(q);
 
   return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+}
+
+// 댓글 추가
+export async function addComment(targetId: string, targetType: CommentTargetType, content: string, userId: string, userName: string): Promise<string> {
+  const commentsCol = collection(db, COMMENTS_COLLECTION);
+  const payload = {
+    targetId,
+    targetType,
+    content,
+    createdBy: userId,
+    createdByName: userName || '익명',
+    createdAt: serverTimestamp(),
+  };
+  const docRef = await addDoc(commentsCol, payload);
+  return docRef.id;
+}
+
+// 댓글 목록 가져오기
+export async function getComments(targetId: string, targetType: CommentTargetType): Promise<Comment[]> {
+  const commentsCol = collection(db, COMMENTS_COLLECTION);
+  const q = query(
+    commentsCol,
+    where('targetId', '==', targetId),
+    where('targetType', '==', targetType),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
+}
+
+// 댓글 수정
+export async function updateComment(commentId: string, content: string): Promise<void> {
+  const docRef = doc(db, COMMENTS_COLLECTION, commentId);
+  await updateDoc(docRef, {
+    content,
+    // createdAt은 수정하지 않음
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// 댓글 삭제
+export async function deleteComment(commentId: string): Promise<void> {
+  const docRef = doc(db, COMMENTS_COLLECTION, commentId);
+  await deleteDoc(docRef);
 }

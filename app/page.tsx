@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt } from 'react-icons/fa';
+import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock, FaUsers } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -97,13 +97,16 @@ export default function Home() {
           </div>
         </div>
         {/* 소개 섹션 */}
-        <div className="mt-16 md:mt-24 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">이 앱에서 할 수 있는 것</p>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 mt-1">AI 앱과 프롬프트를 한 번에 관리</h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                앱은 누구나 볼 수 있고, 프롬프트 본문과 SNS 링크는 로그인한 가입자만 볼 수 있도록 보호했습니다.
+        <div className="mt-20 md:mt-28 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-7 sm:p-10 shadow-xl space-y-10">
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="space-y-2 max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                <FaShieldAlt className="text-emerald-500" />
+                <span>이 앱을 쓰는 방법</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-snug">AI 앱·프롬프트를 저장하고 다시 꺼내 쓰기</h2>
+              <p className="text-base text-gray-600 dark:text-gray-400">
+                로그인하면 내 프로젝트를 등록하고, 프롬프트 본문과 SNS 링크를 안전하게 보관한 뒤 팀과 공유할 수 있습니다.
               </p>
             </div>
             <div className="flex gap-3">
@@ -124,27 +127,37 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 mt-20">
-            <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">AI 앱</div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">바이브코딩 스튜디오</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">카테고리 필터, 좋아요, 썸네일까지 포함한 AI 서비스 갤러리.</p>
-          </div>
-          <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-            <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">프롬프트</div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">프롬프트 아카이브</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">본문과 SNS 링크를 함께 저장해, 바로 실행하거나 더 알아볼 수 있습니다.</p>
-          </div>
-          <div className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-            <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">보안 & 협업</div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">로그인 보호 + 공유</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 내용은 가입자만 열람, 앱/프롬프트 등록과 좋아요로 협업.</p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                <FaListUl className="text-blue-500" />
+                <span>1단계 · 둘러보기</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">필터와 좋아요로 큐레이션</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">카테고리 필터와 카드/리스트 뷰로 빠르게 탐색하고, 마음에 드는 항목을 좋아요로 모아둡니다.</p>
+            </div>
+            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                <FaPlus className="text-emerald-500" />
+                <span>2단계 · 저장</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">앱 & 프롬프트 등록</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">앱 URL, 썸네일, SNS 링크까지 함께 저장하면 언제든 다시 실행하거나 공유할 수 있습니다.</p>
+            </div>
+            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                <FaLock className="text-purple-500" />
+                <span>3단계 · 공유</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">보안 유지 + 팀 협업</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 본문과 링크는 로그인한 사용자만 확인 가능. 댓글로 피드백을 주고받으며 개선합니다.</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* 뉴스레터 섹션 */}
-      <div className="mt-16 md:mt-20">
+      <div className="mt-10 md:mt-12">
         <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-emerald-50 via-cyan-50 to-blue-50 dark:from-emerald-900/20 dark:via-cyan-900/20 dark:to-blue-900/20 p-6 sm:p-10 shadow-lg">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-3">
@@ -177,8 +190,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
-    <Footer />
-  </div>
   );
 }

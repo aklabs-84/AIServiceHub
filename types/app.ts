@@ -15,6 +15,7 @@ export interface AIApp {
   name: string;
   description: string;
   appUrl: string;
+  snsUrls: string[];
   category: AppCategory;
   thumbnailUrl?: string;
   createdBy: string;
@@ -29,6 +30,7 @@ export interface CreateAppInput {
   name: string;
   description: string;
   appUrl: string;
+  snsUrls: string[];
   category: AppCategory;
   thumbnailUrl?: string;
   createdByName: string;

@@ -14,12 +14,12 @@ const links = [
 
 export default function Footer() {
   return (
-    <footer className="mt-32 border-t border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/60 backdrop-blur">
+    <footer className="mt-28 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-slate-100 border-t border-slate-800">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid md:grid-cols-2 gap-6 items-start">
           <div>
             <div className="flex items-center space-x-3 mb-2">
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white p-1">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/30 bg-white p-1">
                 <Image
                   src="/favicon_io/android-chrome-192x192.png"
                   alt="AI Service Hub"
@@ -29,9 +29,9 @@ export default function Footer() {
                   priority
                 />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">AI Service Hub</h3>
+              <h3 className="text-lg font-semibold text-white">AI Service Hub</h3>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-slate-200/80">
               아이디어를 서비스로 연결하는 허브. 바이브코딩이 만든 앱과 프롬프트를 한 곳에서 만나보세요.
             </p>
           </div>
@@ -42,7 +42,7 @@ export default function Footer() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center space-x-2 px-3 py-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-sm"
+                className="inline-flex items-center space-x-2 px-3 py-2 rounded-full border border-white/20 text-slate-100 hover:bg-white/10 transition text-sm"
               >
                 <Icon />
                 <span>{label}</span>
@@ -50,7 +50,7 @@ export default function Footer() {
             ))}
           </div>
         </div>
-        <div className="mt-6 text-xs text-gray-500 dark:text-gray-500">
+        <div className="mt-6 text-xs text-slate-300/80">
           © {new Date().getFullYear()} AKLABS. All rights reserved.
         </div>
       </div>
