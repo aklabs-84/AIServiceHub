@@ -13,12 +13,19 @@ export default function AppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<AppCategory | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
+    setCurrentPage(1);
     loadApps();
   }, [selectedCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const loadApps = async () => {
     setLoading(true);
@@ -44,6 +51,18 @@ export default function AppsPage() {
       return name.includes(term) || author.includes(term) || desc.includes(term);
     });
   }, [apps, searchTerm]);
+
+  const totalPages = Math.ceil(filteredApps.length / ITEMS_PER_PAGE);
+  const paginatedApps = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredApps.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredApps, currentPage]);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const badgeTone = (category: AppCategory) => {
     switch (category) {
@@ -271,7 +290,7 @@ export default function AppsPage() {
                   </div>
                 ) : viewMode === 'card' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-                    {filteredApps.map((app, index) => (
+                    {paginatedApps.map((app, index) => (
                       <div
                         key={app.id}
                         style={{
@@ -285,7 +304,7 @@ export default function AppsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
-                    {filteredApps.map((app, index) => {
+                    {paginatedApps.map((app, index) => {
                       const categoryInfo = getCategoryInfo(app.category);
                       const CategoryIcon = categoryInfo.icon;
                       return (
@@ -321,6 +340,27 @@ export default function AppsPage() {
                         </Link>
                       );
                     })}
+                  </div>
+                )}
+                {filteredApps.length > 0 && totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 pt-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                      disabled={currentPage === 1}
+                    >
+                      이전
+                    </button>
+                    <span className="text-sm text-gray-700 dark:text-gray-200">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                      disabled={currentPage === totalPages}
+                    >
+                      다음
+                    </button>
                   </div>
                 )}
               </div>

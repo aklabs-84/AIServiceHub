@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock, FaUsers } from 'react-icons/fa';
+import Image from 'next/image';
+import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -9,13 +10,13 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
         {/* 히어로 */}
-        <div className="grid lg:grid-cols-2 gap-10 items-center">
-          <div className="space-y-6">
+        <div className="grid lg:grid-cols-[1.05fr_0.95fr] xl:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-12 items-center">
+          <div className="space-y-6 w-full lg:pr-6">
             <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold">
               <FaRocket />
               <span>AI LABS</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
               AI LABS에서
               <br />
               아이디어를 실험하고
@@ -46,56 +47,16 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <div className="absolute -inset-6 bg-gradient-to-tr from-emerald-200 via-cyan-200 to-blue-200 dark:from-emerald-900/40 dark:via-cyan-900/30 dark:to-blue-900/30 blur-3xl opacity-70" />
-            <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">컬렉션</p>
-                  <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">앱 & 프롬프트</p>
-                </div>
-                <FaShieldAlt className="text-emerald-500 text-2xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">바이브코딩</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">AI 앱 스튜디오</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">앱 목록, 좋아요, 공유</p>
-                </div>
-                <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">프롬프트 아카이브</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">아이디어 보드</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">본문 + SNS 링크</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
-                  <p className="text-xs text-emerald-700 dark:text-emerald-200 font-semibold">가입자 전용</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">프롬프트 본문 / SNS 링크 보호</p>
-                </div>
-                <div className="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">협업</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">앱/프롬프트 등록 & 좋아요</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-                <div className="text-xs text-gray-500 dark:text-gray-400">시작하기</div>
-                <div className="flex gap-2">
-                  <Link
-                    href="/apps/new"
-                    className="inline-flex items-center space-x-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                  >
-                    <FaPlus />
-                    <span>앱 등록</span>
-                  </Link>
-                  <Link
-                    href="/prompts/new"
-                    className="inline-flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white hover:-translate-y-0.5 transition-all shadow-sm"
-                  >
-                    <FaFeatherAlt />
-                    <span>프롬프트 등록</span>
-                  </Link>
-                </div>
-              </div>
+            <div className="absolute -inset-8 bg-gradient-to-tr from-emerald-200 via-cyan-200 to-blue-200 dark:from-emerald-900/40 dark:via-cyan-900/30 dark:to-blue-900/30 blur-3xl opacity-70" />
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/40 dark:ring-gray-800/60 bg-transparent backdrop-blur-sm">
+              <Image
+                src="/hero_image.png"
+                alt="앱과 프롬프트를 함께 관리하는 인터페이스 미리보기"
+                width={520}
+                height={376}
+                priority
+                className="w-full max-w-[520px] h-auto mx-auto object-contain"
+              />
             </div>
           </div>
         </div>
