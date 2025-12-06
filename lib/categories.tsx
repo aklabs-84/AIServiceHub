@@ -9,7 +9,7 @@ import {
   FaGraduationCap,
   FaGamepad,
   FaBriefcase,
-  FaEllipsisH
+  FaPuzzlePiece
 } from 'react-icons/fa';
 
 export interface CategoryInfo {
@@ -77,7 +77,7 @@ export const categories: CategoryInfo[] = [
   {
     value: 'other',
     label: '기타',
-    icon: FaEllipsisH,
+    icon: FaPuzzlePiece,
     color: 'bg-gray-500',
   },
 ];
