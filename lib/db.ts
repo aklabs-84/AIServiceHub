@@ -12,7 +12,8 @@ import {
   Timestamp,
   serverTimestamp,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { AIApp, CreateAppInput, UpdateAppInput, AppCategory } from '@/types/app';
@@ -22,6 +23,7 @@ import { Comment, CommentTargetType } from '@/types/comment';
 const APPS_COLLECTION = 'apps';
 const PROMPTS_COLLECTION = 'prompts';
 const COMMENTS_COLLECTION = 'comments';
+const USERS_COLLECTION = 'users';
 
 // Firestore 데이터를 AIApp 타입으로 변환
 function docToApp(id: string, data: any): AIApp {
@@ -308,6 +310,39 @@ export async function getAllComments(): Promise<Comment[]> {
   const q = query(commentsCol, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
+}
+
+// 회원 목록 가져오기
+export interface UserProfile {
+  id: string;
+  email?: string;
+  displayName?: string;
+  createdAt?: Date;
+}
+
+export async function getAllUsers(): Promise<UserProfile[]> {
+  const usersCol = collection(db, USERS_COLLECTION);
+  const snapshot = await getDocs(usersCol);
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      email: data.email,
+      displayName: data.displayName,
+      createdAt: data.createdAt?.toDate?.() || undefined,
+    };
+  });
+}
+
+export async function ensureUserProfile(uid: string, email?: string | null, displayName?: string | null) {
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  const snap = await getDoc(userRef);
+  if (snap.exists()) return;
+  await setDoc(userRef, {
+    email: email || undefined,
+    displayName: displayName || undefined,
+    createdAt: serverTimestamp(),
+  });
 }
 
 // 프롬프트 좋아요 추가/취소

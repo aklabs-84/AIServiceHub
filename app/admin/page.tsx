@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllApps, getAllPrompts, getAllComments } from '@/lib/db';
+import { getAllApps, getAllPrompts, getAllComments, getAllUsers, UserProfile } from '@/lib/db';
 import { AIApp } from '@/types/app';
 import { Prompt } from '@/types/prompt';
 import { Comment } from '@/types/comment';
@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('creators');
   const [pageCreators, setPageCreators] = useState(1);
@@ -38,14 +39,16 @@ export default function AdminPage() {
     const fetchAll = async () => {
       setLoadingData(true);
       try {
-        const [appsData, promptsData, commentsData] = await Promise.all([
+        const [appsData, promptsData, commentsData, usersData] = await Promise.all([
           getAllApps(),
           getAllPrompts(),
           getAllComments(),
+          getAllUsers(),
         ]);
         setApps(appsData);
         setPrompts(promptsData);
         setComments(commentsData);
+        setUsers(usersData);
       } catch (err) {
         console.error('Failed to load admin data', err);
         alert('관리자 데이터를 불러오는 중 오류가 발생했습니다.');
@@ -58,11 +61,16 @@ export default function AdminPage() {
 
   const creatorStats = useMemo(() => {
     const stats = new Map<string, CreatorStat>();
-    const add = (userId: string | undefined, name: string | undefined, type: 'app' | 'prompt' | 'comment') => {
-      if (!userId) return;
+    const seed = (userId: string, name?: string) => {
       if (!stats.has(userId)) {
         stats.set(userId, { userId, name: name || '익명', apps: 0, prompts: 0, comments: 0 });
       }
+    };
+    users.forEach((u) => seed(u.id, u.displayName || u.email || '익명'));
+
+    const add = (userId: string | undefined, name: string | undefined, type: 'app' | 'prompt' | 'comment') => {
+      if (!userId) return;
+      seed(userId, name);
       const current = stats.get(userId)!;
       if (type === 'app') current.apps += 1;
       if (type === 'prompt') current.prompts += 1;
@@ -74,7 +82,7 @@ export default function AdminPage() {
     comments.forEach((item) => add(item.createdBy, item.createdByName, 'comment'));
 
     return Array.from(stats.values()).sort((a, b) => b.apps + b.prompts + b.comments - (a.apps + a.prompts + a.comments));
-  }, [apps, prompts, comments]);
+  }, [apps, prompts, comments, users]);
 
   const paginated = <T,>(items: T[], page: number) => {
     const start = (page - 1) * pageSize;

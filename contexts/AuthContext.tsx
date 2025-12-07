@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { sendSlackNotification } from '@/lib/notifications';
+import { ensureUserProfile } from '@/lib/db';
 
 interface AuthContextType {
   user: User | null;
@@ -54,12 +55,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isNewUser = getAdditionalUserInfo(result)?.isNewUser;
       if (isNewUser && result.user) {
         const { uid, email, displayName } = result.user;
+        await ensureUserProfile(uid, email, displayName || undefined);
         sendSlackNotification({
           type: 'signup',
           uid,
           email: email || undefined,
           name: displayName || '신규 사용자',
         });
+      } else if (result.user) {
+        // 기존 회원도 프로필이 없을 수 있으니 보장
+        const { uid, email, displayName } = result.user;
+        await ensureUserProfile(uid, email, displayName || undefined);
       }
     } catch (error: any) {
       if (error?.code === 'auth/popup-closed-by-user') {
