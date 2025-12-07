@@ -11,7 +11,9 @@ import { AIApp } from '@/types/app';
 import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryInfo } from '@/lib/categories';
-import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+
+const COMMENTS_PER_PAGE = 5;
 
 export default function AppDetailPage() {
   const markdownComponents = {
@@ -35,6 +37,7 @@ export default function AppDetailPage() {
   const [likeCount, setLikeCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentPage, setCommentPage] = useState(1);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -65,10 +68,16 @@ export default function AppDetailPage() {
     try {
       const data = await getComments(params.id as string, 'app');
       setComments(data);
+      setCommentPage(1);
     } catch (error) {
       console.error('Error loading comments:', error);
     }
   };
+
+  useEffect(() => {
+    const total = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
+    setCommentPage((prev) => Math.min(prev, total));
+  }, [comments.length]);
 
   const handleSubmitComment = async () => {
     if (!user || !app || !newComment.trim() || submitting) return;
@@ -295,6 +304,10 @@ export default function AppDetailPage() {
   }
 
   // 로그인한 경우 - 전체 정보 표시
+  const totalCommentPages = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
+  const startIdx = (commentPage - 1) * COMMENTS_PER_PAGE;
+  const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto">
@@ -489,7 +502,7 @@ export default function AppDetailPage() {
             {comments.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">첫 댓글을 작성해 보세요.</p>
             ) : (
-              comments.map((comment) => {
+              paginatedComments.map((comment) => {
                 const isAuthor = user?.uid === comment.createdBy;
                 const isEditing = editingId === comment.id;
                 return (
@@ -549,6 +562,29 @@ export default function AppDetailPage() {
               })
             )}
           </div>
+          {comments.length > COMMENTS_PER_PAGE && (
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                onClick={() => setCommentPage((p) => Math.max(1, p - 1))}
+                disabled={commentPage === 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaChevronLeft />
+                <span>이전</span>
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {commentPage} / {totalCommentPages}
+              </span>
+              <button
+                onClick={() => setCommentPage((p) => Math.min(totalCommentPages, p + 1))}
+                disabled={commentPage === totalCommentPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>다음</span>
+                <FaChevronRight />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-6">
