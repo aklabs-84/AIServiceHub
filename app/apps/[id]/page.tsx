@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getAppById, deleteApp, likeApp, unlikeApp, addComment, getComments, updateComment, deleteComment } from '@/lib/db';
 import { AIApp } from '@/types/app';
 import { Comment } from '@/types/comment';
@@ -12,6 +14,16 @@ import { getCategoryInfo } from '@/lib/categories';
 import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane } from 'react-icons/fa';
 
 export default function AppDetailPage() {
+  const markdownComponents = {
+    h1: (props: any) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h2: (props: any) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h3: (props: any) => <h3 className="text-xl font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
+    p: (props: any) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
+    ul: (props: any) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    ol: (props: any) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    li: (props: any) => <li className="leading-relaxed" {...props} />,
+  };
+
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
@@ -236,9 +248,11 @@ export default function AppDetailPage() {
                 </span>
               </div>
 
-              <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
-                {app.description}
-              </p>
+              <div className="prose prose-slate dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {app.description || ''}
+                </ReactMarkdown>
+              </div>
 
               <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-4">
@@ -311,9 +325,11 @@ export default function AppDetailPage() {
               </span>
             </div>
 
-            <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
-              {app.description}
-            </p>
+            <div className="prose prose-slate dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {app.description || ''}
+              </ReactMarkdown>
+            </div>
 
             {/* 메타 정보 */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">

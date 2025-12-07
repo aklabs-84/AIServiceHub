@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock } from 'react-icons/fa';
+import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock, FaQuestionCircle } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -147,6 +147,43 @@ export default function Home() {
                 <img
                   src="/newsletter.png"
                   alt="뉴스레터 일러스트"
+                  className="relative max-h-56 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 설문 참여 섹션 */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
+        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-10 shadow-xl">
+          <div className="absolute -inset-12 bg-gradient-to-br from-purple-100 via-emerald-50 to-cyan-50 dark:from-purple-900/10 dark:via-emerald-900/10 dark:to-cyan-900/10 blur-3xl opacity-70 pointer-events-none" />
+          <div className="relative grid md:grid-cols-2 items-center gap-6 md:gap-8">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-purple-600 dark:text-purple-300">AI 활용 설문</p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
+                AI로 풀고 싶은 문제와 목표를 알려주세요
+              </h3>
+              <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+                어떤 일을 자동화하거나 개선하고 싶은지, AI를 활용해 해결하고 싶은 문제는 무엇인지 간단히 적어주세요.
+                <span className="block mt-1">답변을 모아 더 맞춤화된 콘텐츠와 기능을 준비할게요.</span>
+              </p>
+              <Link
+                href="https://codepen.io/moruma/full/emJzvev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-max items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+              >
+                <span>설문 작성하러 가기</span>
+              </Link>
+            </div>
+            <div className="flex justify-center md:justify-center">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-200/60 via-emerald-200/50 to-cyan-200/60 dark:from-purple-800/40 dark:via-emerald-800/30 dark:to-cyan-800/40" />
+                <img
+                  src="/survey.png"
+                  alt="설문 일러스트"
                   className="relative max-h-56 w-auto object-contain"
                 />
               </div>

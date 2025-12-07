@@ -15,6 +15,16 @@ import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
 
 export default function PromptDetailPage() {
+  const markdownComponents = {
+    h1: (props: any) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h2: (props: any) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h3: (props: any) => <h3 className="text-xl font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
+    p: (props: any) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
+    ul: (props: any) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    ol: (props: any) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    li: (props: any) => <li className="leading-relaxed" {...props} />,
+  };
+
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
@@ -254,7 +264,9 @@ export default function PromptDetailPage() {
             </div>
 
             <div className="prose prose-emerald dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.description}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {prompt.description}
+              </ReactMarkdown>
             </div>
 
             {!user ? (
@@ -281,7 +293,9 @@ export default function PromptDetailPage() {
                     <span>프롬프트 본문</span>
                   </h2>
                   <div className="prose prose-emerald dark:prose-invert max-w-none text-sm leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{prompt.promptContent}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                      {prompt.promptContent}
+                    </ReactMarkdown>
                   </div>
                 </div>
 
