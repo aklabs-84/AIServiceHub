@@ -68,9 +68,13 @@ export default function Home() {
                 <FaShieldAlt className="text-emerald-500" />
                 <span>이 앱을 쓰는 방법</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-snug">AI 앱·프롬프트를 저장하고 다시 꺼내 쓰기</h2>
-              <p className="text-base text-gray-600 dark:text-gray-400">
-                로그인하면 내 프로젝트를 등록하고, 프롬프트 본문과 SNS 링크를 안전하게 보관한 뒤 팀과 공유할 수 있습니다.
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-snug">
+                내가 만든 앱·프롬프트, 혼자 쓰지 말고 공유해서 키우세요
+              </h2>
+              <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
+                만든 걸 올려 팀/커뮤니티와 아이디어를 주고받고,
+                <span className="block">다른 사람들의 작업을 보며 영감을 얻으세요.</span>
+                <span className="block">저장(🔒), 공유(🔗), 피드백(💬)까지 한 자리에서 끝납니다.</span>
               </p>
             </div>
             <div className="flex gap-3">
@@ -95,26 +99,26 @@ export default function Home() {
             <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
                 <FaListUl className="text-blue-500" />
-                <span>1단계 · 둘러보기</span>
+                <span>🚀 발견 · 영감</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">필터와 좋아요로 큐레이션</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">카테고리 필터와 카드/리스트 뷰로 빠르게 탐색하고, 마음에 드는 항목을 좋아요로 모아둡니다.</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">다른 사람 작업 보며 아이디어 얻기</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">필터·좋아요로 흩어진 앱/프롬프트를 모으고, 잘 만든 사례에서 바로 영감을 얻으세요.</p>
             </div>
             <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
                 <FaPlus className="text-emerald-500" />
-                <span>2단계 · 저장</span>
+                <span>💾 공유 · 실행</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">앱 & 프롬프트 등록</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">앱 URL, 썸네일, SNS 링크까지 함께 저장하면 언제든 다시 실행하거나 공유할 수 있습니다.</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">내가 만든 것 올리고 함께 써보기</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">URL·썸네일·SNS까지 올려두면 팀원이 바로 실행·활용할 수 있는 공유 라이브러리가 됩니다.</p>
             </div>
             <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
                 <FaLock className="text-purple-500" />
-                <span>3단계 · 공유</span>
+                <span>🔒 피드백 · 개선</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">보안 유지 + 팀 협업</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 본문과 링크는 로그인한 사용자만 확인 가능. 댓글로 피드백을 주고받으며 개선합니다.</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">로그인한 팀만 보기, 댓글로 더 나은 버전</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">보안을 유지한 채 피드백을 받고, 프롬프트·앱을 반복 개선해 더 나은 결과물을 만들어보세요.</p>
             </div>
           </div>
         </div>
@@ -184,6 +188,42 @@ export default function Home() {
                 <img
                   src="/survey.png"
                   alt="설문 일러스트"
+                  className="relative max-h-56 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 인공지능 교육 신청 섹션 */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
+        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-indigo-50 via-sky-50 to-emerald-50 dark:from-indigo-900/20 dark:via-sky-900/20 dark:to-emerald-900/20 p-6 sm:p-10 shadow-lg">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">인공지능 교육 신청</p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">팀 맞춤 AI 교육을 신청해 보세요</h3>
+              <p className="text-gray-700 dark:text-gray-300">
+                실무에 바로 쓸 수 있는 AI 도구 활용법부터 워크플로우 자동화, 프롬프트 작성법까지
+                <span className="block mt-1">팀 목표에 맞춘 교육 커리큘럼을 준비해 드립니다.</span>
+              </p>
+              <div className="pt-2">
+                <Link
+                  href="https://tally.so/r/mJq1EW"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+                >
+                  교육 신청하기
+                </Link>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-200/60 via-sky-200/50 to-emerald-200/60 dark:from-indigo-800/40 dark:via-sky-800/30 dark:to-emerald-800/40" />
+                <img
+                  src="/study.png"
+                  alt="인공지능 교육 일러스트"
                   className="relative max-h-56 w-auto object-contain"
                 />
               </div>

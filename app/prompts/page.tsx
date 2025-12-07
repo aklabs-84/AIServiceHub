@@ -6,7 +6,7 @@ import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo, promptCategories } from '@/lib/promptCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
-import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
+import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export default function PromptsPage() {
@@ -125,6 +125,15 @@ export default function PromptsPage() {
           </aside>
 
           <section className="min-w-0 md:w-[78%] lg:w-[80%] space-y-10">
+            <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+              <Link href="/" className="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">
+                <FaHome className="text-base" />
+                <span>홈</span>
+              </Link>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <span className="font-medium text-gray-600 dark:text-gray-300">프롬프트</span>
+            </div>
+
             {/* 히어로 */}
             <div className="text-left mb-4 md:mb-2 animate-fadeIn">
               <div className="inline-flex items-center space-x-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-4 py-2 rounded-full mb-6 text-sm font-medium">

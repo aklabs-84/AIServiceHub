@@ -7,6 +7,7 @@ import { createPrompt } from '@/lib/db';
 import { promptCategories } from '@/lib/promptCategories';
 import { FaFeatherAlt, FaSave } from 'react-icons/fa';
 import { Prompt } from '@/types/prompt';
+import { sendSlackNotification } from '@/lib/notifications';
 
 const detectUrls = (value: string) =>
   value
@@ -75,6 +76,13 @@ export default function NewPromptPage() {
 
       alert('프롬프트가 등록되었습니다!');
       router.push(`/prompts/${promptId}`);
+      sendSlackNotification({
+        type: 'prompt',
+        id: promptId,
+        name: formData.name,
+        author: formData.createdByName || user.displayName || '익명',
+        category: formData.category,
+      });
     } catch (error) {
       console.error('Error creating prompt:', error);
       alert('프롬프트 등록 중 오류가 발생했습니다.');

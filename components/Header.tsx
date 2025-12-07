@@ -103,6 +103,15 @@ export default function Header() {
                           >
                             마이페이지
                           </Link>
+                          {user.email === 'mosebb@gmail.com' && (
+                            <Link
+                              href="/admin"
+                              onClick={() => setProfileMenuOpen(false)}
+                              className="block px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                              관리자
+                            </Link>
+                          )}
                         </div>
                         <button
                           onClick={() => {
@@ -191,6 +200,15 @@ export default function Header() {
                       >
                         마이페이지
                       </Link>
+                      {user.email === 'mosebb@gmail.com' && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center"
+                        >
+                          관리자
+                        </Link>
+                      )}
                       <div className="flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg">
                         <div className="flex items-center space-x-2">
                           {user.photoURL && (

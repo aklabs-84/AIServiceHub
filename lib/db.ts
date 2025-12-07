@@ -302,6 +302,14 @@ export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
   return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
 }
 
+// 전체 댓글 가져오기
+export async function getAllComments(): Promise<Comment[]> {
+  const commentsCol = collection(db, COMMENTS_COLLECTION);
+  const q = query(commentsCol, orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
+}
+
 // 프롬프트 좋아요 추가/취소
 export async function likePrompt(promptId: string, userId: string): Promise<void> {
   const docRef = doc(db, PROMPTS_COLLECTION, promptId);

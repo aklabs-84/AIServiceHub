@@ -9,6 +9,7 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { sendSlackNotification } from '@/lib/notifications';
 
 interface AuthContextType {
   user: User | null;
@@ -48,8 +49,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
+      const result = await signInWithPopup(auth, provider);
+      const isNewUser = result?.additionalUserInfo?.isNewUser;
+      if (isNewUser && result.user) {
+        const { uid, email, displayName } = result.user;
+        sendSlackNotification({
+          type: 'signup',
+          uid,
+          email: email || undefined,
+          name: displayName || '신규 사용자',
+        });
+      }
+    } catch (error: any) {
+      if (error?.code === 'auth/popup-closed-by-user') {
+        console.warn('Login popup closed by user.');
+        return;
+      }
       console.error('Error signing in with Google:', error);
       throw error;
     }

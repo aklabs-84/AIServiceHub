@@ -7,6 +7,7 @@ import { createApp } from '@/lib/db';
 import { AppCategory } from '@/types/app';
 import { categories } from '@/lib/categories';
 import { FaSave } from 'react-icons/fa';
+import { sendSlackNotification } from '@/lib/notifications';
 
 const detectUrls = (value: string) =>
   value
@@ -75,6 +76,13 @@ export default function NewAppPage() {
 
       alert('앱이 등록되었습니다!');
       router.push(`/apps/${appId}`);
+      sendSlackNotification({
+        type: 'app',
+        id: appId,
+        name: formData.name,
+        author: formData.createdByName || user.displayName || '익명',
+        url: formData.appUrl,
+      });
     } catch (error) {
       console.error('Error creating app:', error);
       alert('앱 등록 중 오류가 발생했습니다.');

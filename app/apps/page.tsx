@@ -5,7 +5,7 @@ import { getAllApps, getAppsByCategory } from '@/lib/db';
 import { AIApp, AppCategory } from '@/types/app';
 import AppCard from '@/components/AppCard';
 import { categories, getCategoryInfo } from '@/lib/categories';
-import { FaFilter, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
+import { FaFilter, FaHome, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
@@ -133,6 +133,14 @@ export default function AppsPage() {
           <section className="min-w-0 md:w-[78%] lg:w-[80%] space-y-10">
             {/* 히어로 섹션 */}
               <div className="text-left mb-8 md:mb-10 animate-fadeIn">
+              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                <Link href="/" className="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">
+                  <FaHome className="text-base" />
+                  <span>홈</span>
+                </Link>
+                <span className="text-gray-400 dark:text-gray-500">/</span>
+                <span className="font-medium text-gray-600 dark:text-gray-300">바이브코딩</span>
+              </div>
               <div className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-full mb-6 text-sm font-medium">
                 <FaRocket />
                 <span>AI로 만드는 무한한 가능성</span>
