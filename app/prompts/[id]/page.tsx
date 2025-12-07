@@ -158,11 +158,15 @@ export default function PromptDetailPage() {
   const startIdx = (commentPage - 1) * COMMENTS_PER_PAGE;
   const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
 
-  const getLinkPreview = (url: string) => {
+  const getLinkPreview = (url: string, label?: string) => {
     const blogFallback = '/naver-blog.svg';
+    const etcFallback = '/blog-placeholder.svg';
     const instagramFallback = '/instagram-icon.svg';
     const youtubeFallback = '/youtube.svg';
     const defaultFallback = '/globe.svg';
+
+    const labelText = (label || '').trim();
+    const isEtcLink = labelText === '링크';
 
     const extractUrl = (raw: string) => {
       const httpMatch = raw.match(/https?:\/\/[^\s]+/);
@@ -188,24 +192,35 @@ export default function PromptDetailPage() {
       const isInstagram = host.includes('instagram.com');
       const isYoutube = host.includes('youtube.com') || host.includes('youtu.be');
 
+      const useBlogPlaceholder = isEtcLink || isBlog;
+
       const fallback = isInstagram
         ? instagramFallback
-        : isBlog
-          ? blogFallback
+        : useBlogPlaceholder
+          ? isEtcLink ? etcFallback : blogFallback
           : isYoutube
             ? youtubeFallback
             : defaultFallback;
-      const favicon = isInstagram || isBlog || isYoutube
+      const favicon = isInstagram || useBlogPlaceholder || isYoutube
         ? fallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
 
-      const icon = isInstagram ? 'instagram' : isBlog ? 'blog' : isYoutube ? 'youtube' : undefined;
+      const icon = isInstagram
+        ? 'instagram'
+        : useBlogPlaceholder
+          ? isEtcLink
+            ? 'blog-placeholder'
+            : 'blog'
+          : isYoutube
+            ? 'youtube'
+            : undefined;
       return { hostname, favicon, fallback, icon };
     } catch {
+      const fallback = isEtcLink ? etcFallback : defaultFallback;
       return {
         hostname: url,
-        favicon: defaultFallback,
-        fallback: defaultFallback,
+        favicon: fallback,
+        fallback,
       };
     }
   };
@@ -322,11 +337,13 @@ export default function PromptDetailPage() {
                   ) : (
                     <div className="grid sm:grid-cols-2 gap-3">
                       {parsedSns.map((item, idx) => {
-                        const preview = getLinkPreview(item.url);
+                        const preview = getLinkPreview(item.url, item.label);
                         const renderIcon = () => {
                           switch (preview.icon) {
                             case 'instagram':
                               return <Image src="/instagram-icon.svg" alt="Instagram" fill sizes="40px" className="object-contain" />;
+                            case 'blog-placeholder':
+                              return <Image src={preview.favicon} alt="Blog link" fill sizes="40px" className="object-contain" />;
                             case 'blog':
                               return <Image src="/naver-blog.svg" alt="Naver Blog" fill sizes="40px" className="object-contain" />;
                             case 'youtube':

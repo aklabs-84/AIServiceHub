@@ -201,16 +201,21 @@ export default function AppDetailPage() {
     return { label: '', url: entry };
   });
 
-  const getLinkPreview = (url: string) => {
+  const getLinkPreview = (url: string, label?: string) => {
     const blogFallback = '/blog-placeholder.svg';
     const defaultFallback = '/globe.svg';
+
+    const labelText = (label || '').trim();
+    const isEtcLink = labelText === '링크';
 
     try {
       const parsed = new URL(url);
       const hostname = parsed.hostname.replace('www.', '');
-      const isBlog = hostname.includes('blog.') || hostname.includes('naver.com');
-      const fallback = isBlog ? blogFallback : defaultFallback;
-      const favicon = isBlog
+      const host = hostname.toLowerCase();
+      const isBlog = host.includes('blog.') || host.includes('naver.com') || host.includes('tistory') || host.includes('medium.com');
+      const useBlogPlaceholder = isEtcLink || isBlog;
+      const fallback = useBlogPlaceholder ? blogFallback : defaultFallback;
+      const favicon = useBlogPlaceholder
         ? blogFallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
 
@@ -218,8 +223,8 @@ export default function AppDetailPage() {
     } catch {
       return {
         hostname: url,
-        favicon: blogFallback,
-        fallback: blogFallback,
+        favicon: isEtcLink ? blogFallback : defaultFallback,
+        fallback: isEtcLink ? blogFallback : defaultFallback,
       };
     }
   };
@@ -396,7 +401,7 @@ export default function AppDetailPage() {
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
                   {parsedSns.map((item, idx) => {
-                    const preview = getLinkPreview(item.url);
+                    const preview = getLinkPreview(item.url, item.label);
                     return (
                       <a
                         key={idx}
