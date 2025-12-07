@@ -6,7 +6,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut as firebaseSignOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { sendSlackNotification } from '@/lib/notifications';
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const isNewUser = result?.additionalUserInfo?.isNewUser;
+      const isNewUser = getAdditionalUserInfo(result)?.isNewUser;
       if (isNewUser && result.user) {
         const { uid, email, displayName } = result.user;
         sendSlackNotification({
