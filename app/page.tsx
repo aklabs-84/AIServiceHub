@@ -209,7 +209,7 @@ export default function Home() {
               </p>
               <div className="pt-2">
                 <Link
-                  href="https://tally.so/r/mJq1EW"
+                  href="https://tally.so/r/yPMJRX"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
