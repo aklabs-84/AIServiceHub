@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [pageCreators, setPageCreators] = useState(1);
   const [pageApps, setPageApps] = useState(1);
   const [pagePrompts, setPagePrompts] = useState(1);
+  const [pageUsers, setPageUsers] = useState(1);
 
   const pageSize = 10;
 
@@ -89,10 +90,6 @@ export default function AdminPage() {
     return items.slice(start, start + pageSize);
   };
 
-  const totalPagesCreators = Math.max(1, Math.ceil(creatorStats.length / pageSize));
-  const totalPagesApps = Math.max(1, Math.ceil(apps.length / pageSize));
-  const totalPagesPrompts = Math.max(1, Math.ceil(prompts.length / pageSize));
-
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 
@@ -129,6 +126,18 @@ export default function AdminPage() {
   }, [apps, prompts, comments]);
 
   const topCreators = useMemo(() => creatorStats.slice(0, 10), [creatorStats]);
+  const recentUsers = useMemo(
+    () =>
+      [...users]
+        .sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0))
+        .slice(0, 12),
+    [users]
+  );
+
+  const totalPagesCreators = Math.max(1, Math.ceil(creatorStats.length / pageSize));
+  const totalPagesApps = Math.max(1, Math.ceil(apps.length / pageSize));
+  const totalPagesPrompts = Math.max(1, Math.ceil(prompts.length / pageSize));
+  const totalPagesUsers = Math.max(1, Math.ceil(recentUsers.length / pageSize));
 
   if (loading) {
     return (
@@ -236,6 +245,7 @@ export default function AdminPage() {
                 { key: 'creators', label: '작성자 활동' },
                 { key: 'apps', label: '최신 앱' },
                 { key: 'prompts', label: '최신 프롬프트' },
+                { key: 'users', label: '신규 가입자' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -323,6 +333,21 @@ export default function AdminPage() {
                   }))}
                 />
                 <Pager page={pagePrompts} totalPages={totalPagesPrompts} onPageChange={setPagePrompts} />
+              </div>
+            )}
+
+            {activeTab === 'users' && (
+              <div>
+                <ListCard
+                  title="신규 가입자"
+                  items={paginated(recentUsers, pageUsers).map((u) => ({
+                    id: u.id,
+                    title: u.displayName || u.email || '이름 없음',
+                    subtitle: u.email || '이메일 없음',
+                    meta: u.createdAt ? formatDate(u.createdAt) : '가입일 정보 없음',
+                  }))}
+                />
+                <Pager page={pageUsers} totalPages={totalPagesUsers} onPageChange={setPageUsers} />
               </div>
             )}
           </section>
