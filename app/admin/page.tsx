@@ -18,7 +18,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users';
 
 export default function AdminPage() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
