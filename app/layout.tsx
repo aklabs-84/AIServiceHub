@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
     images: [
       {
-        url: "/ai-labs-og.svg",
+        url: "/ai-labs-og.png",
         width: 1200,
         height: 630,
         alt: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
     description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
-    images: ["/ai-labs-og.svg"],
+    images: ["/ai-labs-og.png"],
   },
 };
 
