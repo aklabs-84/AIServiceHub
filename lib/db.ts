@@ -56,6 +56,7 @@ function docToPrompt(id: string, data: any): Prompt {
     snsUrls: data.snsUrls || [],
     category: data.category,
     thumbnailUrl: data.thumbnailUrl,
+    attachments: data.attachments || [],
     createdBy: data.createdBy,
     createdByName: data.createdByName || '익명',
     createdAt: data.createdAt?.toDate() || new Date(),
@@ -219,6 +220,7 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
   const payload: Record<string, any> = {
     ...input,
     snsUrls: input.snsUrls || [],
+    attachments: input.attachments || [],
     createdBy: userId,
     likes: [],
     createdAt: serverTimestamp(),

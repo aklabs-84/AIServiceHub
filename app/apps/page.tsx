@@ -13,10 +13,10 @@ export default function AppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<AppCategory | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const itemsPerPage = viewMode === 'card' ? 12 : 10;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -26,6 +26,9 @@ export default function AppsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode]);
 
   const loadApps = async () => {
     setLoading(true);
@@ -52,11 +55,11 @@ export default function AppsPage() {
     });
   }, [apps, searchTerm]);
 
-  const totalPages = Math.ceil(filteredApps.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   const paginatedApps = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredApps.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredApps, currentPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredApps.slice(start, start + itemsPerPage);
+  }, [filteredApps, currentPage, itemsPerPage]);
 
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {

@@ -1,5 +1,13 @@
 export type PromptCategory = 'daily' | 'work' | 'fun' | 'relationship' | 'education' | 'image';
 
+export interface PromptAttachment {
+  name: string;
+  size: number;
+  contentType: string;
+  downloadUrl?: string;
+  storagePath: string;
+}
+
 export interface Prompt {
   id: string;
   name: string;
@@ -8,6 +16,7 @@ export interface Prompt {
   snsUrls: string[];
   category: PromptCategory;
   thumbnailUrl?: string;
+  attachments: PromptAttachment[];
   createdBy: string;
   createdByName: string;
   createdAt: Date;
@@ -24,6 +33,7 @@ export interface CreatePromptInput {
   category: PromptCategory;
   thumbnailUrl?: string;
   createdByName: string;
+  attachments?: PromptAttachment[];
 }
 
 export interface UpdatePromptInput extends Partial<CreatePromptInput> {

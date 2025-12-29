@@ -8,11 +8,12 @@ import { addComment, deleteComment, getComments, getPromptById, updateComment } 
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip } from 'react-icons/fa';
 import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
+import { getPromptAttachmentDownloadUrl } from '@/lib/storage';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -40,6 +41,7 @@ export default function PromptDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrompt();
@@ -241,6 +243,25 @@ export default function PromptDetailPage() {
     }
   };
 
+  const handleDownloadAttachment = async (storagePath: string, fallbackUrl?: string) => {
+    if (fallbackUrl) {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!user) return;
+    setDownloadingPath(storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      const url = await getPromptAttachmentDownloadUrl(storagePath, idToken);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error generating download link:', error);
+      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPath(null);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto">
@@ -325,6 +346,41 @@ export default function PromptDetailPage() {
                       {prompt.promptContent}
                     </ReactMarkdown>
                   </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                  <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
+                    <FaPaperclip />
+                    <span>첨부 파일</span>
+                  </h2>
+                  {prompt.attachments.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">등록된 파일이 없습니다.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {prompt.attachments.map((file) => (
+                        <div
+                          key={file.storagePath}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAttachment(file.storagePath, file.downloadUrl)}
+                            disabled={downloadingPath === file.storagePath}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
+                          >
+                            <FaDownload />
+                            {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">

@@ -6,13 +6,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getPromptById, updatePrompt } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { promptCategories } from '@/lib/promptCategories';
-import { FaSave, FaFeatherAlt } from 'react-icons/fa';
+import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { PromptAttachment } from '@/types/prompt';
+import { uploadPromptAttachment, getPromptAttachmentDownloadUrl } from '@/lib/storage';
 
 const detectUrls = (value: string) =>
   value
     .split(/[\n,]/)
     .map((v) => v.trim())
     .filter(Boolean);
+
+const MAX_ATTACHMENT_SIZE_MB = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/xml',
+  'text/xml',
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'image/png',
+  'image/jpeg',
+];
 
 export default function EditPromptPage() {
   const params = useParams();
@@ -21,6 +39,10 @@ export default function EditPromptPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [existingAttachments, setExistingAttachments] = useState<PromptAttachment[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -51,6 +73,31 @@ export default function EditPromptPage() {
       urls.push(entry.includes(':') ? entry : `링크: ${entry}`);
     });
     return urls;
+  };
+
+  const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachmentError(null);
+    const next = files.filter((file) => {
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        setAttachmentError(`파일 크기는 ${MAX_ATTACHMENT_SIZE_MB}MB 이하만 가능합니다.`);
+        return false;
+      }
+      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        setAttachmentError('허용되지 않는 파일 형식입니다.');
+        return false;
+      }
+      return true;
+    });
+    if (next.length) {
+      setAttachments((prev) => [...prev, ...next]);
+    }
+    event.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const hydrateSnsForm = (snsUrls: string[]) => {
@@ -99,6 +146,7 @@ export default function EditPromptPage() {
           createdByName: data.createdByName || '',
         });
         hydrateSnsForm(data.snsUrls || []);
+        setExistingAttachments(data.attachments || []);
       }
     } catch (error) {
       console.error('Error loading prompt:', error);
@@ -120,6 +168,14 @@ export default function EditPromptPage() {
 
     setSubmitting(true);
     try {
+      if (attachmentError) {
+        alert(attachmentError);
+        return;
+      }
+      const idToken = await user.getIdToken();
+      const uploadedAttachments = attachments.length
+        ? await Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken)))
+        : [];
       await updatePrompt({
         id: prompt.id,
         name: formData.name,
@@ -129,6 +185,7 @@ export default function EditPromptPage() {
         category: formData.category,
         thumbnailUrl: formData.thumbnailUrl || undefined,
         createdByName: formData.createdByName || user.displayName || '익명',
+        attachments: [...existingAttachments, ...uploadedAttachments],
       });
       alert('프롬프트가 수정되었습니다.');
       router.push(`/prompts/${prompt.id}`);
@@ -137,6 +194,25 @@ export default function EditPromptPage() {
       alert('수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (storagePath: string, fallbackUrl?: string) => {
+    if (fallbackUrl) {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!user) return;
+    setDownloadingPath(storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      const url = await getPromptAttachmentDownloadUrl(storagePath, idToken);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('Error generating download link:', error);
+      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPath(null);
     }
   };
 
@@ -232,6 +308,75 @@ export default function EditPromptPage() {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               placeholder="실제 사용할 프롬프트 문구를 입력하세요 (마크다운 지원)"
             />
+          </div>
+
+          <div>
+            <label htmlFor="attachments" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              첨부 파일 (선택)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id="attachments"
+                type="file"
+                multiple
+                accept={ALLOWED_ATTACHMENT_TYPES.join(',')}
+                onChange={handleAttachmentChange}
+                className="w-full px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+              <FaPaperclip className="text-gray-400" />
+            </div>
+            {attachmentError && (
+              <p className="text-xs text-red-500 mt-2">{attachmentError}</p>
+            )}
+            {existingAttachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {existingAttachments.map((file) => (
+                  <div
+                    key={file.storagePath}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate">
+                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAttachment(file.storagePath, file.downloadUrl)}
+                      disabled={downloadingPath === file.storagePath}
+                      className="text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <FaDownload />
+                        {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                      </span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {attachments.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate">
+                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      제거
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              최대 {MAX_ATTACHMENT_SIZE_MB}MB, PDF/텍스트/ZIP/PNG/JPG만 가능합니다.
+            </p>
           </div>
 
           <div>

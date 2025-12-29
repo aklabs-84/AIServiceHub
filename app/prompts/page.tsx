@@ -13,10 +13,10 @@ export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<Prompt['category'] | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const itemsPerPage = viewMode === 'card' ? 12 : 10;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -26,6 +26,9 @@ export default function PromptsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode]);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -53,11 +56,11 @@ export default function PromptsPage() {
     });
   }, [prompts, searchTerm]);
 
-  const totalPages = Math.ceil(filteredPrompts.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredPrompts.length / itemsPerPage);
   const paginatedPrompts = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredPrompts.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredPrompts, currentPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredPrompts.slice(start, start + itemsPerPage);
+  }, [filteredPrompts, currentPage, itemsPerPage]);
 
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
