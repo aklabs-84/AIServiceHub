@@ -8,7 +8,7 @@ import { addComment, deleteComment, getComments, getPromptById, updateComment } 
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip } from 'react-icons/fa';
+import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck } from 'react-icons/fa';
 import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -18,6 +18,7 @@ import { getPromptAttachmentDownloadUrl } from '@/lib/storage';
 const COMMENTS_PER_PAGE = 5;
 
 export default function PromptDetailPage() {
+  const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
   const markdownComponents = {
     h1: (props: any) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
     h2: (props: any) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
@@ -26,6 +27,41 @@ export default function PromptDetailPage() {
     ul: (props: any) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     ol: (props: any) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     li: (props: any) => <li className="leading-relaxed" {...props} />,
+    code: (props: any) => {
+      const { inline, className, children } = props;
+      if (inline) {
+        return (
+          <code className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs" {...props} />
+        );
+      }
+      const raw = String(children || '');
+      const trimmed = raw.replace(/\n$/, '');
+      const blockId = `${trimmed.slice(0, 48)}-${trimmed.length}`;
+      const isCopied = copiedBlock === blockId;
+      return (
+        <div className="relative group">
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(trimmed);
+                setCopiedBlock(blockId);
+                setTimeout(() => setCopiedBlock((prev) => (prev === blockId ? null : prev)), 1200);
+              } catch (error) {
+                console.error('Failed to copy code:', error);
+              }
+            }}
+            className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
+          >
+            {isCopied ? <FaCheck /> : <FaCopy />}
+            <span>{isCopied ? '복사됨' : '복사'}</span>
+          </button>
+          <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800">
+            <code className={className}>{trimmed}</code>
+          </pre>
+        </div>
+      );
+    },
   };
 
   const params = useParams();
@@ -341,10 +377,26 @@ export default function PromptDetailPage() {
                     <FaLink />
                     <span>프롬프트 본문</span>
                   </h2>
-                  <div className="prose prose-emerald dark:prose-invert max-w-none text-sm leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                      {prompt.promptContent}
-                    </ReactMarkdown>
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(prompt.promptContent);
+                          setCopiedBlock('prompt-content');
+                          setTimeout(() => setCopiedBlock((prev) => (prev === 'prompt-content' ? null : prev)), 1200);
+                        } catch (error) {
+                          console.error('Failed to copy prompt content:', error);
+                        }
+                      }}
+                      className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
+                    >
+                      {copiedBlock === 'prompt-content' ? <FaCheck /> : <FaCopy />}
+                      <span>{copiedBlock === 'prompt-content' ? '복사됨' : '복사'}</span>
+                    </button>
+                    <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800 whitespace-pre-wrap">
+                      <code>{prompt.promptContent}</code>
+                    </pre>
                   </div>
                 </div>
 
