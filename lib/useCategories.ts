@@ -10,19 +10,25 @@ import {
   promptIconOptions,
 } from '@/lib/categoryOptions';
 
-const buildAppCategoryInfo = (category: CategoryRecord): CategoryInfo => ({
-  value: category.value,
-  label: category.label,
-  color: category.color,
-  icon: appIconOptions[category.icon] || appIconOptions.puzzle,
-});
+const buildAppCategoryInfo = (category: CategoryRecord): CategoryInfo => {
+  const iconKey = category.icon as keyof typeof appIconOptions;
+  return {
+    value: category.value,
+    label: category.label,
+    color: category.color,
+    icon: appIconOptions[iconKey] || appIconOptions.puzzle,
+  };
+};
 
-const buildPromptCategoryInfo = (category: CategoryRecord): PromptCategoryInfo => ({
-  value: category.value,
-  label: category.label,
-  color: category.color,
-  icon: promptIconOptions[category.icon] || promptIconOptions.smile,
-});
+const buildPromptCategoryInfo = (category: CategoryRecord): PromptCategoryInfo => {
+  const iconKey = category.icon as keyof typeof promptIconOptions;
+  return {
+    value: category.value,
+    label: category.label,
+    color: category.color,
+    icon: promptIconOptions[iconKey] || promptIconOptions.smile,
+  };
+};
 
 const defaultAppCategories = appCategoryDefaults.map((item) => buildAppCategoryInfo({
   id: item.value,
