@@ -8,7 +8,7 @@ import { Prompt } from '@/types/prompt';
 import { promptCategories } from '@/lib/promptCategories';
 import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
 import { PromptAttachment } from '@/types/prompt';
-import { uploadPromptAttachment, getPromptAttachmentDownloadUrl } from '@/lib/storage';
+import { uploadPromptAttachment, downloadPromptAttachment, deletePromptAttachment } from '@/lib/storage';
 
 const detectUrls = (value: string) =>
   value
@@ -45,6 +45,7 @@ export default function EditPromptPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -199,22 +200,35 @@ export default function EditPromptPage() {
     }
   };
 
-  const handleDownloadAttachment = async (storagePath: string, fallbackUrl?: string) => {
-    if (fallbackUrl) {
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
+  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
       const idToken = await user.getIdToken();
-      const url = await getPromptAttachmentDownloadUrl(storagePath, idToken);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
       alert('다운로드 링크 생성 중 오류가 발생했습니다.');
     } finally {
       setDownloadingPath(null);
+    }
+  };
+
+  const handleDeleteExistingAttachment = async (attachment: PromptAttachment) => {
+    if (!user || !prompt) return;
+    if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
+    setDeletingPath(attachment.storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      await deletePromptAttachment(attachment.storagePath, idToken);
+      const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
+      setExistingAttachments(nextAttachments);
+      await updatePrompt({ id: prompt.id, attachments: nextAttachments });
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      alert('첨부 파일 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingPath(null);
     }
   };
 
@@ -340,17 +354,27 @@ export default function EditPromptPage() {
                     <span className="truncate">
                       {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadAttachment(file.storagePath, file.downloadUrl)}
-                      disabled={downloadingPath === file.storagePath}
-                      className="text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <FaDownload />
-                        {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
-                      </span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        disabled={downloadingPath === file.storagePath}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          <FaDownload />
+                          {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExistingAttachment(file)}
+                        disabled={deletingPath === file.storagePath}
+                        className="text-xs text-red-500 hover:text-red-600 disabled:opacity-60"
+                      >
+                        {deletingPath === file.storagePath ? '삭제 중...' : '삭제'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

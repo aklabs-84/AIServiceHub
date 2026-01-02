@@ -13,7 +13,7 @@ import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
-import { getPromptAttachmentDownloadUrl } from '@/lib/storage';
+import { downloadPromptAttachment } from '@/lib/storage';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -279,17 +279,12 @@ export default function PromptDetailPage() {
     }
   };
 
-  const handleDownloadAttachment = async (storagePath: string, fallbackUrl?: string) => {
-    if (fallbackUrl) {
-      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
+  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
       const idToken = await user.getIdToken();
-      const url = await getPromptAttachmentDownloadUrl(storagePath, idToken);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
       alert('다운로드 링크 생성 중 오류가 발생했습니다.');
@@ -422,7 +417,7 @@ export default function PromptDetailPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleDownloadAttachment(file.storagePath, file.downloadUrl)}
+                            onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
                             disabled={downloadingPath === file.storagePath}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
                           >
