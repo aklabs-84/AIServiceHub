@@ -8,12 +8,15 @@ export interface PromptCategoryInfo {
   color: string;
 }
 
-export const promptCategories: PromptCategoryInfo[] = promptCategoryDefaults.map((item) => ({
-  value: item.value,
-  label: item.label,
-  icon: promptIconOptions[item.icon] || promptIconOptions.smile,
-  color: item.color,
-}));
+export const promptCategories: PromptCategoryInfo[] = promptCategoryDefaults.map((item) => {
+  const iconKey = item.icon as keyof typeof promptIconOptions;
+  return {
+    value: item.value,
+    label: item.label,
+    icon: promptIconOptions[iconKey] || promptIconOptions.smile,
+    color: item.color,
+  };
+});
 
 export function getPromptCategoryInfo(
   category: PromptCategory,
