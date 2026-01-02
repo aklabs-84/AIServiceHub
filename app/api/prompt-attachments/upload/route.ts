@@ -16,6 +16,8 @@ const ALLOWED_ATTACHMENT_TYPES = [
   'text/html',
   'application/javascript',
   'text/javascript',
+  'application/json',
+  'text/json',
   'image/png',
   'image/jpeg',
 ];
