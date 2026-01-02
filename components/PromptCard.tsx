@@ -2,9 +2,9 @@
 
 import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
-import { getPromptCategoryInfo } from '@/lib/promptCategories';
+import { PromptCategoryInfo, getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaCalendar, FaExternalLinkAlt, FaUser, FaHeart, FaRegHeart, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaGlobe, FaBlog, FaFileAlt, FaClipboardList } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaUser, FaHeart, FaRegHeart, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaGlobe, FaBlog, FaFileAlt, FaClipboardList } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -14,11 +14,12 @@ import { likePrompt, unlikePrompt } from '@/lib/db';
 interface PromptCardProps {
   prompt: Prompt;
   onLikeChange?: () => void;
+  categoryInfo?: PromptCategoryInfo;
 }
 
-export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
+export default function PromptCard({ prompt, onLikeChange, categoryInfo: providedCategoryInfo }: PromptCardProps) {
   const router = useRouter();
-  const categoryInfo = getPromptCategoryInfo(prompt.category);
+  const categoryInfo = providedCategoryInfo || getPromptCategoryInfo(prompt.category);
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
@@ -141,7 +142,7 @@ export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
 
   return (
     <div
-      className="group overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg card-hover cursor-pointer"
+      className="group h-full overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg card-hover cursor-pointer flex flex-col"
       onClick={() => router.push(`/prompts/${prompt.id}`)}
       role="button"
       tabIndex={0}
@@ -178,14 +179,29 @@ export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
         </div>
       </div>
 
-      <div className="p-5 space-y-3">
+      <div className="p-5 space-y-3 flex-1 flex flex-col">
         <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
           {prompt.name}
         </h3>
 
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
-          <FaUser className="text-emerald-500" />
-          <span>{prompt.createdByName}</span>
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <FaUser className="text-emerald-500" />
+            <span className="truncate">{prompt.createdByName}</span>
+          </div>
+          <button
+            onClick={handleLike}
+            disabled={!user || isLiking}
+            className={`flex items-center space-x-1 transition-all ${
+              isLiked
+                ? 'text-red-500'
+                : 'text-gray-400 hover:text-red-500'
+            } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            aria-label="좋아요 토글"
+          >
+            {isLiked ? <FaHeart /> : <FaRegHeart />}
+            <span>{likeCount}</span>
+          </button>
         </div>
 
         <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4">
@@ -203,7 +219,7 @@ export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
           </ReactMarkdown>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2 mt-auto">
           {!user && (
             <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
               <FaExternalLinkAlt />
@@ -272,27 +288,6 @@ export default function PromptCard({ prompt, onLikeChange }: PromptCardProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-            <FaCalendar className="text-emerald-400" />
-            <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <button
-              onClick={handleLike}
-              disabled={!user || isLiking}
-              className={`flex items-center space-x-1 transition-all ${
-                isLiked
-                  ? 'text-red-500'
-                  : 'text-gray-400 hover:text-red-500'
-              } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              aria-label="좋아요 토글"
-            >
-              {isLiked ? <FaHeart /> : <FaRegHeart />}
-              <span>{likeCount}</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

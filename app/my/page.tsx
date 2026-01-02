@@ -25,6 +25,7 @@ import { getAppsByUser, getLikedAppsByUser, getLikedPromptsByUser, getPromptsByU
 import { useSearchParams } from 'next/navigation';
 import { getCategoryInfo } from '@/lib/categories';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
+import { useAppCategories, usePromptCategories } from '@/lib/useCategories';
 
 export default function MyPage() {
   return (
@@ -36,6 +37,8 @@ export default function MyPage() {
 
 function MyPageInner() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { categories: appCategories } = useAppCategories();
+  const { categories: promptCategories } = usePromptCategories();
   const [myApps, setMyApps] = useState<AIApp[]>([]);
   const [likedApps, setLikedApps] = useState<AIApp[]>([]);
   const [myPrompts, setMyPrompts] = useState<Prompt[]>([]);
@@ -317,14 +320,14 @@ function MyPageInner() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {myApps.map((app, index) => (
                     <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
-                      <AppCard app={app} />
+                      <AppCard app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {myApps.map((app, index) => {
-                    const categoryInfo = getCategoryInfo(app.category);
+                    const categoryInfo = getCategoryInfo(app.category, appCategories);
                     const CategoryIcon = categoryInfo.icon;
                     return (
                       <Link
@@ -372,14 +375,14 @@ function MyPageInner() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {myPrompts.map((prompt, index) => (
                     <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
-                      <PromptCard prompt={prompt} />
+                      <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {myPrompts.map((prompt, index) => {
-                    const categoryInfo = getPromptCategoryInfo(prompt.category);
+                    const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
                     const CategoryIcon = categoryInfo.icon;
                     return (
                       <Link
@@ -427,14 +430,14 @@ function MyPageInner() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {likedApps.map((app, index) => (
                     <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
-                      <AppCard app={app} />
+                      <AppCard app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {likedApps.map((app, index) => {
-                    const categoryInfo = getCategoryInfo(app.category);
+                    const categoryInfo = getCategoryInfo(app.category, appCategories);
                     const CategoryIcon = categoryInfo.icon;
                     return (
                       <Link
@@ -482,14 +485,14 @@ function MyPageInner() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {likedPrompts.map((prompt, index) => (
                     <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
-                      <PromptCard prompt={prompt} />
+                      <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {likedPrompts.map((prompt, index) => {
-                    const categoryInfo = getPromptCategoryInfo(prompt.category);
+                    const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
                     const CategoryIcon = categoryInfo.icon;
                     return (
                       <Link

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPromptById, updatePrompt } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
-import { promptCategories } from '@/lib/promptCategories';
+import { usePromptCategories } from '@/lib/useCategories';
 import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
 import { PromptAttachment } from '@/types/prompt';
 import { uploadPromptAttachment, downloadPromptAttachment, deletePromptAttachment } from '@/lib/storage';
@@ -38,6 +38,7 @@ export default function EditPromptPage() {
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { categories: promptCategories } = usePromptCategories();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -61,6 +62,13 @@ export default function EditPromptPage() {
     youtube: '',
     etc: '',
   });
+
+  useEffect(() => {
+    if (promptCategories.length === 0) return;
+    if (!promptCategories.find((cat) => cat.value === formData.category)) {
+      setFormData((prev) => ({ ...prev, category: promptCategories[0].value as Prompt['category'] }));
+    }
+  }, [promptCategories, formData.category]);
 
   const buildSnsUrls = () => {
     const urls: string[] = [];

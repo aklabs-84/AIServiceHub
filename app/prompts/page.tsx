@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAllPrompts, getPromptsByCategory } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
-import { getPromptCategoryInfo, promptCategories } from '@/lib/promptCategories';
+import { getPromptCategoryInfo } from '@/lib/promptCategories';
+import { usePromptCategories } from '@/lib/useCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
 import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome } from 'react-icons/fa';
@@ -17,6 +18,7 @@ export default function PromptsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
+  const { categories: promptCategories } = usePromptCategories();
 
   useEffect(() => {
     setCurrentPage(1);
@@ -29,6 +31,13 @@ export default function PromptsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [viewMode]);
+  useEffect(() => {
+    if (selectedCategory === 'all') return;
+    if (promptCategories.length === 0) return;
+    if (!promptCategories.find((cat) => cat.value === selectedCategory)) {
+      setSelectedCategory('all');
+    }
+  }, [promptCategories, selectedCategory]);
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -288,23 +297,23 @@ export default function PromptsPage() {
                     <p className="text-gray-500 dark:text-gray-400 text-sm">다른 키워드나 카테고리를 시도해 주세요.</p>
                   </div>
                 ) : viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 items-start">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 items-stretch">
                     {paginatedPrompts.map((prompt, index) => (
                       <div
                         key={prompt.id}
                         style={{
                           animationDelay: `${index * 0.05}s`
                         }}
-                        className="animate-fadeIn"
+                        className="animate-fadeIn h-full"
                       >
-                        <PromptCard prompt={prompt} />
+                      <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {paginatedPrompts.map((prompt, index) => {
-                      const categoryInfo = getPromptCategoryInfo(prompt.category);
+                      const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
                       const CategoryIcon = categoryInfo.icon;
                       return (
                         <Link

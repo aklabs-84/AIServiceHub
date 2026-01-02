@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createApp } from '@/lib/db';
 import { AppCategory } from '@/types/app';
-import { categories } from '@/lib/categories';
+import { useAppCategories } from '@/lib/useCategories';
 import { FaSave } from 'react-icons/fa';
 import { sendSlackNotification } from '@/lib/notifications';
 
@@ -19,6 +19,7 @@ export default function NewAppPage() {
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const { categories } = useAppCategories();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -34,6 +35,13 @@ export default function NewAppPage() {
     youtube: '',
     etc: '',
   });
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    if (!categories.find((cat) => cat.value === formData.category)) {
+      setFormData((prev) => ({ ...prev, category: categories[0].value as AppCategory }));
+    }
+  }, [categories, formData.category]);
 
   const buildSnsUrls = () => {
     const urls: string[] = [];

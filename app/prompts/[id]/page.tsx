@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { addComment, deleteComment, getComments, getPromptById, updateComment } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
+import { usePromptCategories } from '@/lib/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck } from 'react-icons/fa';
 import { deletePrompt } from '@/lib/db';
@@ -67,6 +68,7 @@ export default function PromptDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { categories: promptCategories } = usePromptCategories();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -179,7 +181,7 @@ export default function PromptDetailPage() {
     );
   }
 
-  const categoryInfo = getPromptCategoryInfo(prompt.category);
+  const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === prompt.createdBy;
   const parsedSns = prompt.snsUrls.map((entry) => {

@@ -11,6 +11,7 @@ import { AIApp } from '@/types/app';
 import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryInfo } from '@/lib/categories';
+import { useAppCategories } from '@/lib/useCategories';
 import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
@@ -29,6 +30,7 @@ export default function AppDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { categories } = useAppCategories();
   const [app, setApp] = useState<AIApp | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -188,7 +190,7 @@ export default function AppDetailPage() {
     );
   }
 
-  const categoryInfo = getCategoryInfo(app.category);
+  const categoryInfo = getCategoryInfo(app.category, categories);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === app.createdBy;
   const parsedSns = app.snsUrls.map((entry) => {

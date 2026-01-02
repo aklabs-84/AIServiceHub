@@ -1,5 +1,5 @@
 import { PromptCategory } from '@/types/prompt';
-import { FaSmile, FaBriefcase, FaMagic, FaHeart, FaGraduationCap, FaImage } from 'react-icons/fa';
+import { promptCategoryDefaults, promptIconOptions } from '@/lib/categoryOptions';
 
 export interface PromptCategoryInfo {
   value: PromptCategory;
@@ -8,45 +8,16 @@ export interface PromptCategoryInfo {
   color: string;
 }
 
-export const promptCategories: PromptCategoryInfo[] = [
-  {
-    value: 'daily',
-    label: '일상',
-    icon: FaSmile,
-    color: 'bg-emerald-500',
-  },
-  {
-    value: 'work',
-    label: '업무',
-    icon: FaBriefcase,
-    color: 'bg-blue-500',
-  },
-  {
-    value: 'fun',
-    label: '재미',
-    icon: FaMagic,
-    color: 'bg-purple-500',
-  },
-  {
-    value: 'image',
-    label: '이미지',
-    icon: FaImage,
-    color: 'bg-cyan-500',
-  },
-  {
-    value: 'relationship',
-    label: '관계',
-    icon: FaHeart,
-    color: 'bg-pink-500',
-  },
-  {
-    value: 'education',
-    label: '교육',
-    icon: FaGraduationCap,
-    color: 'bg-orange-500',
-  },
-];
+export const promptCategories: PromptCategoryInfo[] = promptCategoryDefaults.map((item) => ({
+  value: item.value,
+  label: item.label,
+  icon: promptIconOptions[item.icon] || promptIconOptions.smile,
+  color: item.color,
+}));
 
-export function getPromptCategoryInfo(category: PromptCategory): PromptCategoryInfo {
-  return promptCategories.find(c => c.value === category) || promptCategories[0];
+export function getPromptCategoryInfo(
+  category: PromptCategory,
+  list: PromptCategoryInfo[] = promptCategories
+): PromptCategoryInfo {
+  return list.find(c => c.value === category) || list[0] || promptCategories[0];
 }

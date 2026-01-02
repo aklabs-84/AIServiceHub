@@ -19,11 +19,13 @@ import { db } from './firebase';
 import { AIApp, CreateAppInput, UpdateAppInput, AppCategory } from '@/types/app';
 import { Prompt, CreatePromptInput, UpdatePromptInput, PromptCategory } from '@/types/prompt';
 import { Comment, CommentTargetType } from '@/types/comment';
+import { CategoryInput, CategoryRecord, CategoryType } from '@/types/category';
 
 const APPS_COLLECTION = 'apps';
 const PROMPTS_COLLECTION = 'prompts';
 const COMMENTS_COLLECTION = 'comments';
 const USERS_COLLECTION = 'users';
+const CATEGORIES_COLLECTION = 'categories';
 
 // Firestore 데이터를 AIApp 타입으로 변환
 function docToApp(id: string, data: any): AIApp {
@@ -312,6 +314,44 @@ export async function getAllComments(): Promise<Comment[]> {
   const q = query(commentsCol, orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
+}
+
+export async function getCategoriesByType(type: CategoryType): Promise<CategoryRecord[]> {
+  const categoriesCol = collection(db, CATEGORIES_COLLECTION);
+  const q = query(categoriesCol, where('type', '==', type), orderBy('createdAt', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      type: data.type,
+      value: data.value,
+      label: data.label,
+      color: data.color,
+      icon: data.icon,
+      createdAt: data.createdAt?.toDate?.() || undefined,
+    } as CategoryRecord;
+  });
+}
+
+export async function createCategory(input: CategoryInput): Promise<string> {
+  const categoriesCol = collection(db, CATEGORIES_COLLECTION);
+  const payload = {
+    ...input,
+    createdAt: serverTimestamp(),
+  };
+  const docRef = await addDoc(categoriesCol, payload);
+  return docRef.id;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const docRef = doc(db, CATEGORIES_COLLECTION, id);
+  await deleteDoc(docRef);
+}
+
+export async function updateCategory(id: string, data: Partial<Pick<CategoryInput, 'label' | 'color' | 'icon'>>): Promise<void> {
+  const docRef = doc(db, CATEGORIES_COLLECTION, id);
+  await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
 }
 
 // 회원 목록 가져오기

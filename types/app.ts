@@ -1,14 +1,4 @@
-export type AppCategory =
-  | 'chatbot'
-  | 'content-generation'
-  | 'data-analysis'
-  | 'image-generation'
-  | 'code-assistant'
-  | 'translation'
-  | 'education'
-  | 'game'
-  | 'productivity'
-  | 'other';
+export type AppCategory = string;
 
 export interface AIApp {
   id: string;

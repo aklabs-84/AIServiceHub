@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppById, updateApp } from '@/lib/db';
 import { AIApp, AppCategory } from '@/types/app';
-import { categories } from '@/lib/categories';
+import { useAppCategories } from '@/lib/useCategories';
 import { FaSave } from 'react-icons/fa';
 
 const detectUrls = (value: string) =>
@@ -18,6 +18,7 @@ export default function EditAppPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { categories } = useAppCategories();
   const [app, setApp] = useState<AIApp | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -35,6 +36,13 @@ export default function EditAppPage() {
     youtube: '',
     etc: '',
   });
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    if (!categories.find((cat) => cat.value === formData.category)) {
+      setFormData((prev) => ({ ...prev, category: categories[0].value as AppCategory }));
+    }
+  }, [categories, formData.category]);
 
   const buildSnsUrls = () => {
     const urls: string[] = [];

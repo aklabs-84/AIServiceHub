@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPrompt } from '@/lib/db';
-import { promptCategories } from '@/lib/promptCategories';
+import { usePromptCategories } from '@/lib/useCategories';
 import { FaFeatherAlt, FaPaperclip, FaSave } from 'react-icons/fa';
 import { Prompt } from '@/types/prompt';
 import { sendSlackNotification } from '@/lib/notifications';
@@ -38,6 +38,7 @@ export default function NewPromptPage() {
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const { categories: promptCategories } = usePromptCategories();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -55,6 +56,13 @@ export default function NewPromptPage() {
     youtube: '',
     etc: '',
   });
+
+  useEffect(() => {
+    if (promptCategories.length === 0) return;
+    if (!promptCategories.find((cat) => cat.value === formData.category)) {
+      setFormData((prev) => ({ ...prev, category: promptCategories[0].value as Prompt['category'] }));
+    }
+  }, [promptCategories, formData.category]);
 
   const buildSnsUrls = () => {
     const urls: string[] = [];

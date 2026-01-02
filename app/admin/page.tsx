@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllApps, getAllPrompts, getAllComments, getAllUsers, UserProfile } from '@/lib/db';
+import { createCategory, deleteCategory, getAllApps, getAllComments, getAllPrompts, getAllUsers, getCategoriesByType, updateCategory, UserProfile } from '@/lib/db';
 import { AIApp } from '@/types/app';
 import { Prompt } from '@/types/prompt';
 import { Comment } from '@/types/comment';
-import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock } from 'react-icons/fa';
+import { CategoryRecord } from '@/types/category';
+import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
+import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash } from 'react-icons/fa';
 
 const ADMIN_EMAIL = 'mosebb@gmail.com';
 
@@ -18,7 +20,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories';
 
 export default function AdminPage() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
@@ -32,6 +34,25 @@ export default function AdminPage() {
   const [pageApps, setPageApps] = useState(1);
   const [pagePrompts, setPagePrompts] = useState(1);
   const [pageUsers, setPageUsers] = useState(1);
+  const [appCategories, setAppCategories] = useState<CategoryRecord[]>([]);
+  const [promptCategories, setPromptCategories] = useState<CategoryRecord[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryEdits, setCategoryEdits] = useState<Record<string, { label: string; color: string; icon: string }>>({});
+  const [autoSeededApp, setAutoSeededApp] = useState(false);
+  const [autoSeededPrompt, setAutoSeededPrompt] = useState(false);
+  const [appCategoryForm, setAppCategoryForm] = useState({
+    value: '',
+    label: '',
+    color: appColorOptions[0],
+    icon: Object.keys(appIconOptions)[0] || 'puzzle',
+  });
+  const [promptCategoryForm, setPromptCategoryForm] = useState({
+    value: '',
+    label: '',
+    color: promptColorOptions[0],
+    icon: Object.keys(promptIconOptions)[0] || 'smile',
+  });
 
   const pageSize = 10;
 
@@ -59,6 +80,159 @@ export default function AdminPage() {
     };
     fetchAll();
   }, [user]);
+
+  const loadCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const [appsData, promptsData] = await Promise.all([
+        getCategoriesByType('app'),
+        getCategoriesByType('prompt'),
+      ]);
+      setAppCategories(appsData);
+      setPromptCategories(promptsData);
+      const nextEdits: Record<string, { label: string; color: string; icon: string }> = {};
+      [...appsData, ...promptsData].forEach((item) => {
+        nextEdits[item.id] = { label: item.label, color: item.color, icon: item.icon };
+      });
+      setCategoryEdits(nextEdits);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      alert('카테고리를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    loadCategories();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!autoSeededApp && appCategories.length === 0 && apps.length > 0) {
+      setAutoSeededApp(true);
+      handleSeedFromData('app');
+    }
+  }, [user, autoSeededApp, appCategories.length, apps.length]);
+
+  useEffect(() => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!autoSeededPrompt && promptCategories.length === 0 && prompts.length > 0) {
+      setAutoSeededPrompt(true);
+      handleSeedFromData('prompt');
+    }
+  }, [user, autoSeededPrompt, promptCategories.length, prompts.length]);
+
+  const handleCreateCategory = async (type: 'app' | 'prompt') => {
+    const form = type === 'app' ? appCategoryForm : promptCategoryForm;
+    if (!form.value.trim() || !form.label.trim()) {
+      alert('값과 라벨을 입력해주세요.');
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      await createCategory({
+        type,
+        value: form.value.trim(),
+        label: form.label.trim(),
+        color: form.color,
+        icon: form.icon,
+      });
+      if (type === 'app') {
+        setAppCategoryForm((prev) => ({ ...prev, value: '', label: '' }));
+      } else {
+        setPromptCategoryForm((prev) => ({ ...prev, value: '', label: '' }));
+      }
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to create category:', error);
+      alert('카테고리 추가 중 오류가 발생했습니다.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (category: CategoryRecord) => {
+    if (!confirm(`'${category.label}' 카테고리를 삭제하시겠습니까?`)) return;
+    try {
+      await deleteCategory(category.id);
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      alert('카테고리 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleSeedDefaults = async (type: 'app' | 'prompt') => {
+    const defaults = type === 'app' ? appCategoryDefaults : promptCategoryDefaults;
+    setSavingCategory(true);
+    try {
+      for (const item of defaults) {
+        await createCategory({
+          type,
+          value: item.value,
+          label: item.label,
+          color: item.color,
+          icon: item.icon,
+        });
+      }
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to seed categories:', error);
+      alert('기본 카테고리 추가 중 오류가 발생했습니다.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleSeedFromData = async (type: 'app' | 'prompt') => {
+    const defaults = type === 'app' ? appCategoryDefaults : promptCategoryDefaults;
+    const existing = type === 'app' ? appCategories : promptCategories;
+    const existingValues = new Set(existing.map((item) => item.value));
+    const sourceValues = new Set(
+      (type === 'app' ? apps : prompts).map((item) => item.category).filter(Boolean)
+    );
+    if (sourceValues.size === 0) {
+      alert('등록된 데이터에서 카테고리를 찾을 수 없습니다.');
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      for (const value of sourceValues) {
+        if (existingValues.has(value)) continue;
+        const match = defaults.find((item) => item.value === value);
+        await createCategory({
+          type,
+          value,
+          label: match?.label || value,
+          color: match?.color || (type === 'app' ? appColorOptions[0] : promptColorOptions[0]),
+          icon: match?.icon || (type === 'app' ? Object.keys(appIconOptions)[0] : Object.keys(promptIconOptions)[0]),
+        });
+      }
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to seed categories from data:', error);
+      alert('카테고리 가져오기 중 오류가 발생했습니다.');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleUpdateCategory = async (category: CategoryRecord) => {
+    const edit = categoryEdits[category.id];
+    if (!edit) return;
+    if (edit.label === category.label && edit.color === category.color && edit.icon === category.icon) {
+      return;
+    }
+    try {
+      await updateCategory(category.id, edit);
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to update category:', error);
+      alert('카테고리 수정 중 오류가 발생했습니다.');
+    }
+  };
 
   const creatorStats = useMemo(() => {
     const stats = new Map<string, CreatorStat>();
@@ -241,12 +415,13 @@ export default function AdminPage() {
         <div className="space-y-8">
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-              {[
-                { key: 'creators', label: '작성자 활동' },
-                { key: 'apps', label: '최신 앱' },
-                { key: 'prompts', label: '최신 프롬프트' },
-                { key: 'users', label: '신규 가입자' },
-              ].map((tab) => (
+                {[
+                  { key: 'creators', label: '작성자 활동' },
+                  { key: 'apps', label: '최신 앱' },
+                  { key: 'prompts', label: '최신 프롬프트' },
+                  { key: 'users', label: '신규 가입자' },
+                  { key: 'categories', label: '카테고리 관리' },
+                ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as TabKey)}
@@ -350,6 +525,49 @@ export default function AdminPage() {
                 <Pager page={pageUsers} totalPages={totalPagesUsers} onPageChange={setPageUsers} />
               </div>
             )}
+
+            {activeTab === 'categories' && (
+              <div className="p-4 space-y-6">
+                {loadingCategories ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">카테고리를 불러오는 중...</div>
+                ) : (
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <CategoryManager
+                      title="바이브코딩 카테고리"
+                      items={appCategories}
+                      form={appCategoryForm}
+                      setForm={setAppCategoryForm}
+                      edits={categoryEdits}
+                      setEdits={setCategoryEdits}
+                      iconOptions={appIconOptions}
+                      colorOptions={appColorOptions}
+                      onCreate={() => handleCreateCategory('app')}
+                      onDelete={handleDeleteCategory}
+                      onUpdate={handleUpdateCategory}
+                      onSeed={() => handleSeedDefaults('app')}
+                      onSeedFromData={() => handleSeedFromData('app')}
+                      saving={savingCategory}
+                    />
+                    <CategoryManager
+                      title="프롬프트 카테고리"
+                      items={promptCategories}
+                      form={promptCategoryForm}
+                      setForm={setPromptCategoryForm}
+                      edits={categoryEdits}
+                      setEdits={setCategoryEdits}
+                      iconOptions={promptIconOptions}
+                      colorOptions={promptColorOptions}
+                      onCreate={() => handleCreateCategory('prompt')}
+                      onDelete={handleDeleteCategory}
+                      onUpdate={handleUpdateCategory}
+                      onSeed={() => handleSeedDefaults('prompt')}
+                      onSeedFromData={() => handleSeedFromData('prompt')}
+                      saving={savingCategory}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -422,6 +640,194 @@ function ListCard({
   );
 }
 
+function CategoryManager({
+  title,
+  items,
+  form,
+  setForm,
+  edits,
+  setEdits,
+  iconOptions,
+  colorOptions,
+  onCreate,
+  onDelete,
+  onUpdate,
+  onSeed,
+  onSeedFromData,
+  saving,
+}: {
+  title: string;
+  items: CategoryRecord[];
+  form: { value: string; label: string; color: string; icon: string };
+  setForm: React.Dispatch<React.SetStateAction<{ value: string; label: string; color: string; icon: string }>>;
+  edits: Record<string, { label: string; color: string; icon: string }>;
+  setEdits: React.Dispatch<React.SetStateAction<Record<string, { label: string; color: string; icon: string }>>>;
+  iconOptions: Record<string, React.ComponentType<{ className?: string }>>;
+  colorOptions: string[];
+  onCreate: () => void;
+  onDelete: (category: CategoryRecord) => void;
+  onUpdate: (category: CategoryRecord) => void;
+  onSeed: () => void;
+  onSeedFromData: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSeedFromData}
+            disabled={saving}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+          >
+            등록 데이터에서 가져오기
+          </button>
+          <button
+            type="button"
+            onClick={onSeed}
+            disabled={saving}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+          >
+            기본 카테고리 추가
+          </button>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <input
+          value={form.value}
+          onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))}
+          placeholder="value (예: research)"
+          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+        />
+        <input
+          value={form.label}
+          onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
+          placeholder="label (예: 리서치)"
+          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+        />
+        <select
+          value={form.icon}
+          onChange={(e) => setForm((prev) => ({ ...prev, icon: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+        >
+          {Object.keys(iconOptions).map((key) => (
+            <option key={key} value={key}>
+              {key}
+            </option>
+          ))}
+        </select>
+        <select
+          value={form.color}
+          onChange={(e) => setForm((prev) => ({ ...prev, color: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+        >
+          {colorOptions.map((color) => (
+            <option key={color} value={color}>
+              {color}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="button"
+        onClick={onCreate}
+        disabled={saving}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+      >
+        <FaPlus />
+        카테고리 추가
+      </button>
+
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <div className="text-sm text-gray-500 dark:text-gray-400">등록된 카테고리가 없습니다.</div>
+        ) : (
+          items.map((category) => {
+            const Icon = iconOptions[category.icon];
+            const edit = edits[category.id] || { label: category.label, color: category.color, icon: category.icon };
+            const isDirty = edit.label !== category.label || edit.color !== category.color || edit.icon !== category.icon;
+            return (
+              <div
+                key={category.id}
+                className="flex flex-col gap-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-3 py-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`h-8 w-8 rounded-lg text-white flex items-center justify-center ${edit.color}`}>
+                      {Icon ? <Icon /> : null}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{category.label}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{category.value}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(category)}
+                    className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-600"
+                  >
+                    <FaTrash />
+                    삭제
+                  </button>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <input
+                    value={edit.label}
+                    onChange={(e) =>
+                      setEdits((prev) => ({ ...prev, [category.id]: { ...edit, label: e.target.value } }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+                    placeholder="라벨"
+                  />
+                  <select
+                    value={edit.icon}
+                    onChange={(e) =>
+                      setEdits((prev) => ({ ...prev, [category.id]: { ...edit, icon: e.target.value } }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+                  >
+                    {Object.keys(iconOptions).map((key) => (
+                      <option key={key} value={key}>
+                        {key}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={edit.color}
+                    onChange={(e) =>
+                      setEdits((prev) => ({ ...prev, [category.id]: { ...edit, color: e.target.value } }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-sm px-3 py-2"
+                  >
+                    {colorOptions.map((color) => (
+                      <option key={color} value={color}>
+                        {color}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onUpdate(category)}
+                    disabled={saving || !isDirty}
+                    className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    수정
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MiniBarChart({ data }: { data: { label: string; apps: number; prompts: number; comments: number }[] }) {
   const maxValue = Math.max(1, ...data.map((d) => d.apps + d.prompts + d.comments));
   return (
@@ -431,10 +837,17 @@ function MiniBarChart({ data }: { data: { label: string; apps: number; prompts: 
         const scale = (value: number) => `${(value / maxValue) * 100}%`;
         return (
           <div key={day.label} className="flex flex-col items-center gap-2">
-            <div className="h-32 w-full bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col-reverse overflow-hidden border border-gray-100 dark:border-gray-800">
-              <div className="bg-blue-500" style={{ height: scale(day.apps) }} />
-              <div className="bg-emerald-500" style={{ height: scale(day.prompts) }} />
-              <div className="bg-purple-500" style={{ height: scale(day.comments) }} />
+            <div className="relative w-full group">
+              <div className="h-32 w-full bg-gray-50 dark:bg-gray-800 rounded-lg flex flex-col-reverse overflow-hidden border border-gray-100 dark:border-gray-800">
+                <div className="bg-blue-500" style={{ height: scale(day.apps) }} />
+                <div className="bg-emerald-500" style={{ height: scale(day.prompts) }} />
+                <div className="bg-purple-500" style={{ height: scale(day.comments) }} />
+              </div>
+              <div className="pointer-events-none absolute left-2 right-2 top-2 rounded-lg bg-gray-900/90 text-white text-[11px] leading-snug px-2.5 py-2 opacity-0 group-hover:opacity-100 transition shadow-lg">
+                <div className="font-semibold">{day.label}</div>
+                <div>앱 {day.apps} · 프롬프트 {day.prompts} · 댓글 {day.comments}</div>
+                <div>합계 {total}</div>
+              </div>
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-400 text-center">
               <div className="font-semibold text-gray-900 dark:text-gray-100">{total}</div>

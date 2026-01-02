@@ -3,19 +3,20 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { AIApp } from '@/types/app';
-import { getCategoryInfo } from '@/lib/categories';
+import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useMemo, useState } from 'react';
-import { FaCalendar, FaHeart, FaRegHeart, FaUser, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaBlog, FaFileAlt, FaClipboardList, FaGlobe } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaUser, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaBlog, FaFileAlt, FaClipboardList, FaGlobe } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { likeApp, unlikeApp } from '@/lib/db';
 
 interface AppCardProps {
   app: AIApp;
   onLikeChange?: () => void;
+  categoryInfo?: CategoryInfo;
 }
 
-export default function AppCard({ app, onLikeChange }: AppCardProps) {
-  const categoryInfo = getCategoryInfo(app.category);
+export default function AppCard({ app, onLikeChange, categoryInfo: providedCategoryInfo }: AppCardProps) {
+  const categoryInfo = providedCategoryInfo || getCategoryInfo(app.category);
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
@@ -276,10 +277,6 @@ export default function AppCard({ app, onLikeChange }: AppCardProps) {
                 {isLiked ? <FaHeart /> : <FaRegHeart />}
                 <span>{likeCount}</span>
               </button>
-            </div>
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              <FaCalendar className="text-blue-500 dark:text-blue-400" />
-              <span>{new Date(app.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
             </div>
           </div>
         </div>

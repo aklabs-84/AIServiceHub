@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { getAllApps, getAppsByCategory } from '@/lib/db';
 import { AIApp, AppCategory } from '@/types/app';
 import AppCard from '@/components/AppCard';
-import { categories, getCategoryInfo } from '@/lib/categories';
+import { getCategoryInfo } from '@/lib/categories';
+import { useAppCategories } from '@/lib/useCategories';
 import { FaFilter, FaHome, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
@@ -16,6 +17,7 @@ export default function AppsPage() {
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const { categories } = useAppCategories();
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
 
   useEffect(() => {
@@ -29,11 +31,18 @@ export default function AppsPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [viewMode]);
+  useEffect(() => {
+    if (selectedCategory === 'all') return;
+    if (categories.length === 0) return;
+    if (!categories.find((cat) => cat.value === selectedCategory)) {
+      setSelectedCategory('all');
+    }
+  }, [categories, selectedCategory]);
 
   const loadApps = async () => {
     setLoading(true);
     try {
-      const data = selectedCategory === 'all'
+        const data = selectedCategory === 'all'
         ? await getAllApps()
         : await getAppsByCategory(selectedCategory);
       setApps(data);
@@ -173,7 +182,7 @@ export default function AppsPage() {
                     </div>
                     <div className="bg-white dark:bg-gray-800 px-5 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center w-full">
                       <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        {categories.length}
+                    {categories.length}
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">카테고리</div>
                     </div>
@@ -309,14 +318,14 @@ export default function AppsPage() {
                         }}
                         className="animate-fadeIn"
                       >
-                        <AppCard app={app} />
+                        <AppCard app={app} categoryInfo={getCategoryInfo(app.category, categories)} />
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     {paginatedApps.map((app, index) => {
-                      const categoryInfo = getCategoryInfo(app.category);
+                      const categoryInfo = getCategoryInfo(app.category, categories);
                       const CategoryIcon = categoryInfo.icon;
                       return (
                         <Link

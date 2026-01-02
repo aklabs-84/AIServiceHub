@@ -1,4 +1,4 @@
-export type PromptCategory = 'daily' | 'work' | 'fun' | 'relationship' | 'education' | 'image';
+export type PromptCategory = string;
 
 export interface PromptAttachment {
   name: string;
