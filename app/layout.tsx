@@ -18,6 +18,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
   description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+  icons: {
+    icon: [
+      { url: "/favicon_io/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon_io/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: { url: "/favicon_io/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    shortcut: "/favicon_io/favicon.ico",
+  },
+  manifest: "/favicon_io/site.webmanifest",
   openGraph: {
     title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
     description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
