@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppById, updateApp } from '@/lib/db';
@@ -42,6 +42,30 @@ export default function EditAppPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
 
+  const previewUrl = useMemo(() => {
+    const raw = formData.thumbnailUrl.trim();
+    if (!raw) return '';
+
+    const driveMatch = raw.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+    if (driveMatch?.[1]) {
+      return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+    }
+    const driveIdParam = raw.match(/[?&]id=([^&]+)/i);
+    if (raw.includes('drive.google.com') && driveIdParam?.[1]) {
+      return `https://drive.google.com/uc?export=view&id=${driveIdParam[1]}`;
+    }
+
+    return raw;
+  }, [formData.thumbnailUrl]);
+
+  const previewImageSrc = useMemo(() => {
+    if (!previewUrl) return '';
+    const isDrive = previewUrl.includes('drive.google.com');
+    return isDrive
+      ? `/api/image-proxy?url=${encodeURIComponent(previewUrl)}`
+      : previewUrl;
+  }, [previewUrl]);
+
   useEffect(() => {
     if (categories.length === 0) return;
     if (!categories.find((cat) => cat.value === formData.category)) {
@@ -50,12 +74,12 @@ export default function EditAppPage() {
   }, [categories, formData.category]);
 
   useEffect(() => {
-    if (!formData.thumbnailUrl.trim()) {
+    if (!previewUrl) {
       setPreviewError(false);
       return;
     }
     setPreviewError(false);
-  }, [formData.thumbnailUrl]);
+  }, [previewUrl]);
 
   const buildSnsUrls = () => {
     const urls: string[] = [];
@@ -179,7 +203,7 @@ export default function EditAppPage() {
   };
 
   const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!formData.thumbnailUrl.trim()) return;
+    if (!previewUrl) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsDragging(true);
     updateThumbnailPosition(event.clientX, event.clientY);
@@ -384,20 +408,20 @@ export default function EditAppPage() {
               onPointerUp={handlePreviewPointerUp}
               onPointerLeave={handlePreviewPointerUp}
               className={`relative w-full h-48 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                formData.thumbnailUrl.trim()
+                previewUrl
                   ? 'cursor-crosshair'
                   : 'bg-gray-100 dark:bg-gray-800'
               }`}
             >
-              {!formData.thumbnailUrl.trim() && (
+              {!previewUrl && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
                   썸네일 URL을 입력하면 미리보기가 표시됩니다
                 </div>
               )}
-              {formData.thumbnailUrl.trim() && !previewError && (
+              {previewUrl && !previewError && (
                 <>
                   <img
-                    src={formData.thumbnailUrl}
+                    src={previewImageSrc}
                     alt="썸네일 미리보기"
                     referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover"
@@ -416,7 +440,7 @@ export default function EditAppPage() {
                   />
                 </>
               )}
-              {formData.thumbnailUrl.trim() && previewError && (
+              {previewUrl && previewError && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
                   이미지를 불러올 수 없습니다. URL을 확인해주세요.
                 </div>
