@@ -45,6 +45,10 @@ export default function AppDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
+  const thumbnailPosition = app
+    ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
+    : undefined;
+
   useEffect(() => {
     loadApp();
     loadComments();
@@ -245,6 +249,7 @@ export default function AppDetailPage() {
                   alt={app.name}
                   fill
                   className="object-cover"
+                  style={thumbnailPosition}
                   onError={() => setImageError(true)}
                 />
               ) : (
@@ -326,6 +331,7 @@ export default function AppDetailPage() {
                 alt={app.name}
                 fill
                 className="object-cover"
+                style={thumbnailPosition}
                 onError={() => setImageError(true)}
               />
             ) : (

@@ -38,6 +38,8 @@ function docToApp(id: string, data: any): AIApp {
     snsUrls: data.snsUrls || [],
     category: data.category,
     thumbnailUrl: data.thumbnailUrl,
+    thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : undefined,
+    thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : undefined,
     createdBy: data.createdBy,
     createdByName: data.createdByName || '익명',
     createdAt: data.createdAt?.toDate() || new Date(),
@@ -191,6 +193,12 @@ export async function createApp(input: CreateAppInput, userId: string): Promise<
   if (payload.thumbnailUrl === undefined) {
     delete payload.thumbnailUrl;
   }
+  if (payload.thumbnailPositionX === undefined) {
+    delete payload.thumbnailPositionX;
+  }
+  if (payload.thumbnailPositionY === undefined) {
+    delete payload.thumbnailPositionY;
+  }
 
   const docRef = await addDoc(appsCol, payload);
 
@@ -211,6 +219,12 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   // undefined 필드는 제거
   if (payload.thumbnailUrl === undefined) {
     delete payload.thumbnailUrl;
+  }
+  if (payload.thumbnailPositionX === undefined) {
+    delete payload.thumbnailPositionX;
+  }
+  if (payload.thumbnailPositionY === undefined) {
+    delete payload.thumbnailPositionY;
   }
 
   await updateDoc(docRef, payload);

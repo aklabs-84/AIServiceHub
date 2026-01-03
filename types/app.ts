@@ -8,6 +8,8 @@ export interface AIApp {
   snsUrls: string[];
   category: AppCategory;
   thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
   createdBy: string;
   createdByName: string;
   createdAt: Date;
@@ -23,6 +25,8 @@ export interface CreateAppInput {
   snsUrls: string[];
   category: AppCategory;
   thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
   createdByName: string;
 }
 

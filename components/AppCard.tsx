@@ -23,6 +23,9 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
   const [isLiked, setIsLiked] = useState(user ? app.likes.includes(user.uid) : false);
   const [likeCount, setLikeCount] = useState(app.likeCount);
   const [isLiking, setIsLiking] = useState(false);
+  const thumbnailPosition = app.thumbnailUrl
+    ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
+    : undefined;
   const categoryBackground = (() => {
     switch (app.category) {
       case 'chatbot':
@@ -50,6 +53,20 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
   })();
 
   const snsPreview = useMemo(() => app.snsUrls.slice(0, 3), [app.snsUrls]);
+  const plainDescription = useMemo(() => {
+    const raw = app.description || '';
+    return raw
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/!\[.*?\]\(.*?\)/g, ' ')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+      .replace(/^\s{0,3}[-*+]\s+/gm, '')
+      .replace(/^\s{0,3}\d+\.\s+/gm, '')
+      .replace(/[*_~]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, [app.description]);
   const getLinkPreview = (url: string) => {
     const blogFallback = '/naver-blog.svg';
     const instagramFallback = '/instagram-icon.svg';
@@ -151,6 +168,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
                 alt={app.name}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-500"
+                style={thumbnailPosition}
                 onError={() => setImageError(true)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -180,7 +198,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           </h3>
 
           <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 flex-1 leading-relaxed">
-            {app.description}
+            {plainDescription}
           </p>
 
           {/* SNS 미리보기 */}
