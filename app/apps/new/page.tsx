@@ -6,14 +6,34 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createApp } from '@/lib/db';
 import { AppCategory } from '@/types/app';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaSave } from 'react-icons/fa';
+import { FaPaperclip, FaSave } from 'react-icons/fa';
 import { sendSlackNotification } from '@/lib/notifications';
+import { uploadAppAttachment } from '@/lib/storage';
 
 const detectUrls = (value: string) =>
   value
     .split(/[\n,]/)
     .map((v) => v.trim())
     .filter(Boolean);
+
+const MAX_ATTACHMENT_SIZE_MB = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/xml',
+  'text/xml',
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'application/json',
+  'text/json',
+  'image/png',
+  'image/jpeg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
 
 export default function NewAppPage() {
   const router = useRouter();
@@ -31,6 +51,8 @@ export default function NewAppPage() {
     thumbnailPositionY: 50,
     createdByName: user?.displayName || '',
   });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [snsForm, setSnsForm] = useState({
     blog: '',
     instagram: '',
@@ -96,6 +118,31 @@ export default function NewAppPage() {
     return urls;
   };
 
+  const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachmentError(null);
+    const next = files.filter((file) => {
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        setAttachmentError(`파일 크기는 ${MAX_ATTACHMENT_SIZE_MB}MB 이하만 가능합니다.`);
+        return false;
+      }
+      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        setAttachmentError('허용되지 않는 파일 형식입니다.');
+        return false;
+      }
+      return true;
+    });
+    if (next.length) {
+      setAttachments((prev) => [...prev, ...next]);
+    }
+    event.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -106,6 +153,14 @@ export default function NewAppPage() {
 
     setSubmitting(true);
     try {
+      const idToken = await user.getIdToken();
+      if (attachmentError) {
+        alert(attachmentError);
+        return;
+      }
+      const uploadedAttachments = attachments.length
+        ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
+        : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const appId = await createApp(
         {
@@ -117,6 +172,7 @@ export default function NewAppPage() {
           thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
           thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+          attachments: uploadedAttachments,
           createdByName: formData.createdByName || user.displayName || '익명',
         },
         user.uid
@@ -246,6 +302,51 @@ export default function NewAppPage() {
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Google AI Studio에서 공유한 앱 URL을 입력하세요
+            </p>
+          </div>
+
+          {/* 첨부 파일 */}
+          <div className="mb-6">
+            <label htmlFor="attachments" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              첨부 파일 (선택)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id="attachments"
+                type="file"
+                multiple
+                accept={ALLOWED_ATTACHMENT_TYPES.join(',')}
+                onChange={handleAttachmentChange}
+                className="w-full px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <FaPaperclip className="text-gray-400" />
+            </div>
+            {attachmentError && (
+              <p className="text-xs text-red-500 mt-2">{attachmentError}</p>
+            )}
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {attachments.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate">
+                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      제거
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              최대 {MAX_ATTACHMENT_SIZE_MB}MB, PDF/텍스트/ZIP/DOCX/PNG/JPG만 가능합니다.
             </p>
           </div>
 

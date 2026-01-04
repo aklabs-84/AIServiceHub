@@ -20,6 +20,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
   'text/json',
   'image/png',
   'image/jpeg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
 const requireAuth = async (request: Request) => {

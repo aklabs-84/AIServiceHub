@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const safeName = sanitizeFileName(name || 'file');
-  const storagePath = `prompts/${decoded.uid}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+  const storagePath = `apps/${decoded.uid}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
 
   const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUploadUrl(storagePath);
   if (error || !data?.signedUrl) {

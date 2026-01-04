@@ -1,5 +1,13 @@
 export type AppCategory = string;
 
+export interface AppAttachment {
+  name: string;
+  size: number;
+  contentType: string;
+  downloadUrl?: string;
+  storagePath: string;
+}
+
 export interface AIApp {
   id: string;
   name: string;
@@ -10,6 +18,7 @@ export interface AIApp {
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
+  attachments: AppAttachment[];
   createdBy: string;
   createdByName: string;
   createdAt: Date;
@@ -28,6 +37,7 @@ export interface CreateAppInput {
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
   createdByName: string;
+  attachments?: AppAttachment[];
 }
 
 export interface UpdateAppInput extends Partial<CreateAppInput> {

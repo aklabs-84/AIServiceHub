@@ -32,6 +32,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
   'text/json',
   'image/png',
   'image/jpeg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
 export default function NewPromptPage() {
@@ -279,7 +280,7 @@ export default function NewPromptPage() {
               </div>
             )}
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              최대 {MAX_ATTACHMENT_SIZE_MB}MB, PDF/텍스트/ZIP/PNG/JPG만 가능합니다.
+              최대 {MAX_ATTACHMENT_SIZE_MB}MB, PDF/텍스트/ZIP/DOCX/PNG/JPG만 가능합니다.
             </p>
           </div>
 

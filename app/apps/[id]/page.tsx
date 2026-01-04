@@ -12,7 +12,8 @@ import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { downloadAppAttachment } from '@/lib/storage';
+import { FaExternalLinkAlt, FaEdit, FaTrash, FaLock, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -44,6 +45,7 @@ export default function AppDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
 
   const thumbnailPosition = app
     ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
@@ -170,6 +172,23 @@ export default function AppDetailPage() {
       alert('앱 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
+    if (!user) {
+      alert('로그인 후 다운로드할 수 있습니다.');
+      return;
+    }
+    setDownloadingPath(storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
+    } catch (error) {
+      console.error('Failed to download attachment:', error);
+      alert('첨부 파일 다운로드 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPath(null);
     }
   };
 
@@ -397,6 +416,46 @@ export default function AppDetailPage() {
                 <span className="break-all">{app.appUrl}</span>
                 <FaExternalLinkAlt className="flex-shrink-0" />
               </a>
+            </div>
+
+            <div className="mb-6 p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
+                <FaPaperclip />
+                <span>첨부 파일</span>
+              </h2>
+              {app.attachments.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">등록된 파일이 없습니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  {app.attachments.map((file) => (
+                    <div
+                      key={file.storagePath}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        disabled={downloadingPath === file.storagePath}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition disabled:opacity-60"
+                      >
+                        <FaDownload />
+                        {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!user && app.attachments.length > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  로그인 후 파일을 다운로드할 수 있습니다.
+                </p>
+              )}
             </div>
 
             <div className="mb-6 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">

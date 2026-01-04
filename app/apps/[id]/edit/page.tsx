@@ -4,15 +4,35 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppById, updateApp } from '@/lib/db';
-import { AIApp, AppCategory } from '@/types/app';
+import { AIApp, AppAttachment, AppCategory } from '@/types/app';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaSave } from 'react-icons/fa';
+import { FaSave, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
 
 const detectUrls = (value: string) =>
   value
     .split(/[\n,]/)
     .map((v) => v.trim())
     .filter(Boolean);
+
+const MAX_ATTACHMENT_SIZE_MB = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/xml',
+  'text/xml',
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'application/json',
+  'text/json',
+  'image/png',
+  'image/jpeg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
 
 export default function EditAppPage() {
   const params = useParams();
@@ -23,6 +43,11 @@ export default function EditAppPage() {
   const [app, setApp] = useState<AIApp | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [existingAttachments, setExistingAttachments] = useState<AppAttachment[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -97,6 +122,31 @@ export default function EditAppPage() {
     return urls;
   };
 
+  const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachmentError(null);
+    const next = files.filter((file) => {
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        setAttachmentError(`파일 크기는 ${MAX_ATTACHMENT_SIZE_MB}MB 이하만 가능합니다.`);
+        return false;
+      }
+      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        setAttachmentError('허용되지 않는 파일 형식입니다.');
+        return false;
+      }
+      return true;
+    });
+    if (next.length) {
+      setAttachments((prev) => [...prev, ...next]);
+    }
+    event.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const hydrateSnsForm = (snsUrls: string[]) => {
     const next = { blog: '', instagram: '', tiktok: '', youtube: '', etc: [] as string[] };
     snsUrls.forEach((entry) => {
@@ -144,6 +194,7 @@ export default function EditAppPage() {
           thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : 50,
         });
         hydrateSnsForm(data.snsUrls || []);
+        setExistingAttachments(data.attachments || []);
       }
     } catch (error) {
       console.error('Error loading app:', error);
@@ -167,6 +218,14 @@ export default function EditAppPage() {
 
     setSubmitting(true);
     try {
+      if (attachmentError) {
+        alert(attachmentError);
+        return;
+      }
+      const idToken = await user.getIdToken();
+      const uploadedAttachments = attachments.length
+        ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
+        : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       await updateApp({
         id: app.id,
@@ -178,6 +237,7 @@ export default function EditAppPage() {
         thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
         thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+        attachments: [...existingAttachments, ...uploadedAttachments],
       });
 
       alert('앱이 수정되었습니다!');
@@ -187,6 +247,38 @@ export default function EditAppPage() {
       alert('앱 수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
+    if (!user) return;
+    setDownloadingPath(storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
+    } catch (error) {
+      console.error('Error generating download link:', error);
+      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPath(null);
+    }
+  };
+
+  const handleDeleteExistingAttachment = async (attachment: AppAttachment) => {
+    if (!user || !app) return;
+    if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
+    setDeletingPath(attachment.storagePath);
+    try {
+      const idToken = await user.getIdToken();
+      await deleteAppAttachment(attachment.storagePath, idToken);
+      const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
+      setExistingAttachments(nextAttachments);
+      await updateApp({ id: app.id, attachments: nextAttachments });
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      alert('첨부 파일 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingPath(null);
     }
   };
 
@@ -355,6 +447,85 @@ export default function EditAppPage() {
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Google AI Studio에서 공유한 앱 URL을 입력하세요
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="attachments" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              첨부 파일 (선택)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                id="attachments"
+                type="file"
+                multiple
+                accept={ALLOWED_ATTACHMENT_TYPES.join(',')}
+                onChange={handleAttachmentChange}
+                className="w-full px-4 py-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <FaPaperclip className="text-gray-400" />
+            </div>
+            {attachmentError && (
+              <p className="text-xs text-red-500 mt-2">{attachmentError}</p>
+            )}
+            {existingAttachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {existingAttachments.map((file) => (
+                  <div
+                    key={file.storagePath}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate">
+                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        disabled={downloadingPath === file.storagePath}
+                        className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-60"
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          <FaDownload />
+                          {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExistingAttachment(file)}
+                        disabled={deletingPath === file.storagePath}
+                        className="text-xs text-red-500 hover:text-red-600 disabled:opacity-60"
+                      >
+                        {deletingPath === file.storagePath ? '삭제 중...' : '삭제'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {attachments.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {attachments.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
+                  >
+                    <span className="truncate">
+                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      제거
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              최대 {MAX_ATTACHMENT_SIZE_MB}MB, PDF/텍스트/ZIP/DOCX/PNG/JPG만 가능합니다.
             </p>
           </div>
 
