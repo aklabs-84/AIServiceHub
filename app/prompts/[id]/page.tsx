@@ -184,6 +184,23 @@ export default function PromptDetailPage() {
   const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === prompt.createdBy;
+  const isPublic = prompt.isPublic ?? true;
+
+  if (!isPublic && !isOwner) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+          비공개 프롬프트입니다
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          작성자만 볼 수 있는 프롬프트입니다.
+        </p>
+        <Link href="/prompts" className="text-emerald-600 hover:underline">
+          프롬프트 목록으로 돌아가기
+        </Link>
+      </div>
+    );
+  }
   const parsedSns = prompt.snsUrls.map((entry) => {
     const parts = entry.split(':');
     if (parts.length >= 2) {

@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock, FaQuestionCircle } from 'react-icons/fa';
 import Footer from '@/components/Footer';
+import HeroPreview from '@/components/HeroPreview';
 
 export default function Home() {
   return (
@@ -47,14 +47,7 @@ export default function Home() {
           <div className="relative">
             <div className="absolute -inset-8 bg-gradient-to-tr from-emerald-200 via-cyan-200 to-blue-200 dark:from-emerald-900/40 dark:via-cyan-900/30 dark:to-blue-900/30 blur-3xl opacity-70" />
             <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/40 dark:ring-gray-800/60 bg-transparent backdrop-blur-sm">
-              <Image
-                src="/hero_image.png"
-                alt="앱과 프롬프트를 함께 관리하는 인터페이스 미리보기"
-                width={520}
-                height={376}
-                priority
-                className="w-full max-w-[520px] h-auto mx-auto object-contain"
-              />
+              <HeroPreview />
             </div>
           </div>
         </div>

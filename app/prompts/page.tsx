@@ -9,6 +9,7 @@ import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
 import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome } from 'react-icons/fa';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -19,6 +20,7 @@ export default function PromptsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { categories: promptCategories } = usePromptCategories();
+  const { user } = useAuth();
 
   useEffect(() => {
     setCurrentPage(1);
@@ -54,16 +56,21 @@ export default function PromptsPage() {
     }
   };
 
+  const visiblePrompts = useMemo(() => {
+    const uid = user?.uid;
+    return prompts.filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === uid);
+  }, [prompts, user?.uid]);
+
   const filteredPrompts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return prompts;
-    return prompts.filter((prompt) => {
+    if (!term) return visiblePrompts;
+    return visiblePrompts.filter((prompt) => {
       const name = prompt.name.toLowerCase();
       const author = prompt.createdByName.toLowerCase();
       const desc = prompt.description.toLowerCase();
       return name.includes(term) || author.includes(term) || desc.includes(term);
     });
-  }, [prompts, searchTerm]);
+  }, [visiblePrompts, searchTerm]);
 
   const totalPages = Math.ceil(filteredPrompts.length / itemsPerPage);
   const paginatedPrompts = useMemo(() => {

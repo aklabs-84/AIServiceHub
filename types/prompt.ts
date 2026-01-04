@@ -15,6 +15,7 @@ export interface Prompt {
   promptContent: string;
   snsUrls: string[];
   category: PromptCategory;
+  isPublic: boolean;
   thumbnailUrl?: string;
   attachments: PromptAttachment[];
   createdBy: string;
@@ -31,6 +32,7 @@ export interface CreatePromptInput {
   promptContent: string;
   snsUrls: string[];
   category: PromptCategory;
+  isPublic?: boolean;
   thumbnailUrl?: string;
   createdByName: string;
   attachments?: PromptAttachment[];

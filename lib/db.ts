@@ -60,6 +60,7 @@ function docToPrompt(id: string, data: any): Prompt {
     promptContent: data.promptContent,
     snsUrls: data.snsUrls || [],
     category: data.category,
+    isPublic: data.isPublic ?? true,
     thumbnailUrl: data.thumbnailUrl,
     attachments: data.attachments || [],
     createdBy: data.createdBy,
@@ -239,6 +240,7 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
     ...input,
     snsUrls: input.snsUrls || [],
     attachments: input.attachments || [],
+    isPublic: input.isPublic ?? true,
     createdBy: userId,
     likes: [],
     createdAt: serverTimestamp(),
@@ -265,6 +267,9 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
 
   if (payload.thumbnailUrl === undefined) {
     delete payload.thumbnailUrl;
+  }
+  if (payload.isPublic === undefined) {
+    delete payload.isPublic;
   }
 
   await updateDoc(docRef, payload);
@@ -321,7 +326,9 @@ export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
   );
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+  return snapshot.docs
+    .map(doc => docToPrompt(doc.id, doc.data()))
+    .filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === userId);
 }
 
 // 전체 댓글 가져오기
