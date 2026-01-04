@@ -9,6 +9,7 @@ import { useAppCategories } from '@/lib/useCategories';
 import { FaFilter, FaHome, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser } from 'react-icons/fa';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
@@ -19,6 +20,7 @@ export default function AppsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const { categories } = useAppCategories();
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
+  const { user } = useAuth();
 
   useEffect(() => {
     setCurrentPage(1);
@@ -53,16 +55,21 @@ export default function AppsPage() {
     }
   };
 
+  const visibleApps = useMemo(() => {
+    const uid = user?.uid;
+    return apps.filter((app) => (app.isPublic ?? true) || app.createdBy === uid);
+  }, [apps, user?.uid]);
+
   const filteredApps = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return apps;
-    return apps.filter((app) => {
+    if (!term) return visibleApps;
+    return visibleApps.filter((app) => {
       const name = app.name.toLowerCase();
       const author = app.createdByName.toLowerCase();
       const desc = app.description.toLowerCase();
       return name.includes(term) || author.includes(term) || desc.includes(term);
     });
-  }, [apps, searchTerm]);
+  }, [visibleApps, searchTerm]);
 
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   const paginatedApps = useMemo(() => {
@@ -176,7 +183,7 @@ export default function AppsPage() {
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <div className="bg-white dark:bg-gray-800 px-5 py-3 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col justify-center w-full">
                       <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {apps.length}
+                        {visibleApps.length}
                       </div>
                       <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">등록된 앱</div>
                     </div>
@@ -245,7 +252,7 @@ export default function AppsPage() {
                 </div>
                 <p className="mt-4 text-gray-600 dark:text-gray-400">앱을 불러오는 중...</p>
               </div>
-            ) : apps.length === 0 ? (
+            ) : visibleApps.length === 0 ? (
               <div className="text-center py-20 md:py-32 animate-fadeIn">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <FaRocket className="text-white text-3xl" />

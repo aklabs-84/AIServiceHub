@@ -368,151 +368,153 @@ export default function PromptDetailPage() {
               </ReactMarkdown>
             </div>
 
-            {!user ? (
-              <div className="p-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-                  <FaLock />
-                </div>
-                <div className="flex-1 text-left">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">로그인 후 프롬프트와 링크를 볼 수 있습니다</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">가입자 전용 정보입니다. 로그인하면 전체 프롬프트와 SNS 링크가 공개됩니다.</p>
-                </div>
-                <button
-                  onClick={signInWithGoogle}
-                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow hover:opacity-90 transition"
-                >
-                  Google 로그인
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
-                  <h2 className="text-sm font-semibold text-emerald-800 dark:text-emerald-100 mb-2 flex items-center space-x-2">
-                    <FaLink />
-                    <span>프롬프트 본문</span>
-                  </h2>
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(prompt.promptContent);
-                          setCopiedBlock('prompt-content');
-                          setTimeout(() => setCopiedBlock((prev) => (prev === 'prompt-content' ? null : prev)), 1200);
-                        } catch (error) {
-                          console.error('Failed to copy prompt content:', error);
-                        }
-                      }}
-                      className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
-                    >
-                      {copiedBlock === 'prompt-content' ? <FaCheck /> : <FaCopy />}
-                      <span>{copiedBlock === 'prompt-content' ? '복사됨' : '복사'}</span>
-                    </button>
-                    <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800 whitespace-pre-wrap">
-                      <code>{prompt.promptContent}</code>
-                    </pre>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                  <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
-                    <FaPaperclip />
-                    <span>첨부 파일</span>
-                  </h2>
-                  {prompt.attachments.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">등록된 파일이 없습니다.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {prompt.attachments.map((file) => (
-                        <div
-                          key={file.storagePath}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
-                            disabled={downloadingPath === file.storagePath}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
-                          >
-                            <FaDownload />
-                            {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                  <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
-                    <FaExternalLinkAlt />
-                    <span>SNS / 채널</span>
-                  </h2>
-                  {parsedSns.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
-                  ) : (
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {parsedSns.map((item, idx) => {
-                        const preview = getLinkPreview(item.url, item.label);
-                        const renderIcon = () => {
-                          switch (preview.icon) {
-                            case 'instagram':
-                              return <Image src="/instagram-icon.svg" alt="Instagram" fill sizes="40px" className="object-contain" />;
-                            case 'blog-placeholder':
-                              return <Image src={preview.favicon} alt="Blog link" fill sizes="40px" className="object-contain" />;
-                            case 'blog':
-                              return <Image src="/naver-blog.svg" alt="Naver Blog" fill sizes="40px" className="object-contain" />;
-                            case 'youtube':
-                              return <Image src="/youtube.svg" alt="YouTube" fill sizes="40px" className="object-contain" />;
-                            default:
-                              return (
-                                <Image
-                                  src={preview.favicon}
-                                  alt={item.label || preview.hostname}
-                                  fill
-                                  sizes="40px"
-                                  className="object-contain"
-                                  onError={(e) => {
-                                    const target = e.currentTarget as HTMLImageElement;
-                                    if (!target.src.includes(preview.fallback)) {
-                                      target.src = preview.fallback;
-                                    }
-                                  }}
-                                />
-                              );
+            <div className="space-y-4">
+              {user ? (
+                <>
+                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
+                    <h2 className="text-sm font-semibold text-emerald-800 dark:text-emerald-100 mb-2 flex items-center space-x-2">
+                      <FaLink />
+                      <span>프롬프트 본문</span>
+                    </h2>
+                    <div className="relative group">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(prompt.promptContent);
+                            setCopiedBlock('prompt-content');
+                            setTimeout(() => setCopiedBlock((prev) => (prev === 'prompt-content' ? null : prev)), 1200);
+                          } catch (error) {
+                            console.error('Failed to copy prompt content:', error);
                           }
-                        };
-                        return (
-                          <a
-                            key={idx}
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition"
-                          >
-                            <div className="relative h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                              {renderIcon()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                {item.label || preview.hostname}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{preview.hostname}</p>
-                            </div>
-                          </a>
-                        );
-                      })}
+                        }}
+                        className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
+                      >
+                        {copiedBlock === 'prompt-content' ? <FaCheck /> : <FaCopy />}
+                        <span>{copiedBlock === 'prompt-content' ? '복사됨' : '복사'}</span>
+                      </button>
+                      <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800 whitespace-pre-wrap">
+                        <code>{prompt.promptContent}</code>
+                      </pre>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                    <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
+                      <FaPaperclip />
+                      <span>첨부 파일</span>
+                    </h2>
+                    {prompt.attachments.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">등록된 파일이 없습니다.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {prompt.attachments.map((file) => (
+                          <div
+                            key={file.storagePath}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                              disabled={downloadingPath === file.storagePath}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
+                            >
+                              <FaDownload />
+                              {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="p-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                    <FaLock />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">로그인 후 프롬프트 본문을 볼 수 있습니다</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 본문과 첨부 파일은 로그인 후 확인할 수 있습니다.</p>
+                  </div>
+                  <button
+                    onClick={signInWithGoogle}
+                    className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow hover:opacity-90 transition"
+                  >
+                    Google 로그인
+                  </button>
                 </div>
+              )}
+
+              <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
+                  <FaExternalLinkAlt />
+                  <span>SNS / 채널</span>
+                </h2>
+                {parsedSns.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {parsedSns.map((item, idx) => {
+                      const preview = getLinkPreview(item.url, item.label);
+                      const renderIcon = () => {
+                        switch (preview.icon) {
+                          case 'instagram':
+                            return <Image src="/instagram-icon.svg" alt="Instagram" fill sizes="40px" className="object-contain" />;
+                          case 'blog-placeholder':
+                            return <Image src={preview.favicon} alt="Blog link" fill sizes="40px" className="object-contain" />;
+                          case 'blog':
+                            return <Image src="/naver-blog.svg" alt="Naver Blog" fill sizes="40px" className="object-contain" />;
+                          case 'youtube':
+                            return <Image src="/youtube.svg" alt="YouTube" fill sizes="40px" className="object-contain" />;
+                          default:
+                            return (
+                              <Image
+                                src={preview.favicon}
+                                alt={item.label || preview.hostname}
+                                fill
+                                sizes="40px"
+                                className="object-contain"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  if (!target.src.includes(preview.fallback)) {
+                                    target.src = preview.fallback;
+                                  }
+                                }}
+                              />
+                            );
+                        }
+                      };
+                      return (
+                        <a
+                          key={idx}
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition"
+                        >
+                          <div className="relative h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                            {renderIcon()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                              {item.label || preview.hostname}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{preview.hostname}</p>
+                          </div>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="flex justify-end">
               <div className="flex gap-2">

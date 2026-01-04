@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
 import { PromptCategoryInfo, getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaExternalLinkAlt, FaUser, FaHeart, FaRegHeart, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaGlobe, FaBlog, FaFileAlt, FaClipboardList } from 'react-icons/fa';
+import { FaUser, FaHeart, FaRegHeart, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaGlobe, FaBlog, FaFileAlt, FaClipboardList } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -220,68 +220,61 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2 mt-auto">
-          {!user && (
-            <div className="inline-flex items-center space-x-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-xs font-semibold">
-              <FaExternalLinkAlt />
-              <span>프롬프트/링크는 로그인 후 확인</span>
-            </div>
-          )}
-          {user &&
-            snsPreview.map((url, idx) => {
-              const preview = getLinkPreview(url);
-              const renderIcon = () => {
-                switch (preview.icon) {
-                  case 'instagram':
-                    return <Image src="/instagram-icon.svg" alt="Instagram" width={20} height={20} />;
-                  case 'youtube':
-                    return <Image src="/youtube.svg" alt="YouTube" width={20} height={20} />;
-                  case 'tiktok':
-                    return <FaTiktok className="text-gray-800 dark:text-white" />;
-                  case 'twitter':
-                    return <FaTwitter className="text-sky-500" />;
-                  case 'notion':
-                    return <FaFileAlt className="text-gray-700 dark:text-gray-200" />;
-                  case 'form':
-                    return <FaClipboardList className="text-emerald-500" />;
-                  case 'blog':
-                    return <Image src="/naver-blog.svg" alt="Naver Blog" width={20} height={20} />;
-                  default:
-                    return null;
-                }
-              };
-              return (
-                <a
-                  key={idx}
-                  href={url}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={preview.hostname}
-                >
-                  <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    {renderIcon() ? (
-                      renderIcon()
-                    ) : (
-                      <Image
-                        src={preview.favicon}
-                        alt={preview.hostname}
-                        fill
-                        sizes="20px"
-                        className="object-contain"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          if (!target.src.includes(preview.fallback)) {
-                            target.src = preview.fallback;
-                          }
-                        }}
-                      />
-                    )}
-                  </span>
-                </a>
-              );
-            })}
-          {user && prompt.snsUrls.length > 2 && (
+          {snsPreview.map((url, idx) => {
+            const preview = getLinkPreview(url);
+            const renderIcon = () => {
+              switch (preview.icon) {
+                case 'instagram':
+                  return <Image src="/instagram-icon.svg" alt="Instagram" width={20} height={20} />;
+                case 'youtube':
+                  return <Image src="/youtube.svg" alt="YouTube" width={20} height={20} />;
+                case 'tiktok':
+                  return <FaTiktok className="text-gray-800 dark:text-white" />;
+                case 'twitter':
+                  return <FaTwitter className="text-sky-500" />;
+                case 'notion':
+                  return <FaFileAlt className="text-gray-700 dark:text-gray-200" />;
+                case 'form':
+                  return <FaClipboardList className="text-emerald-500" />;
+                case 'blog':
+                  return <Image src="/naver-blog.svg" alt="Naver Blog" width={20} height={20} />;
+                default:
+                  return null;
+              }
+            };
+            return (
+              <a
+                key={idx}
+                href={url}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={preview.hostname}
+              >
+                <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                  {renderIcon() ? (
+                    renderIcon()
+                  ) : (
+                    <Image
+                      src={preview.favicon}
+                      alt={preview.hostname}
+                      fill
+                      sizes="20px"
+                      className="object-contain"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (!target.src.includes(preview.fallback)) {
+                          target.src = preview.fallback;
+                        }
+                      }}
+                    />
+                  )}
+                </span>
+              </a>
+            );
+          })}
+          {prompt.snsUrls.length > 2 && (
             <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
               +{prompt.snsUrls.length - 2}
             </span>

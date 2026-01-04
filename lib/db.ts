@@ -37,6 +37,7 @@ function docToApp(id: string, data: any): AIApp {
     appUrl: data.appUrl,
     snsUrls: data.snsUrls || [],
     category: data.category,
+    isPublic: data.isPublic ?? true,
     thumbnailUrl: data.thumbnailUrl,
     thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : undefined,
     thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : undefined,
@@ -187,6 +188,7 @@ export async function createApp(input: CreateAppInput, userId: string): Promise<
     createdBy: userId,
     snsUrls: input.snsUrls || [],
     attachments: input.attachments || [],
+    isPublic: input.isPublic ?? true,
     likes: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -228,6 +230,9 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   }
   if (payload.thumbnailPositionY === undefined) {
     delete payload.thumbnailPositionY;
+  }
+  if (payload.isPublic === undefined) {
+    delete payload.isPublic;
   }
 
   await updateDoc(docRef, payload);
@@ -313,7 +318,9 @@ export async function getLikedAppsByUser(userId: string): Promise<AIApp[]> {
   );
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+  return snapshot.docs
+    .map(doc => docToApp(doc.id, doc.data()))
+    .filter((app) => (app.isPublic ?? true) || app.createdBy === userId);
 }
 
 // 사용자가 좋아요한 프롬프트 가져오기

@@ -216,6 +216,23 @@ export default function AppDetailPage() {
   const categoryInfo = getCategoryInfo(app.category, categories);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.uid === app.createdBy;
+  const isPublic = app.isPublic ?? true;
+
+  if (!isPublic && !isOwner) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+          비공개 앱입니다
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          작성자만 볼 수 있는 앱입니다.
+        </p>
+        <Link href="/apps" className="text-blue-600 hover:underline">
+          바이브코딩 목록으로 돌아가기
+        </Link>
+      </div>
+    );
+  }
   const parsedSns = app.snsUrls.map((entry) => {
     const parts = entry.split(':');
     if (parts.length >= 2) {
@@ -254,87 +271,7 @@ export default function AppDetailPage() {
     }
   };
 
-  // 로그인하지 않은 경우
-  if (!user) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          {/* 공개 정보 */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden mb-8 border border-gray-200 dark:border-gray-800">
-            <div className="relative w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
-              {app.thumbnailUrl && !imageError ? (
-                <Image
-                  src={app.thumbnailUrl}
-                  alt={app.name}
-                  fill
-                  className="object-cover"
-                  style={thumbnailPosition}
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className={`w-full h-full flex items-center justify-center ${categoryInfo.color}`}>
-                  <CategoryIcon className="text-white text-8xl" />
-                </div>
-              )}
-            </div>
-
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-                  {app.name}
-                </h1>
-                <span className={`px-4 py-2 rounded-full text-white ${categoryInfo.color}`}>
-                  {categoryInfo.label}
-                </span>
-              </div>
-
-              <div className="prose prose-slate dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {app.description || ''}
-                </ReactMarkdown>
-              </div>
-
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                    <FaUser className="text-purple-500" />
-                    <span>{app.createdByName}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                    <FaCalendar className="text-blue-500" />
-                    <span>{new Date(app.createdAt).toLocaleDateString('ko-KR')}</span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 text-red-500 text-lg">
-                  <FaHeart />
-                  <span className="font-semibold">{likeCount}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 로그인 필요 안내 */}
-          <div className="bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 rounded-lg p-8 text-center">
-            <FaLock className="text-yellow-600 dark:text-yellow-500 text-4xl mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-              로그인이 필요합니다
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              앱의 상세 정보와 URL을 확인하려면 Google 계정으로 로그인해주세요.
-            </p>
-            <button
-              onClick={signInWithGoogle}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition"
-            >
-              Google 로그인
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 로그인한 경우 - 전체 정보 표시
+  // 상세 정보 표시
   const totalCommentPages = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
   const startIdx = (commentPage - 1) * COMMENTS_PER_PAGE;
   const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
@@ -407,15 +344,29 @@ export default function AppDetailPage() {
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
                 앱 URL
               </h2>
-              <a
-                href={app.appUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline flex items-center space-x-2"
-              >
-                <span className="break-all">{app.appUrl}</span>
-                <FaExternalLinkAlt className="flex-shrink-0" />
-              </a>
+              {user ? (
+                <a
+                  href={app.appUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center space-x-2"
+                >
+                  <span className="break-all">{app.appUrl}</span>
+                  <FaExternalLinkAlt className="flex-shrink-0" />
+                </a>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    로그인 후 앱 URL을 확인할 수 있습니다.
+                  </p>
+                  <button
+                    onClick={signInWithGoogle}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
+                  >
+                    Google 로그인
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mb-6 p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">

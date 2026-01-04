@@ -46,6 +46,7 @@ export default function NewAppPage() {
     description: '',
     appUrl: '',
     category: 'chatbot' as AppCategory,
+    isPublic: true,
     thumbnailUrl: '',
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
@@ -169,6 +170,7 @@ export default function NewAppPage() {
           appUrl: formData.appUrl,
           snsUrls: buildSnsUrls(),
           category: formData.category,
+          isPublic: formData.isPublic,
           thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
           thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
@@ -415,6 +417,40 @@ export default function NewAppPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* 공개 설정 */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              공개 설정 <span className="text-red-500">*</span>
+            </label>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isPublic: true })}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                  formData.isPublic
+                    ? 'bg-blue-600 text-white border-blue-600 shadow'
+                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                공개
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isPublic: false })}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                  !formData.isPublic
+                    ? 'bg-blue-600 text-white border-blue-600 shadow'
+                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                비공개
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              비공개로 설정하면 작성자만 볼 수 있습니다.
+            </p>
           </div>
 
           {/* 작성자 이름 */}

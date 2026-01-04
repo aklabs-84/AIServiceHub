@@ -15,6 +15,7 @@ export interface AIApp {
   appUrl: string;
   snsUrls: string[];
   category: AppCategory;
+  isPublic: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
@@ -33,6 +34,7 @@ export interface CreateAppInput {
   appUrl: string;
   snsUrls: string[];
   category: AppCategory;
+  isPublic?: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
