@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getAllPrompts, getPromptsByCategory } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
-import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome } from 'react-icons/fa';
+import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome, FaArrowUp } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,9 +18,12 @@ export default function PromptsPage() {
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { categories: promptCategories } = usePromptCategories();
   const { user } = useAuth();
+  const listTopRef = useRef<HTMLDivElement | null>(null);
+  const listControlsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -40,6 +43,27 @@ export default function PromptsPage() {
       setSelectedCategory('all');
     }
   }, [promptCategories, selectedCategory]);
+
+  useEffect(() => {
+    const updateVisibility = () => {
+      const node = listControlsRef.current;
+      if (!node) {
+        setShowScrollTop(false);
+        return;
+      }
+      const rect = node.getBoundingClientRect();
+      const controlsBottom = rect.bottom + window.scrollY;
+      setShowScrollTop(window.scrollY > controlsBottom + 12);
+    };
+    updateVisibility();
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    window.addEventListener('resize', updateVisibility);
+    return () => {
+      window.removeEventListener('scroll', updateVisibility);
+      window.removeEventListener('resize', updateVisibility);
+    };
+  }, []);
+
 
   const loadPrompts = async () => {
     setLoading(true);
@@ -84,6 +108,22 @@ export default function PromptsPage() {
     }
   }, [totalPages, currentPage]);
 
+  useLayoutEffect(() => {
+    const node = listTopRef.current;
+    if (!node) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) {
+      active.blur();
+    }
+    const scrollToTop = () => {
+      const targetTop = node.getBoundingClientRect().top + window.scrollY - 24;
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'auto' });
+    };
+    scrollToTop();
+    const timeoutId = window.setTimeout(scrollToTop, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [currentPage]);
+
   const badgeTone = (category: Prompt['category']) => {
     switch (category) {
       case 'daily':
@@ -101,6 +141,16 @@ export default function PromptsPage() {
       default:
         return 'from-slate-200 via-slate-300 to-slate-400 dark:from-slate-700 dark:via-slate-800 dark:to-slate-900';
     }
+  };
+
+  const scrollToListTop = () => {
+    const node = listTopRef.current;
+    if (!node) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const targetTop = node.getBoundingClientRect().top + window.scrollY - 24;
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
   };
 
   return (
@@ -231,6 +281,7 @@ export default function PromptsPage() {
               </div>
             </div>
 
+            <div ref={listTopRef} />
             {/* 목록 */}
             {loading ? (
               <div className="flex flex-col justify-center items-center py-20 md:py-32">
@@ -254,7 +305,7 @@ export default function PromptsPage() {
               </div>
             ) : (
               <div className="animate-fadeIn space-y-7 md:space-y-8 border-t border-gray-200 dark:border-gray-800 pt-10 md:pt-12 mt-6 md:mt-8">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+                <div ref={listControlsRef} className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                     <p className="text-gray-600 dark:text-gray-400">
                       <span className="font-semibold text-gray-800 dark:text-gray-200">{filteredPrompts.length}개</span>의 프롬프트를 찾았습니다
@@ -383,6 +434,17 @@ export default function PromptsPage() {
           </section>
         </div>
       </div>
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToListTop}
+          className="fixed bottom-6 right-5 z-50 flex items-center gap-2 rounded-full bg-gray-900 text-white px-4 py-2 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
+          aria-label="맨 위로 이동"
+        >
+          <FaArrowUp />
+          <span>맨 위로</span>
+        </button>
+      )}
       <Footer />
     </>
   );
