@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPromptById, updatePrompt } from '@/lib/db';
@@ -140,11 +140,7 @@ export default function EditPromptPage() {
     });
   };
 
-  useEffect(() => {
-    loadPrompt();
-  }, [params.id, user]);
-
-  const loadPrompt = async () => {
+  const loadPrompt = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getPromptById(params.id as string);
@@ -167,7 +163,11 @@ export default function EditPromptPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    loadPrompt();
+  }, [loadPrompt]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

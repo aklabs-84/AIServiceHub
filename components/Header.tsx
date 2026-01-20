@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { FaGoogle, FaSignOutAlt, FaMoon, FaSun, FaBars, FaTimes, FaHeart, FaUserCircle } from 'react-icons/fa';
+import { FaGoogle, FaSignOutAlt, FaMoon, FaSun, FaBars, FaTimes, FaUserCircle } from 'react-icons/fa';
 import { useState } from 'react';
 
 export default function Header() {
@@ -63,10 +63,22 @@ export default function Header() {
                   프롬프트
                 </Link>
                 <Link
+                  href="/content"
+                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  콘텐츠
+                </Link>
+                <Link
                   href="/guide"
                   className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
                 >
                   Q&A
+                </Link>
+                <Link
+                  href="/request"
+                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors font-medium"
+                >
+                  제작 의뢰
                 </Link>
 
                 {user ? (
@@ -76,10 +88,13 @@ export default function Header() {
                       className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                     >
                       {user.photoURL ? (
-                        <img
+                        <Image
                           src={user.photoURL}
                           alt={user.displayName || '사용자'}
+                          width={36}
+                          height={36}
                           className="w-9 h-9 rounded-full border-2 border-blue-500 dark:border-purple-500"
+                          unoptimized
                         />
                       ) : (
                         <FaUserCircle className="w-9 h-9 text-white" />
@@ -184,11 +199,25 @@ export default function Header() {
                     프롬프트 둘러보기
                   </Link>
                   <Link
+                    href="/content"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
+                  >
+                    콘텐츠
+                  </Link>
+                  <Link
                     href="/guide"
                     onClick={() => setMobileMenuOpen(false)}
                     className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
                   >
                     Q&A
+                  </Link>
+                  <Link
+                    href="/request"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-3 rounded-lg text-white hover:bg-white/10 transition-colors text-center font-medium"
+                  >
+                    제작 의뢰
                   </Link>
                   {user ? (
                     <>
@@ -212,10 +241,13 @@ export default function Header() {
                       <div className="flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg">
                         <div className="flex items-center space-x-2">
                           {user.photoURL && (
-                            <img
+                            <Image
                               src={user.photoURL}
                               alt={user.displayName || '사용자'}
+                              width={32}
+                              height={32}
                               className="w-8 h-8 rounded-full border-2 border-blue-500"
+                              unoptimized
                             />
                           )}
                           <span className="text-sm font-medium text-white">

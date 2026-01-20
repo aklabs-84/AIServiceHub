@@ -1,61 +1,28 @@
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
-const ALLOWED_HOSTS = new Set([
-  'drive.google.com',
-  'lh3.googleusercontent.com',
-  'googleusercontent.com',
-]);
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const target = searchParams.get('url');
-
   if (!target) {
-    return new Response('Missing url', { status: 400 });
+    return NextResponse.json({ error: 'Missing url' }, { status: 400 });
   }
 
-  let parsed: URL;
   try {
-    parsed = new URL(target);
-  } catch {
-    return new Response('Invalid url', { status: 400 });
-  }
+    const response = await fetch(target, { redirect: 'follow' });
+    if (!response.ok) {
+      return NextResponse.json({ error: 'Failed to fetch image' }, { status: 502 });
+    }
 
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return new Response('Unsupported protocol', { status: 400 });
-  }
-
-  const hostname = parsed.hostname.toLowerCase();
-  const allowed = [...ALLOWED_HOSTS].some(
-    (host) => hostname === host || hostname.endsWith(`.${host}`)
-  );
-
-  if (!allowed) {
-    return new Response('Host not allowed', { status: 400 });
-  }
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(parsed.toString(), {
-      redirect: 'follow',
+    const contentType = response.headers.get('content-type') || 'image/*';
+    const buffer = await response.arrayBuffer();
+    return new NextResponse(buffer, {
       headers: {
-        accept: 'image/*,*/*;q=0.8',
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=86400',
       },
     });
-  } catch {
-    return new Response('Failed to fetch image', { status: 502 });
+  } catch (error) {
+    console.error('Image proxy error:', error);
+    return NextResponse.json({ error: 'Proxy error' }, { status: 500 });
   }
-
-  if (!upstream.ok || !upstream.body) {
-    return new Response('Image fetch failed', { status: 502 });
-  }
-
-  const contentType = upstream.headers.get('content-type') || 'image/jpeg';
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-    },
-  });
 }

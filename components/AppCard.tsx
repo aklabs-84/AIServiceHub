@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { AIApp } from '@/types/app';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useMemo, useState } from 'react';
-import { FaHeart, FaRegHeart, FaUser, FaInstagram, FaYoutube, FaTiktok, FaTwitter, FaBlog, FaFileAlt, FaClipboardList, FaGlobe } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaUser, FaTiktok, FaTwitter, FaFileAlt, FaClipboardList } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { likeApp, unlikeApp } from '@/lib/db';
 

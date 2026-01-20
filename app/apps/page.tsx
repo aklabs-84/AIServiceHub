@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getAllApps, getAppsByCategory } from '@/lib/db';
 import { AIApp, AppCategory } from '@/types/app';
 import AppCard from '@/components/AppCard';
@@ -10,6 +10,7 @@ import { FaFilter, FaHome, FaList, FaPlus, FaRocket, FaSearch, FaThLarge, FaUser
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 
 export default function AppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
@@ -22,13 +23,28 @@ export default function AppsPage() {
   const { categories } = useAppCategories();
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { user } = useAuth();
+  const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
+
+  const loadApps = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = selectedCategory === 'all'
+        ? await getAllApps()
+        : await getAppsByCategory(selectedCategory);
+      setApps(data);
+    } catch (error) {
+      console.error('Error loading apps:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory]);
 
   useEffect(() => {
     setCurrentPage(1);
     loadApps();
-  }, [selectedCategory]);
+  }, [loadApps]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -64,24 +80,11 @@ export default function AppsPage() {
     };
   }, []);
 
-  const loadApps = async () => {
-    setLoading(true);
-    try {
-        const data = selectedCategory === 'all'
-        ? await getAllApps()
-        : await getAppsByCategory(selectedCategory);
-      setApps(data);
-    } catch (error) {
-      console.error('Error loading apps:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const visibleApps = useMemo(() => {
+    if (hasOneTimeAccess) return apps;
     const uid = user?.uid;
     return apps.filter((app) => (app.isPublic ?? true) || app.createdBy === uid);
-  }, [apps, user?.uid]);
+  }, [apps, user?.uid, hasOneTimeAccess]);
 
   const filteredApps = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

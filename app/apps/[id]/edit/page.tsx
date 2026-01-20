@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppById, updateApp } from '@/lib/db';
@@ -175,11 +176,7 @@ export default function EditAppPage() {
     });
   };
 
-  useEffect(() => {
-    loadApp();
-  }, [params.id]);
-
-  const loadApp = async () => {
+  const loadApp = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAppById(params.id as string);
@@ -203,7 +200,11 @@ export default function EditAppPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    loadApp();
+  }, [loadApp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -627,15 +628,18 @@ export default function EditAppPage() {
               )}
               {previewUrl && !previewError && (
                 <>
-                  <img
+                  <Image
                     src={previewImageSrc}
                     alt="썸네일 미리보기"
+                    fill
+                    unoptimized
                     referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{
                       objectPosition: `${formData.thumbnailPositionX}% ${formData.thumbnailPositionY}%`,
                     }}
                     onError={() => setPreviewError(true)}
+                    sizes="100vw"
                   />
                   <div className="absolute inset-0 bg-black/10" />
                   <div

@@ -13,3 +13,4 @@ if (!admin.apps.length) {
 }
 
 export const verifyFirebaseIdToken = (token: string) => admin.auth().verifyIdToken(token);
+export const adminDb = admin.firestore();

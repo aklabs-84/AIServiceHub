@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { createCategory, deleteCategory, getAllApps, getAllComments, getAllPrompts, getAllUsers, getCategoriesByType, updateCategory, UserProfile } from '@/lib/db';
 import { AIApp } from '@/types/app';
@@ -8,7 +9,8 @@ import { Prompt } from '@/types/prompt';
 import { Comment } from '@/types/comment';
 import { CategoryRecord } from '@/types/category';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
-import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
+import Link from 'next/link';
 
 const ADMIN_EMAIL = 'mosebb@gmail.com';
 
@@ -22,7 +24,28 @@ interface CreatorStat {
 
 type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories';
 
-export default function AdminPage() {
+interface OneTimeInfo {
+  id: string;
+  username: string;
+  password: string;
+  createdAt: string | null;
+  usedAt: string | null;
+  sessionExpiresAt: string | null;
+  durationHours: number | null;
+}
+
+const AdminPage = dynamic(() => Promise.resolve(AdminPageContent), {
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  ),
+});
+
+export default AdminPage;
+
+function AdminPageContent() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [apps, setApps] = useState<AIApp[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -41,6 +64,19 @@ export default function AdminPage() {
   const [categoryEdits, setCategoryEdits] = useState<Record<string, { label: string; color: string; icon: string }>>({});
   const [autoSeededApp, setAutoSeededApp] = useState(false);
   const [autoSeededPrompt, setAutoSeededPrompt] = useState(false);
+  const [oneTimeInfo, setOneTimeInfo] = useState<OneTimeInfo[]>([]);
+  const [oneTimeCredential, setOneTimeCredential] = useState<{ username: string; password: string } | null>(null);
+  const [oneTimeLoading, setOneTimeLoading] = useState(false);
+  const [oneTimeError, setOneTimeError] = useState<string | null>(null);
+  const [oneTimePage, setOneTimePage] = useState(1);
+  const [showOneTimeModal, setShowOneTimeModal] = useState(false);
+  const [editingOneTime, setEditingOneTime] = useState<OneTimeInfo | null>(null);
+  const [oneTimeForm, setOneTimeForm] = useState({
+    username: '',
+    password: '',
+    durationUnit: 'hour' as 'hour' | 'day' | 'week',
+  });
+  const [now, setNow] = useState<Date | null>(null);
   const [appCategoryForm, setAppCategoryForm] = useState({
     value: '',
     label: '',
@@ -81,7 +117,7 @@ export default function AdminPage() {
     fetchAll();
   }, [user]);
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
     try {
       const [appsData, promptsData] = await Promise.all([
@@ -101,12 +137,78 @@ export default function AdminPage() {
     } finally {
       setLoadingCategories(false);
     }
-  };
+  }, []);
+
+  const loadOneTimeInfo = useCallback(async () => {
+    if (!user || user.email !== ADMIN_EMAIL) return;
+    setOneTimeError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/one-time/credentials', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to load');
+      }
+      setOneTimeInfo(data.items || []);
+    } catch (error) {
+      console.error('Failed to load one-time info:', error);
+      setOneTimeError('일회용 계정 정보를 불러오지 못했습니다.');
+    }
+  }, [user]);
+
+  const handleSeedFromData = useCallback(async (type: 'app' | 'prompt') => {
+    const defaults = type === 'app' ? appCategoryDefaults : promptCategoryDefaults;
+    const existing = type === 'app' ? appCategories : promptCategories;
+    const existingValues = new Set(existing.map((item) => item.value));
+    const sourceValues = new Set(
+      (type === 'app' ? apps : prompts).map((item) => item.category).filter(Boolean)
+    );
+    if (sourceValues.size === 0) {
+      alert('등록된 데이터에서 카테고리를 찾을 수 없습니다.');
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      for (const value of sourceValues) {
+        if (existingValues.has(value)) continue;
+        const match = defaults.find((item) => item.value === value);
+        await createCategory({
+          type,
+          value,
+          label: match?.label || value,
+          color: match?.color || (type === 'app' ? appColorOptions[0] : promptColorOptions[0]),
+          icon: match?.icon || (type === 'app' ? Object.keys(appIconOptions)[0] : Object.keys(promptIconOptions)[0]),
+        });
+      }
+      await loadCategories();
+    } catch (error) {
+      console.error('Failed to seed categories from data:', error);
+      alert('카테고리 가져오기 중 오류가 발생했습니다.');
+    } finally {
+      setSavingCategory(false);
+    }
+  }, [
+    appCategories,
+    promptCategories,
+    apps,
+    prompts,
+    loadCategories,
+  ]);
 
   useEffect(() => {
     if (!user || user.email !== ADMIN_EMAIL) return;
     loadCategories();
-  }, [user]);
+  }, [user, loadCategories]);
+
+  useEffect(() => {
+    loadOneTimeInfo();
+  }, [loadOneTimeInfo]);
+
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   useEffect(() => {
     if (!user || user.email !== ADMIN_EMAIL) return;
@@ -114,7 +216,7 @@ export default function AdminPage() {
       setAutoSeededApp(true);
       handleSeedFromData('app');
     }
-  }, [user, autoSeededApp, appCategories.length, apps.length]);
+  }, [user, autoSeededApp, appCategories.length, apps.length, handleSeedFromData]);
 
   useEffect(() => {
     if (!user || user.email !== ADMIN_EMAIL) return;
@@ -122,7 +224,7 @@ export default function AdminPage() {
       setAutoSeededPrompt(true);
       handleSeedFromData('prompt');
     }
-  }, [user, autoSeededPrompt, promptCategories.length, prompts.length]);
+  }, [user, autoSeededPrompt, promptCategories.length, prompts.length, handleSeedFromData]);
 
   const handleCreateCategory = async (type: 'app' | 'prompt') => {
     const form = type === 'app' ? appCategoryForm : promptCategoryForm;
@@ -150,6 +252,98 @@ export default function AdminPage() {
       alert('카테고리 추가 중 오류가 발생했습니다.');
     } finally {
       setSavingCategory(false);
+    }
+  };
+
+  const handleGenerateOneTime = async () => {
+    if (!user) return;
+    setOneTimeLoading(true);
+    setOneTimeError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/one-time/credentials', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: oneTimeForm.username.trim(),
+          password: oneTimeForm.password.trim(),
+          durationHours: oneTimeForm.durationUnit === 'hour' ? 1 : oneTimeForm.durationUnit === 'day' ? 24 : 168,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to create');
+      }
+      setOneTimeCredential({ username: data.username, password: data.password });
+      await loadOneTimeInfo();
+      setShowOneTimeModal(false);
+      setOneTimeForm({ username: '', password: '', durationUnit: 'hour' });
+    } catch (error) {
+      console.error('Failed to generate one-time credentials:', error);
+      setOneTimeError('일회용 계정 생성에 실패했습니다.');
+    } finally {
+      setOneTimeLoading(false);
+    }
+  };
+
+  const handleDeleteOneTime = async (id: string) => {
+    if (!user) return;
+    if (!confirm('일회용 계정을 삭제하시겠습니까?')) return;
+    setOneTimeLoading(true);
+    setOneTimeError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/one-time/credentials/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.error || 'Failed to delete');
+      }
+      await loadOneTimeInfo();
+    } catch (error) {
+      console.error('Failed to delete one-time credentials:', error);
+      setOneTimeError('일회용 계정 삭제에 실패했습니다.');
+    } finally {
+      setOneTimeLoading(false);
+    }
+  };
+
+  const handleUpdateOneTime = async () => {
+    if (!user || !editingOneTime) return;
+    setOneTimeLoading(true);
+    setOneTimeError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/one-time/credentials/${editingOneTime.id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: oneTimeForm.username.trim(),
+          password: oneTimeForm.password.trim(),
+          durationHours: oneTimeForm.durationUnit === 'hour' ? 1 : oneTimeForm.durationUnit === 'day' ? 24 : 168,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data?.error || 'Failed to update');
+      }
+      await loadOneTimeInfo();
+      setEditingOneTime(null);
+      setShowOneTimeModal(false);
+      setOneTimeForm({ username: '', password: '', durationUnit: 'hour' });
+    } catch (error) {
+      console.error('Failed to update one-time credentials:', error);
+      setOneTimeError('일회용 계정 수정에 실패했습니다.');
+    } finally {
+      setOneTimeLoading(false);
     }
   };
 
@@ -181,39 +375,6 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to seed categories:', error);
       alert('기본 카테고리 추가 중 오류가 발생했습니다.');
-    } finally {
-      setSavingCategory(false);
-    }
-  };
-
-  const handleSeedFromData = async (type: 'app' | 'prompt') => {
-    const defaults = type === 'app' ? appCategoryDefaults : promptCategoryDefaults;
-    const existing = type === 'app' ? appCategories : promptCategories;
-    const existingValues = new Set(existing.map((item) => item.value));
-    const sourceValues = new Set(
-      (type === 'app' ? apps : prompts).map((item) => item.category).filter(Boolean)
-    );
-    if (sourceValues.size === 0) {
-      alert('등록된 데이터에서 카테고리를 찾을 수 없습니다.');
-      return;
-    }
-    setSavingCategory(true);
-    try {
-      for (const value of sourceValues) {
-        if (existingValues.has(value)) continue;
-        const match = defaults.find((item) => item.value === value);
-        await createCategory({
-          type,
-          value,
-          label: match?.label || value,
-          color: match?.color || (type === 'app' ? appColorOptions[0] : promptColorOptions[0]),
-          icon: match?.icon || (type === 'app' ? Object.keys(appIconOptions)[0] : Object.keys(promptIconOptions)[0]),
-        });
-      }
-      await loadCategories();
-    } catch (error) {
-      console.error('Failed to seed categories from data:', error);
-      alert('카테고리 가져오기 중 오류가 발생했습니다.');
     } finally {
       setSavingCategory(false);
     }
@@ -268,7 +429,8 @@ export default function AdminPage() {
     new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 
   const recentDaily = useMemo(() => {
-    const today = new Date();
+    if (!now) return [];
+    const today = new Date(now);
     const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     const days = Array.from({ length: 7 }, (_, idx) => {
       const d = new Date();
@@ -297,7 +459,7 @@ export default function AdminPage() {
         comments: commentMap.get(key) || 0,
       };
     });
-  }, [apps, prompts, comments]);
+  }, [apps, prompts, comments, now]);
 
   const topCreators = useMemo(() => creatorStats.slice(0, 10), [creatorStats]);
   const recentUsers = useMemo(
@@ -312,6 +474,16 @@ export default function AdminPage() {
   const totalPagesApps = Math.max(1, Math.ceil(apps.length / pageSize));
   const totalPagesPrompts = Math.max(1, Math.ceil(prompts.length / pageSize));
   const totalPagesUsers = Math.max(1, Math.ceil(recentUsers.length / pageSize));
+  const totalPagesOneTime = Math.max(1, Math.ceil(oneTimeInfo.length / pageSize));
+  const pagedOneTime = paginated(oneTimeInfo, oneTimePage);
+  const formatOneTimeStatus = (item: OneTimeInfo) => {
+    if (!now) return '확인 중';
+    if (item.sessionExpiresAt && new Date(item.sessionExpiresAt).getTime() > now.getTime()) {
+      return '로그인 활성';
+    }
+    if (item.usedAt) return '사용 완료';
+    return '미사용';
+  };
 
   if (loading) {
     return (
@@ -375,6 +547,171 @@ export default function AdminPage() {
         <StatCard icon={<FaListUl />} label="프롬프트" value={prompts.length} />
         <StatCard icon={<FaRegCommentDots />} label="댓글" value={comments.length} />
       </div>
+
+      <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm mb-8">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">일회용 로그인 관리</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">ID/PW로 한 번만 로그인해 전체 콘텐츠를 볼 수 있습니다.</p>
+          </div>
+          <Link href="/one-time-login" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+            로그인 링크
+          </Link>
+        </div>
+        <div className="px-4 py-5 space-y-4">
+          {oneTimeCredential && (
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+              새로 생성된 일회용 계정입니다. 지금만 확인할 수 있어요.
+              <div className="mt-2 font-semibold">
+                ID: {oneTimeCredential.username} / PW: {oneTimeCredential.password}
+              </div>
+            </div>
+          )}
+          {oneTimeError && (
+            <p className="text-sm text-red-500">{oneTimeError}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingOneTime(null);
+                setOneTimeForm({ username: '', password: '', durationUnit: 'hour' });
+                setShowOneTimeModal(true);
+              }}
+              disabled={oneTimeLoading}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              일회용 ID/PW 생성
+            </button>
+            <button
+              type="button"
+              onClick={loadOneTimeInfo}
+              disabled={oneTimeLoading}
+              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60"
+            >
+              상태 새로고침
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold">ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">PW</th>
+                  <th className="px-4 py-3 text-left font-semibold">상태</th>
+                  <th className="px-4 py-3 text-left font-semibold">생성일</th>
+                  <th className="px-4 py-3 text-left font-semibold">만료</th>
+                  <th className="px-4 py-3 text-right font-semibold">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                {pagedOneTime.map((item) => (
+                  <tr key={item.id} className="text-gray-700 dark:text-gray-200">
+                    <td className="px-4 py-3">{item.username}</td>
+                    <td className="px-4 py-3">{item.password}</td>
+                    <td className="px-4 py-3">{formatOneTimeStatus(item)}</td>
+                    <td className="px-4 py-3">{item.createdAt ? new Date(item.createdAt).toLocaleString('ko-KR') : '-'}</td>
+                    <td className="px-4 py-3">{item.sessionExpiresAt ? new Date(item.sessionExpiresAt).toLocaleString('ko-KR') : '-'}</td>
+                    <td className="px-4 py-3 text-right space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingOneTime(item);
+                          setOneTimeForm({
+                            username: item.username,
+                            password: item.password,
+                            durationUnit: item.durationHours === 24 ? 'day' : item.durationHours === 168 ? 'week' : 'hour',
+                          });
+                          setShowOneTimeModal(true);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <FaEdit />
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOneTime(item.id)}
+                        className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                      >
+                        <FaTrash />
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {pagedOneTime.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                      등록된 일회용 계정이 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <Pager page={oneTimePage} totalPages={totalPagesOneTime} onPageChange={setOneTimePage} />
+          </div>
+        </div>
+      </section>
+
+      {showOneTimeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-2xl border border-gray-200 dark:border-gray-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              {editingOneTime ? '일회용 계정 수정' : '일회용 계정 생성'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">ID</label>
+                <input
+                  type="text"
+                  value={oneTimeForm.username}
+                  onChange={(event) => setOneTimeForm((prev) => ({ ...prev, username: event.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">PW</label>
+                <input
+                  type="text"
+                  value={oneTimeForm.password}
+                  onChange={(event) => setOneTimeForm((prev) => ({ ...prev, password: event.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">유지 기간</label>
+                <select
+                  value={oneTimeForm.durationUnit}
+                  onChange={(event) => setOneTimeForm((prev) => ({ ...prev, durationUnit: event.target.value as 'hour' | 'day' | 'week' }))}
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="hour">시간 (1시간)</option>
+                  <option value="day">일 (1일)</option>
+                  <option value="week">주 (1주)</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowOneTimeModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={editingOneTime ? handleUpdateOneTime : handleGenerateOneTime}
+                disabled={oneTimeLoading}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              >
+                {editingOneTime ? '수정 완료' : '생성'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm mb-8">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -621,21 +958,26 @@ function ListCard({
   items: { id: string; title: string; subtitle: string; meta: string }[];
 }) {
   return (
-    <div className="divide-y divide-gray-100 dark:divide-gray-800">
-      {items.map((item) => (
-        <div key={item.id} className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{item.title}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{item.subtitle}</div>
+    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 text-sm font-semibold text-gray-900 dark:text-gray-100">
+        {title}
+      </div>
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        {items.map((item) => (
+          <div key={item.id} className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{item.title}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{item.subtitle}</div>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{item.meta}</div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{item.meta}</div>
           </div>
-        </div>
-      ))}
-      {items.length === 0 && (
-        <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</div>
-      )}
+        ))}
+        {items.length === 0 && (
+          <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</div>
+        )}
+      </div>
     </div>
   );
 }

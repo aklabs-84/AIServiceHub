@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createApp } from '@/lib/db';
@@ -511,15 +512,18 @@ export default function NewAppPage() {
               )}
               {previewUrl && !previewError && (
                 <>
-                  <img
+                  <Image
                     src={previewImageSrc}
                     alt="썸네일 미리보기"
+                    fill
+                    unoptimized
                     referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover"
                     style={{
                       objectPosition: `${formData.thumbnailPositionX}% ${formData.thumbnailPositionY}%`,
                     }}
                     onError={() => setPreviewError(true)}
+                    sizes="100vw"
                   />
                   <div className="absolute inset-0 bg-black/10" />
                   <div

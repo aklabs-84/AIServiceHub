@@ -9,7 +9,7 @@ import {
   query,
   where,
   orderBy,
-  Timestamp,
+  DocumentData,
   serverTimestamp,
   arrayUnion,
   arrayRemove,
@@ -28,7 +28,7 @@ const USERS_COLLECTION = 'users';
 const CATEGORIES_COLLECTION = 'categories';
 
 // Firestore 데이터를 AIApp 타입으로 변환
-function docToApp(id: string, data: any): AIApp {
+function docToApp(id: string, data: DocumentData): AIApp {
   const likes = data.likes || [];
   return {
     id,
@@ -52,7 +52,7 @@ function docToApp(id: string, data: any): AIApp {
 }
 
 // Firestore 데이터를 Prompt 타입으로 변환
-function docToPrompt(id: string, data: any): Prompt {
+function docToPrompt(id: string, data: DocumentData): Prompt {
   const likes = data.likes || [];
   return {
     id,
@@ -74,7 +74,7 @@ function docToPrompt(id: string, data: any): Prompt {
 }
 
 // Firestore 데이터를 Comment 타입으로 변환
-function docToComment(id: string, data: any): Comment {
+function docToComment(id: string, data: DocumentData): Comment {
   return {
     id,
     targetId: data.targetId,
@@ -183,7 +183,7 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
 // 앱 생성
 export async function createApp(input: CreateAppInput, userId: string): Promise<string> {
   const appsCol = collection(db, APPS_COLLECTION);
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     ...input,
     createdBy: userId,
     snsUrls: input.snsUrls || [],
@@ -215,7 +215,7 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   const { id, ...data } = input;
   const docRef = doc(db, APPS_COLLECTION, id);
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     ...data,
     snsUrls: data.snsUrls || [],
     updatedAt: serverTimestamp(),
@@ -241,7 +241,7 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
 // 프롬프트 생성
 export async function createPrompt(input: CreatePromptInput, userId: string): Promise<string> {
   const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     ...input,
     snsUrls: input.snsUrls || [],
     attachments: input.attachments || [],
@@ -265,7 +265,7 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
   const { id, ...data } = input;
   const docRef = doc(db, PROMPTS_COLLECTION, id);
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     ...data,
     updatedAt: serverTimestamp(),
   };

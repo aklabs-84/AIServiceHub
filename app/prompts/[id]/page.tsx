@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -9,9 +9,11 @@ import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck } from 'react-icons/fa';
 import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
 import { downloadPromptAttachment } from '@/lib/storage';
@@ -20,16 +22,15 @@ const COMMENTS_PER_PAGE = 5;
 
 export default function PromptDetailPage() {
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
-  const markdownComponents = {
-    h1: (props: any) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h2: (props: any) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h3: (props: any) => <h3 className="text-xl font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
-    p: (props: any) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
-    ul: (props: any) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    ol: (props: any) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    li: (props: any) => <li className="leading-relaxed" {...props} />,
-    code: (props: any) => {
-      const { inline, className, children } = props;
+  const markdownComponents: Components = {
+    h1: (props) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h2: (props) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
+    h3: (props) => <h3 className="text-xl font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
+    p: (props) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
+    ul: (props) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    ol: (props) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
+    li: (props) => <li className="leading-relaxed" {...props} />,
+    code: ({ inline, className, children, ...props }) => {
       if (inline) {
         return (
           <code className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs" {...props} />
@@ -68,6 +69,7 @@ export default function PromptDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories: promptCategories } = usePromptCategories();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,12 +83,7 @@ export default function PromptDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadPrompt();
-    loadComments();
-  }, [params.id]);
-
-  const loadPrompt = async () => {
+  const loadPrompt = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getPromptById(params.id as string);
@@ -96,9 +93,9 @@ export default function PromptDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     try {
       const data = await getComments(params.id as string, 'prompt');
       setComments(data);
@@ -106,7 +103,12 @@ export default function PromptDetailPage() {
     } catch (error) {
       console.error('Error loading comments:', error);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    loadPrompt();
+    loadComments();
+  }, [loadPrompt, loadComments]);
 
   useEffect(() => {
     const total = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
@@ -186,7 +188,7 @@ export default function PromptDetailPage() {
   const isOwner = user?.uid === prompt.createdBy;
   const isPublic = prompt.isPublic ?? true;
 
-  if (!isPublic && !isOwner) {
+  if (!isPublic && !isOwner && !hasOneTimeAccess) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">

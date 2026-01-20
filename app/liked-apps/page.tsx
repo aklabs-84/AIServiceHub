@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getLikedAppsByUser } from '@/lib/db';
 import { AIApp } from '@/types/app';
@@ -14,18 +14,7 @@ export default function LikedAppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/');
-      return;
-    }
-
-    if (user) {
-      loadApps();
-    }
-  }, [user, authLoading, router]);
-
-  const loadApps = async () => {
+  const loadApps = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -37,7 +26,18 @@ export default function LikedAppsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+      return;
+    }
+
+    if (user) {
+      loadApps();
+    }
+  }, [user, authLoading, router, loadApps]);
 
   if (authLoading || loading) {
     return (

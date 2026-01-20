@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { getAllPrompts, getPromptsByCategory } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome, FaArrowUp } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -22,13 +23,29 @@ export default function PromptsPage() {
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { categories: promptCategories } = usePromptCategories();
   const { user } = useAuth();
+  const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
+
+  const loadPrompts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data =
+        selectedCategory === 'all'
+          ? await getAllPrompts()
+          : await getPromptsByCategory(selectedCategory);
+      setPrompts(data);
+    } catch (error) {
+      console.error('Error loading prompts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory]);
 
   useEffect(() => {
     setCurrentPage(1);
     loadPrompts();
-  }, [selectedCategory]);
+  }, [loadPrompts]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -65,25 +82,11 @@ export default function PromptsPage() {
   }, []);
 
 
-  const loadPrompts = async () => {
-    setLoading(true);
-    try {
-      const data =
-        selectedCategory === 'all'
-          ? await getAllPrompts()
-          : await getPromptsByCategory(selectedCategory);
-      setPrompts(data);
-    } catch (error) {
-      console.error('Error loading prompts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const visiblePrompts = useMemo(() => {
+    if (hasOneTimeAccess) return prompts;
     const uid = user?.uid;
     return prompts.filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === uid);
-  }, [prompts, user?.uid]);
+  }, [prompts, user?.uid, hasOneTimeAccess]);
 
   const filteredPrompts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

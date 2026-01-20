@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppsByUser } from '@/lib/db';
 import { AIApp } from '@/types/app';
@@ -13,15 +13,7 @@ export default function MyAppsPage() {
   const [apps, setApps] = useState<AIApp[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      loadMyApps();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const loadMyApps = async () => {
+  const loadMyApps = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -33,7 +25,15 @@ export default function MyAppsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadMyApps();
+    } else {
+      setLoading(false);
+    }
+  }, [user, loadMyApps]);
 
   // 로그인하지 않은 경우
   if (!user) {

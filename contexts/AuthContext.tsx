@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { uid, email, displayName } = result.user;
         await ensureUserProfile(uid, email, displayName || undefined);
       }
-    } catch (error: any) {
-      if (error?.code === 'auth/popup-closed-by-user') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'auth/popup-closed-by-user') {
         console.warn('Login popup closed by user.');
         return;
       }

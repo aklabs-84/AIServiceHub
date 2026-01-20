@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock, FaQuestionCircle } from 'react-icons/fa';
+import Image from 'next/image';
+import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import HeroPreview from '@/components/HeroPreview';
 
@@ -139,9 +140,11 @@ export default function Home() {
             <div className="flex justify-center">
               <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-200/60 via-cyan-200/50 to-blue-200/60 dark:from-emerald-800/40 dark:via-cyan-800/30 dark:to-blue-800/40" />
-                <img
+                <Image
                   src="/newsletter.png"
                   alt="뉴스레터 일러스트"
+                  width={360}
+                  height={240}
                   className="relative max-h-56 w-auto object-contain"
                 />
               </div>
@@ -176,9 +179,11 @@ export default function Home() {
             <div className="flex justify-center md:justify-center">
               <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-200/60 via-emerald-200/50 to-cyan-200/60 dark:from-purple-800/40 dark:via-emerald-800/30 dark:to-cyan-800/40" />
-                <img
+                <Image
                   src="/survey.png"
                   alt="설문 일러스트"
+                  width={360}
+                  height={240}
                   className="relative max-h-56 w-auto object-contain"
                 />
               </div>
@@ -212,9 +217,47 @@ export default function Home() {
             <div className="flex justify-center">
               <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-200/60 via-sky-200/50 to-emerald-200/60 dark:from-indigo-800/40 dark:via-sky-800/30 dark:to-emerald-800/40" />
-                <img
+                <Image
                   src="/study.png"
                   alt="인공지능 교육 일러스트"
+                  width={360}
+                  height={240}
+                  className="relative max-h-56 w-auto object-contain"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 제작 의뢰 섹션 */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
+        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-purple-50 via-fuchsia-50 to-amber-50 dark:from-purple-900/20 dark:via-fuchsia-900/20 dark:to-amber-900/20 p-6 sm:p-10 shadow-lg">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">바이브 코딩 제작 의뢰</p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">머릿속 한 줄을 바로 작동하는 서비스로</h3>
+              <p className="text-gray-700 dark:text-gray-300">
+                아이디어를 빠르게 정리하고, 1~7일 안에 돌아가는 MVP로 제작해 드립니다.
+                <span className="block mt-1">프로토타입부터 배포까지 한 번에 맡겨보세요.</span>
+              </p>
+              <div className="pt-2">
+                <Link
+                  href="/request"
+                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+                >
+                  제작 의뢰하기
+                </Link>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-200/60 via-fuchsia-200/50 to-amber-200/60 dark:from-purple-800/40 dark:via-fuchsia-800/30 dark:to-amber-800/40" />
+                <Image
+                  src="/request.svg"
+                  alt="제작 의뢰 일러스트"
+                  width={360}
+                  height={240}
                   className="relative max-h-56 w-auto object-contain"
                 />
               </div>

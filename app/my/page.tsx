@@ -1,7 +1,9 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { AIApp, AppCategory } from '@/types/app';
 import { Prompt } from '@/types/prompt';
@@ -14,6 +16,7 @@ import {
   FaLaptopCode,
   FaPenFancy,
   FaRegClock,
+  FaDownload,
   FaSpinner,
   FaUser,
   FaList,
@@ -26,16 +29,18 @@ import { useSearchParams } from 'next/navigation';
 import { getCategoryInfo } from '@/lib/categories';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useAppCategories, usePromptCategories } from '@/lib/useCategories';
+import * as XLSX from 'xlsx';
+
+const MyPageInner = dynamic(() => Promise.resolve(MyPageContent), {
+  ssr: false,
+  loading: () => <div className="py-12 text-center text-gray-500 dark:text-gray-400">로딩 중...</div>,
+});
 
 export default function MyPage() {
-  return (
-    <Suspense fallback={<div className="py-12 text-center text-gray-500 dark:text-gray-400">로딩 중...</div>}>
-      <MyPageInner />
-    </Suspense>
-  );
+  return <MyPageInner />;
 }
 
-function MyPageInner() {
+function MyPageContent() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const { categories: appCategories } = useAppCategories();
   const { categories: promptCategories } = usePromptCategories();
@@ -52,6 +57,98 @@ function MyPageInner() {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+  const formatExportDate = (value?: Date | null) => {
+    if (!value) return '';
+    return value.toISOString();
+  };
+
+  const buildAppExportRows = (apps: AIApp[]) =>
+    apps.map((app) => {
+      const categoryInfo = getCategoryInfo(app.category, appCategories);
+      return {
+        '앱 ID': app.id,
+        '앱 이름': app.name,
+        '설명': app.description,
+        '카테고리': categoryInfo.label,
+        '앱 URL': app.appUrl,
+        'SNS URL': app.snsUrls.join(' | '),
+        '공개 여부': app.isPublic ? '공개' : '비공개',
+        '작성자': app.createdByName,
+        '작성자 UID': app.createdBy,
+        '등록일': formatExportDate(app.createdAt),
+        '수정일': formatExportDate(app.updatedAt),
+        '좋아요 수': app.likeCount,
+        '썸네일 URL': app.thumbnailUrl || '',
+        '첨부파일': app.attachments.map((file) => `${file.name} (${file.downloadUrl || file.storagePath})`).join(' | ')
+      };
+    });
+
+  const buildPromptExportRows = (prompts: Prompt[]) =>
+    prompts.map((prompt) => {
+      const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
+      return {
+        '프롬프트 ID': prompt.id,
+        '프롬프트 이름': prompt.name,
+        '설명': prompt.description,
+        '카테고리': categoryInfo.label,
+        '프롬프트 본문': prompt.promptContent,
+        'SNS URL': prompt.snsUrls.join(' | '),
+        '공개 여부': prompt.isPublic ? '공개' : '비공개',
+        '작성자': prompt.createdByName,
+        '작성자 UID': prompt.createdBy,
+        '등록일': formatExportDate(prompt.createdAt),
+        '수정일': formatExportDate(prompt.updatedAt),
+        '좋아요 수': prompt.likeCount,
+        '썸네일 URL': prompt.thumbnailUrl || '',
+        '첨부파일': prompt.attachments.map((file) => `${file.name} (${file.downloadUrl || file.storagePath})`).join(' | ')
+      };
+    });
+
+  const downloadBlob = (content: BlobPart, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportApps = (apps: AIApp[], format: 'csv' | 'xlsx', filenamePrefix: string) => {
+    if (apps.length === 0) return;
+    const rows = buildAppExportRows(apps);
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    if (format === 'csv') {
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      downloadBlob(csv, `${filenamePrefix}-${dateStamp}.csv`, 'text/csv;charset=utf-8');
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'apps');
+    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    downloadBlob(data, `${filenamePrefix}-${dateStamp}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  };
+
+  const exportPrompts = (prompts: Prompt[], format: 'csv' | 'xlsx', filenamePrefix: string) => {
+    if (prompts.length === 0) return;
+    const rows = buildPromptExportRows(prompts);
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    if (format === 'csv') {
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      downloadBlob(csv, `${filenamePrefix}-${dateStamp}.csv`, 'text/csv;charset=utf-8');
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'prompts');
+    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    downloadBlob(data, `${filenamePrefix}-${dateStamp}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   };
 
   useEffect(() => {
@@ -185,7 +282,14 @@ function MyPageInner() {
           </div>
           <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 shadow">
             {user.photoURL ? (
-              <img src={user.photoURL} alt={user.displayName || '사용자'} className="w-12 h-12 rounded-full border-2 border-blue-500" />
+              <Image
+                src={user.photoURL}
+                alt={user.displayName || '사용자'}
+                width={48}
+                height={48}
+                className="w-12 h-12 rounded-full border-2 border-blue-500"
+                unoptimized
+              />
             ) : (
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl">
                 <FaUser />
@@ -312,15 +416,55 @@ function MyPageInner() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <FaLaptopCode className="text-blue-500" /> 내 앱
                 </h2>
-                <Link href="/apps/new" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">새 앱 등록</Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href="/apps/new" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">새 앱 등록</Link>
+                  {myApps.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => exportApps(myApps, 'csv', 'my-apps')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        CSV 전체
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportApps(myApps, 'xlsx', 'my-apps')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        XLSX 전체
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {myApps.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">아직 등록한 앱이 없습니다.</p>
               ) : viewMode === 'card' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {myApps.map((app, index) => (
-                    <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
+                    <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn flex flex-col gap-2">
                       <AppCard app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => exportApps([app], 'csv', `app-${app.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportApps([app], 'xlsx', `app-${app.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          XLSX
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -348,6 +492,32 @@ function MyPageInner() {
                             <span className="truncate">{app.createdByName}</span>
                           </div>
                         </div>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportApps([app], 'csv', `app-${app.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportApps([app], 'xlsx', `app-${app.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            XLSX
+                          </button>
+                        </div>
                         <div className="hidden sm:flex items-center">
                           <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
                             {categoryInfo.label}
@@ -367,15 +537,55 @@ function MyPageInner() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <FaPenFancy className="text-emerald-500" /> 내가 만든 프롬프트
                 </h2>
-                <Link href="/prompts/new" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">새 프롬프트 등록</Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href="/prompts/new" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">새 프롬프트 등록</Link>
+                  {myPrompts.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => exportPrompts(myPrompts, 'csv', 'my-prompts')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        CSV 전체
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportPrompts(myPrompts, 'xlsx', 'my-prompts')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        XLSX 전체
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {myPrompts.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">아직 작성한 프롬프트가 없습니다.</p>
               ) : viewMode === 'card' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {myPrompts.map((prompt, index) => (
-                    <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
+                    <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn flex flex-col gap-2">
                       <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => exportPrompts([prompt], 'csv', `prompt-${prompt.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportPrompts([prompt], 'xlsx', `prompt-${prompt.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          XLSX
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -403,6 +613,32 @@ function MyPageInner() {
                             <span className="truncate">{prompt.createdByName}</span>
                           </div>
                         </div>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportPrompts([prompt], 'csv', `prompt-${prompt.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportPrompts([prompt], 'xlsx', `prompt-${prompt.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            XLSX
+                          </button>
+                        </div>
                         <div className="hidden sm:flex items-center">
                           <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
                             {categoryInfo.label}
@@ -422,15 +658,55 @@ function MyPageInner() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <FaHeart className="text-rose-500" /> 좋아요한 앱
                 </h2>
-                <Link href="/apps" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">앱 둘러보기</Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href="/apps" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">앱 둘러보기</Link>
+                  {likedApps.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => exportApps(likedApps, 'csv', 'liked-apps')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        CSV 전체
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportApps(likedApps, 'xlsx', 'liked-apps')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        XLSX 전체
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {likedApps.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">아직 좋아요한 앱이 없습니다.</p>
               ) : viewMode === 'card' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {likedApps.map((app, index) => (
-                    <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
+                    <div key={app.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn flex flex-col gap-2">
                       <AppCard app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => exportApps([app], 'csv', `app-${app.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportApps([app], 'xlsx', `app-${app.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          XLSX
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -458,6 +734,32 @@ function MyPageInner() {
                             <span className="truncate">{app.createdByName}</span>
                           </div>
                         </div>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportApps([app], 'csv', `app-${app.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportApps([app], 'xlsx', `app-${app.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            XLSX
+                          </button>
+                        </div>
                         <div className="hidden sm:flex items-center">
                           <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
                             {categoryInfo.label}
@@ -477,15 +779,55 @@ function MyPageInner() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <FaHeart className="text-orange-500" /> 좋아요한 프롬프트
                 </h2>
-                <Link href="/prompts" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">프롬프트 둘러보기</Link>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href="/prompts" className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">프롬프트 둘러보기</Link>
+                  {likedPrompts.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => exportPrompts(likedPrompts, 'csv', 'liked-prompts')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        CSV 전체
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => exportPrompts(likedPrompts, 'xlsx', 'liked-prompts')}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <FaDownload />
+                        XLSX 전체
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               {likedPrompts.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">아직 좋아요한 프롬프트가 없습니다.</p>
               ) : viewMode === 'card' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {likedPrompts.map((prompt, index) => (
-                    <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn">
+                    <div key={prompt.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-fadeIn flex flex-col gap-2">
                       <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => exportPrompts([prompt], 'csv', `prompt-${prompt.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportPrompts([prompt], 'xlsx', `prompt-${prompt.id}`)}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        >
+                          <FaDownload />
+                          XLSX
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -512,6 +854,32 @@ function MyPageInner() {
                             <FaUser className="text-emerald-500" />
                             <span className="truncate">{prompt.createdByName}</span>
                           </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportPrompts([prompt], 'csv', `prompt-${prompt.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              exportPrompts([prompt], 'xlsx', `prompt-${prompt.id}`);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          >
+                            <FaDownload />
+                            XLSX
+                          </button>
                         </div>
                         <div className="hidden sm:flex items-center">
                           <span className="px-3 py-1 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
