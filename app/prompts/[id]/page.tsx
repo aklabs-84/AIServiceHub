@@ -22,6 +22,8 @@ const COMMENTS_PER_PAGE = 5;
 
 export default function PromptDetailPage() {
   const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
+  type CodeProps = React.ComponentPropsWithoutRef<'code'> & { inline?: boolean };
+
   const markdownComponents: Components = {
     h1: (props) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
     h2: (props) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
@@ -30,7 +32,7 @@ export default function PromptDetailPage() {
     ul: (props) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     ol: (props) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     li: (props) => <li className="leading-relaxed" {...props} />,
-    code: ({ inline, className, children, ...props }) => {
+    code: ({ inline, className, children, ...props }: CodeProps) => {
       if (inline) {
         return (
           <code className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs" {...props} />

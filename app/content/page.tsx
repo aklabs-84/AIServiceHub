@@ -343,6 +343,7 @@ function ContentPageInner() {
                 ? { objectPosition: `${item.thumbnailPositionX ?? 50}% ${item.thumbnailPositionY ?? 50}%` }
                 : undefined;
               const thumbnailReady = item.thumbnailUrl && !imageErrors[item.id];
+              const thumbnailSrc = item.thumbnailUrl || '';
               return (
                 <div
                   key={item.id}
@@ -352,7 +353,7 @@ function ContentPageInner() {
                     <div className="relative w-full sm:w-40 h-28 rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                       {thumbnailReady ? (
                         <Image
-                          src={item.thumbnailUrl}
+                          src={thumbnailSrc}
                           alt={item.appName}
                           fill
                           className="object-cover"
