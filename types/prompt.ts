@@ -26,6 +26,7 @@ export interface Prompt {
   updatedAt: Date;
   likes: string[];
   likeCount: number;
+  tags: string[];
 }
 
 export interface CreatePromptInput {
@@ -40,6 +41,7 @@ export interface CreatePromptInput {
   thumbnailPositionY?: number;
   createdByName: string;
   attachments?: PromptAttachment[];
+  tags?: string[];
 }
 
 export interface UpdatePromptInput extends Partial<CreatePromptInput> {

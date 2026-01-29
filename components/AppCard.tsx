@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { AIApp } from '@/types/app';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useMemo, useState } from 'react';
@@ -18,6 +19,13 @@ interface AppCardProps {
 export default function AppCard({ app, onLikeChange, categoryInfo: providedCategoryInfo }: AppCardProps) {
   const categoryInfo = providedCategoryInfo || getCategoryInfo(app.category);
   const CategoryIcon = categoryInfo.icon;
+  const router = useRouter();
+
+  const handleTagClick = (tag: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/apps?tag=${encodeURIComponent(tag)}`);
+  };
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(user ? app.likes.includes(user.uid) : false);
@@ -114,9 +122,9 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
         ? instagramFallback
         : icon === 'youtube'
           ? youtubeFallback
-        : icon === 'blog'
-          ? blogFallback
-          : defaultFallback;
+          : icon === 'blog'
+            ? blogFallback
+            : defaultFallback;
       const favicon = icon
         ? fallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
@@ -196,6 +204,21 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
             {app.name}
           </h3>
+
+          {/* 태그 영역 */}
+          {app.tags && app.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {app.tags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={(e) => handleTagClick(tag, e)}
+                  className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition-all font-medium"
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
 
           <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 flex-1 leading-relaxed">
             {plainDescription}
@@ -280,11 +303,10 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
               <button
                 onClick={handleLike}
                 disabled={!user || isLiking}
-                className={`flex items-center space-x-1 text-sm transition-all ${
-                  isLiked
+                className={`flex items-center space-x-1 text-sm transition-all ${isLiked
                     ? 'text-red-500'
                     : 'text-gray-400 hover:text-red-500'
-                } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {isLiked ? <FaHeart /> : <FaRegHeart />}
                 <span>{likeCount}</span>

@@ -58,6 +58,7 @@ export default function EditAppPage() {
     thumbnailUrl: string;
     thumbnailPositionX: number;
     thumbnailPositionY: number;
+    tags: string[];
   }
 
   const [formData, setFormData] = useState<AppFormData>({
@@ -69,7 +70,9 @@ export default function EditAppPage() {
     thumbnailUrl: '',
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
+    tags: [],
   });
+  const [tagInput, setTagInput] = useState('');
   const [snsForm, setSnsForm] = useState({
     blog: '',
     instagram: '',
@@ -226,7 +229,9 @@ export default function EditAppPage() {
           thumbnailUrl: data.thumbnailUrl || '',
           thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : 50,
           thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : 50,
+          tags: data.tags || [],
         });
+        setTagInput(data.tags?.join(', ') || '');
         hydrateSnsForm(data.snsUrls || []);
         setExistingAttachments(data.attachments || []);
       }
@@ -279,10 +284,11 @@ export default function EditAppPage() {
         thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
         attachments: [...existingAttachments, ...uploadedAttachments],
+        tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
 
       alert('앱이 수정되었습니다!');
-      router.push(`/apps/${app.id}`);
+      router.replace(`/apps/${app.id}`);
     } catch (error) {
       console.error('Error updating app:', error);
       alert('앱 수정 중 오류가 발생했습니다.');
@@ -656,6 +662,24 @@ export default function EditAppPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* 태그 */}
+          <div className="mb-6">
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              태그 (쉼표로 구분)
+            </label>
+            <input
+              type="text"
+              id="tags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="AI, 챗봇, 자동화"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              관련 키워드를 입력하면 검색과 분류에 도움이 됩니다.
+            </p>
           </div>
 
           <div className="mb-6">

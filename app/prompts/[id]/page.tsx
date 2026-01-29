@@ -346,7 +346,11 @@ export default function PromptDetailPage() {
 
           <div className="p-8 space-y-6">
             <button
-              onClick={() => router.back()}
+              onClick={() => {
+                const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
+                if (lastUrl) router.push(lastUrl);
+                else router.push('/prompts');
+              }}
               className="group inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
             >
               <FaChevronLeft className="group-hover:-translate-x-1 transition-transform" />
@@ -370,9 +374,24 @@ export default function PromptDetailPage() {
                     </div>
                   </div>
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-4">
                   {prompt.name}
                 </h1>
+
+                {/* 태그 영역 */}
+                {prompt.tags && prompt.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {prompt.tags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/prompts?tag=${encodeURIComponent(tag)}`}
+                        className="text-sm px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all font-medium"
+                      >
+                        #{tag}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

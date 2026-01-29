@@ -27,6 +27,12 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
   const [likeCount, setLikeCount] = useState(prompt.likeCount ?? prompt.likes.length);
   const [isLiking, setIsLiking] = useState(false);
 
+  const handleTagClick = (tag: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/prompts?tag=${encodeURIComponent(tag)}`);
+  };
+
   const snsPreview = useMemo(() => prompt.snsUrls.slice(0, 2), [prompt.snsUrls]);
   const getLinkPreview = (url: string) => {
     const blogFallback = '/naver-blog.svg';
@@ -187,6 +193,21 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
           {prompt.name}
         </h3>
 
+        {/* 태그 영역 */}
+        {prompt.tags && prompt.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {prompt.tags.map((tag) => (
+              <button
+                key={tag}
+                onClick={(e) => handleTagClick(tag, e)}
+                className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all font-medium"
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <FaUser className="text-emerald-500" />
@@ -196,8 +217,8 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
             onClick={handleLike}
             disabled={!user || isLiking}
             className={`flex items-center space-x-1 transition-all ${isLiked
-                ? 'text-red-500'
-                : 'text-gray-400 hover:text-red-500'
+              ? 'text-red-500'
+              : 'text-gray-400 hover:text-red-500'
               } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             aria-label="좋아요 토글"
           >

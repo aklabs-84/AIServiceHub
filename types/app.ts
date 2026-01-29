@@ -33,6 +33,7 @@ export interface AIApp {
   updatedAt: Date;
   likes: string[];
   likeCount: number;
+  tags: string[];
 }
 
 export interface CreateAppInput {
@@ -48,6 +49,7 @@ export interface CreateAppInput {
   thumbnailPositionY?: number;
   createdByName: string;
   attachments?: AppAttachment[];
+  tags?: string[];
 }
 
 export interface UpdateAppInput extends Partial<CreateAppInput> {

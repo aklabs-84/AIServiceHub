@@ -38,6 +38,7 @@ function AppsListContent() {
   const currentPage = Number(searchParams.get('page')) || 1;
   const viewMode = (searchParams.get('view') as 'card' | 'list') || 'card';
   const searchTerm = searchParams.get('search') || '';
+  const selectedTag = searchParams.get('tag') || null;
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const { categories } = useAppCategories();
@@ -65,6 +66,14 @@ function AppsListContent() {
     loadApps();
   }, [loadApps]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const queryString = searchParams.toString();
+      const currentFullUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      sessionStorage.setItem('lastAppsListUrl', currentFullUrl);
+    }
+  }, [pathname, searchParams]);
+
   const updateParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -88,6 +97,10 @@ function AppsListContent() {
 
   const onViewModeChange = (view: 'card' | 'list') => {
     updateParams({ view, page: '1' });
+  };
+
+  const onTagChange = (tag: string | null) => {
+    updateParams({ tag: tag || null, page: '1' });
   };
 
   useEffect(() => {
@@ -124,16 +137,34 @@ function AppsListContent() {
     return apps.filter((app) => (app.isPublic ?? true) || app.createdBy === uid);
   }, [apps, user?.uid, hasOneTimeAccess]);
 
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    visibleApps.forEach(app => {
+      if (app.tags) {
+        app.tags.forEach(tag => tagsSet.add(tag));
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [visibleApps]);
+
   const filteredApps = useMemo(() => {
+    let result = visibleApps;
+
+    if (selectedTag) {
+      result = result.filter(app => app.tags?.includes(selectedTag));
+    }
+
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return visibleApps;
-    return visibleApps.filter((app) => {
+    if (!term) return result;
+
+    return result.filter((app) => {
       const name = app.name.toLowerCase();
       const author = app.createdByName.toLowerCase();
       const desc = app.description.toLowerCase();
-      return name.includes(term) || author.includes(term) || desc.includes(term);
+      const tags = (app.tags || []).join(' ').toLowerCase();
+      return name.includes(term) || author.includes(term) || desc.includes(term) || tags.includes(term);
     });
-  }, [visibleApps, searchTerm]);
+  }, [visibleApps, searchTerm, selectedTag]);
 
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   const paginatedApps = useMemo(() => {
@@ -236,6 +267,38 @@ function AppsListContent() {
                 );
               })}
             </div>
+
+            {allTags.length > 0 && (
+              <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 mb-4">
+                  <FaRocket className="text-gray-500 dark:text-gray-400 rotate-45" />
+                  <h2 className="text-lg font-semibold">인기 태그</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => onTagChange(null)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${!selectedTag
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                  >
+                    전체 태그
+                  </button>
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => onTagChange(tag)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${selectedTag === tag
+                        ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-500/20'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
 
           <section className="min-w-0 md:w-[78%] lg:w-[80%] space-y-10">

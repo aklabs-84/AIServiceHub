@@ -54,6 +54,7 @@ function docToApp(id: string, data: DocumentData): AIApp {
     updatedAt: data.updatedAt?.toDate() || new Date(),
     likes,
     likeCount: likes.length,
+    tags: data.tags || [],
   };
 }
 
@@ -78,6 +79,7 @@ function docToPrompt(id: string, data: DocumentData): Prompt {
     updatedAt: data.updatedAt?.toDate() || new Date(),
     likes,
     likeCount: likes.length,
+    tags: data.tags || [],
   };
 }
 
@@ -109,6 +111,19 @@ export async function getAppsByCategory(category: AppCategory): Promise<AIApp[]>
   const q = query(
     appsCol,
     where('category', '==', category),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+}
+
+// 태그별 앱 가져오기
+export async function getAppsByTag(tag: string): Promise<AIApp[]> {
+  const appsCol = collection(db, APPS_COLLECTION);
+  const q = query(
+    appsCol,
+    where('tags', 'array-contains', tag),
     orderBy('createdAt', 'desc')
   );
   const snapshot = await getDocs(q);
@@ -175,6 +190,19 @@ export async function getPromptsByCategory(category: PromptCategory): Promise<Pr
   return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
 }
 
+// 태그별 프롬프트 가져오기
+export async function getPromptsByTag(tag: string): Promise<Prompt[]> {
+  const promptsCol = collection(db, PROMPTS_COLLECTION);
+  const q = query(
+    promptsCol,
+    where('tags', 'array-contains', tag),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+}
+
 // 사용자가 만든 프롬프트 가져오기
 export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
   const promptsCol = collection(db, PROMPTS_COLLECTION);
@@ -199,6 +227,7 @@ export async function createApp(input: CreateAppInput, userId: string): Promise<
     attachments: input.attachments || [],
     isPublic: input.isPublic ?? true,
     likes: [],
+    tags: input.tags || [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -228,6 +257,7 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
     ...data,
     appUrl: data.appUrl || (data.appUrls?.[0]?.url),
     snsUrls: data.snsUrls || [],
+    tags: data.tags || undefined,
     updatedAt: serverTimestamp(),
   };
 
@@ -244,6 +274,9 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   if (payload.isPublic === undefined) {
     delete payload.isPublic;
   }
+  if (payload.tags === undefined) {
+    delete payload.tags;
+  }
 
   await updateDoc(docRef, payload);
 }
@@ -258,6 +291,7 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
     isPublic: input.isPublic ?? true,
     createdBy: userId,
     likes: [],
+    tags: input.tags || [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -283,6 +317,7 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
 
   const payload: Record<string, unknown> = {
     ...data,
+    tags: data.tags || undefined,
     updatedAt: serverTimestamp(),
   };
 
@@ -291,6 +326,9 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
   }
   if (payload.isPublic === undefined) {
     delete payload.isPublic;
+  }
+  if (payload.tags === undefined) {
+    delete payload.tags;
   }
 
   await updateDoc(docRef, payload);

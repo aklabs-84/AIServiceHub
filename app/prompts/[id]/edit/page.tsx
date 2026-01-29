@@ -50,7 +50,20 @@ export default function EditPromptPage() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  interface PromptFormData {
+    name: string;
+    description: string;
+    promptContent: string;
+    category: Prompt['category'];
+    isPublic: boolean;
+    thumbnailUrl: string;
+    thumbnailPositionX: number;
+    thumbnailPositionY: number;
+    createdByName: string;
+    tags: string[];
+  }
+
+  const [formData, setFormData] = useState<PromptFormData>({
     name: '',
     description: '',
     promptContent: '',
@@ -60,7 +73,9 @@ export default function EditPromptPage() {
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
     createdByName: '',
+    tags: [],
   });
+  const [tagInput, setTagInput] = useState('');
   const [snsForm, setSnsForm] = useState({
     blog: '',
     instagram: '',
@@ -186,7 +201,9 @@ export default function EditPromptPage() {
           thumbnailPositionX: data.thumbnailPositionX ?? 50,
           thumbnailPositionY: data.thumbnailPositionY ?? 50,
           createdByName: data.createdByName || '',
+          tags: data.tags || [],
         });
+        setTagInput(data.tags?.join(', ') || '');
         hydrateSnsForm(data.snsUrls || []);
         setExistingAttachments(data.attachments || []);
       }
@@ -235,9 +252,10 @@ export default function EditPromptPage() {
         thumbnailPositionY: formData.thumbnailUrl.trim() ? formData.thumbnailPositionY : undefined,
         createdByName: formData.createdByName || user.displayName || '익명',
         attachments: [...existingAttachments, ...uploadedAttachments],
+        tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
       alert('프롬프트가 수정되었습니다.');
-      router.push(`/prompts/${prompt.id}`);
+      router.replace(`/prompts/${prompt.id}`);
     } catch (error) {
       console.error('Error updating prompt:', error);
       alert('수정 중 오류가 발생했습니다.');
@@ -540,6 +558,23 @@ export default function EditPromptPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              태그 (쉼표로 구분)
+            </label>
+            <input
+              type="text"
+              id="tags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              placeholder="창작, 교육, 생산성"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              관련 키워드를 입력하면 검색과 분류에 도움이 됩니다.
+            </p>
           </div>
 
           <div>

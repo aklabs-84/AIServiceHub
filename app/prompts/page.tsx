@@ -8,7 +8,7 @@ import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
 import PromptCard from '@/components/PromptCard';
 import Link from 'next/link';
-import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome, FaArrowUp } from 'react-icons/fa';
+import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, FaHome, FaArrowUp, FaRocket } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
@@ -39,6 +39,7 @@ function PromptsListContent() {
   const currentPage = Number(searchParams.get('page')) || 1;
   const viewMode = (searchParams.get('view') as 'card' | 'list') || 'card';
   const searchTerm = searchParams.get('search') || '';
+  const selectedTag = searchParams.get('tag') || null;
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
@@ -67,6 +68,14 @@ function PromptsListContent() {
     loadPrompts();
   }, [loadPrompts]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const queryString = searchParams.toString();
+      const currentFullUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      sessionStorage.setItem('lastPromptsListUrl', currentFullUrl);
+    }
+  }, [pathname, searchParams]);
+
   const updateParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -90,6 +99,10 @@ function PromptsListContent() {
 
   const onViewModeChange = (view: 'card' | 'list') => {
     updateParams({ view, page: '1' });
+  };
+
+  const onTagChange = (tag: string | null) => {
+    updateParams({ tag: tag || null, page: '1' });
   };
 
   useEffect(() => {
@@ -127,16 +140,34 @@ function PromptsListContent() {
     return prompts.filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === uid);
   }, [prompts, user?.uid, hasOneTimeAccess]);
 
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    visiblePrompts.forEach(prompt => {
+      if (prompt.tags) {
+        prompt.tags.forEach(tag => tagsSet.add(tag));
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [visiblePrompts]);
+
   const filteredPrompts = useMemo(() => {
+    let result = visiblePrompts;
+
+    if (selectedTag) {
+      result = result.filter(p => p.tags?.includes(selectedTag));
+    }
+
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return visiblePrompts;
-    return visiblePrompts.filter((prompt) => {
+    if (!term) return result;
+
+    return result.filter((prompt) => {
       const name = prompt.name.toLowerCase();
       const author = prompt.createdByName.toLowerCase();
       const desc = prompt.description.toLowerCase();
-      return name.includes(term) || author.includes(term) || desc.includes(term);
+      const tags = (prompt.tags || []).join(' ').toLowerCase();
+      return name.includes(term) || author.includes(term) || desc.includes(term) || tags.includes(term);
     });
-  }, [visiblePrompts, searchTerm]);
+  }, [visiblePrompts, searchTerm, selectedTag]);
 
   const totalPages = Math.ceil(filteredPrompts.length / itemsPerPage);
   const paginatedPrompts = useMemo(() => {
@@ -231,6 +262,38 @@ function PromptsListContent() {
                 );
               })}
             </div>
+
+            {allTags.length > 0 && (
+              <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200 mb-4">
+                  <FaRocket className="text-gray-500 dark:text-gray-400 rotate-45" />
+                  <h2 className="text-lg font-semibold">인기 태그</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => onTagChange(null)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${!selectedTag
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                  >
+                    전체 태그
+                  </button>
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => onTagChange(tag)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${selectedTag === tag
+                        ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-500/20'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
 
           <section className="min-w-0 md:w-[78%] lg:w-[80%] space-y-10">

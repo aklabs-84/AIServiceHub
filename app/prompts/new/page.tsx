@@ -42,7 +42,20 @@ export default function NewPromptPage() {
   const [submitting, setSubmitting] = useState(false);
   const { categories: promptCategories } = usePromptCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const [formData, setFormData] = useState({
+  interface PromptFormData {
+    name: string;
+    description: string;
+    promptContent: string;
+    category: Prompt['category'];
+    isPublic: boolean;
+    thumbnailUrl: string;
+    thumbnailPositionX: number;
+    thumbnailPositionY: number;
+    createdByName: string;
+    tags: string[];
+  }
+
+  const [formData, setFormData] = useState<PromptFormData>({
     name: '',
     description: '',
     promptContent: '',
@@ -52,7 +65,9 @@ export default function NewPromptPage() {
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
     createdByName: user?.displayName || '',
+    tags: [],
   });
+  const [tagInput, setTagInput] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [snsForm, setSnsForm] = useState({
@@ -169,12 +184,13 @@ export default function NewPromptPage() {
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
           attachments: uploadedAttachments,
           createdByName: formData.createdByName || user.displayName || '익명',
+          tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
         },
         user.uid
       );
 
       alert('프롬프트가 등록되었습니다!');
-      router.push(`/prompts/${promptId}`);
+      router.replace(`/prompts/${promptId}`);
       sendSlackNotification({
         type: 'prompt',
         id: promptId,
@@ -410,6 +426,23 @@ export default function NewPromptPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              태그 (쉼표로 구분)
+            </label>
+            <input
+              type="text"
+              id="tags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              placeholder="창작, 교육, 생산성"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              관련 키워드를 입력하면 검색과 분류에 도움이 됩니다.
+            </p>
           </div>
 
           <div>

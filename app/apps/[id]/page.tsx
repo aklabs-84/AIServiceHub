@@ -302,7 +302,11 @@ export default function AppDetailPage() {
 
           <div className="p-8">
             <button
-              onClick={() => router.back()}
+              onClick={() => {
+                const lastUrl = sessionStorage.getItem('lastAppsListUrl');
+                if (lastUrl) router.push(lastUrl);
+                else router.push('/apps');
+              }}
               className="group mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
             >
               <FaChevronLeft className="group-hover:-translate-x-1 transition-transform" />
@@ -316,6 +320,21 @@ export default function AppDetailPage() {
                 {categoryInfo.label}
               </span>
             </div>
+
+            {/* 태그 영역 */}
+            {app.tags && app.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {app.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/apps?tag=${encodeURIComponent(tag)}`}
+                    className="text-sm px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition-all font-medium"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
 
             <div className="prose prose-slate dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
