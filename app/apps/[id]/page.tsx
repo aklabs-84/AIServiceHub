@@ -15,7 +15,7 @@ import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { downloadAppAttachment } from '@/lib/storage';
-import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock, FaGlobe } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -301,6 +301,13 @@ export default function AppDetailPage() {
           </div>
 
           <div className="p-8">
+            <button
+              onClick={() => router.back()}
+              className="group mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
+            >
+              <FaChevronLeft className="group-hover:-translate-x-1 transition-transform" />
+              <span>목록으로 돌아가기</span>
+            </button>
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
                 {app.name}
@@ -331,36 +338,26 @@ export default function AppDetailPage() {
               <button
                 onClick={handleLike}
                 disabled={isLiking}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                  isLiked
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20'
-                } ${isLiking ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isLiked
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  } ${isLiking ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isLiked ? <FaHeart /> : <FaRegHeart />}
                 <span className="font-semibold">{likeCount}</span>
               </button>
             </div>
 
-            {/* 앱 URL */}
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                앱 URL
+            {/* 앱 URL (다중 지원) */}
+            <div className="mb-6 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 ml-1">
+                웹 URL
               </h2>
-              {user ? (
-                <a
-                  href={app.appUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline flex items-center space-x-2"
-                >
-                  <span className="break-all">{app.appUrl}</span>
-                  <FaExternalLinkAlt className="flex-shrink-0" />
-                </a>
-              ) : (
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    로그인 후 앱 URL을 확인할 수 있습니다.
+
+              {!user ? (
+                <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    로그인 후 URL을 확인할 수 있습니다.
                   </p>
                   <button
                     onClick={signInWithGoogle}
@@ -368,6 +365,48 @@ export default function AppDetailPage() {
                   >
                     Google 로그인
                   </button>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {app.appUrls
+                    .filter((u) => u.isPublic || isOwner)
+                    .map((urlItem, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800/50 transition-colors group"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                              {urlItem.label || (idx === 0 ? '메인 앱' : `링크 ${idx + 1}`)}
+                            </span>
+                            {!urlItem.isPublic && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                <FaLock className="text-[9px]" />
+                                나만 보기
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {urlItem.url}
+                          </p>
+                        </div>
+                        <a
+                          href={urlItem.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-sm font-bold hover:bg-blue-50 dark:hover:bg-blue-800/50 transition-all whitespace-nowrap"
+                        >
+                          <span>바로가기</span>
+                          <FaExternalLinkAlt className="text-[10px]" />
+                        </a>
+                      </div>
+                    ))}
+                  {app.appUrls.filter((u) => u.isPublic || isOwner).length === 0 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">
+                      표시할 수 있는 URL이 없습니다.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -486,7 +525,7 @@ export default function AppDetailPage() {
         </div>
 
         {/* 댓글 */}
-        <div className="mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-200 dark:border-gray-800 p-6">
+        <div className="mt-12 bg-white dark:bg-gray-900 rounded-2xl shadow-md border border-gray-200 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
             <FaCommentDots className="text-blue-500" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">댓글</h3>
@@ -611,15 +650,6 @@ export default function AppDetailPage() {
               </button>
             </div>
           )}
-        </div>
-
-        <div className="mt-6">
-          <Link
-            href="/apps"
-            className="text-blue-600 hover:underline"
-          >
-            ← 목록으로 돌아가기
-          </Link>
         </div>
       </div>
     </div>

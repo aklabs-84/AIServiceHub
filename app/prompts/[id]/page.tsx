@@ -327,6 +327,9 @@ export default function PromptDetailPage() {
                 alt={prompt.name}
                 fill
                 className="object-cover"
+                style={{
+                  objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
+                }}
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -342,6 +345,13 @@ export default function PromptDetailPage() {
           </div>
 
           <div className="p-8 space-y-6">
+            <button
+              onClick={() => router.back()}
+              className="group inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
+            >
+              <FaChevronLeft className="group-hover:-translate-x-1 transition-transform" />
+              <span>목록으로 돌아가기</span>
+            </button>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center space-x-3 mb-3">
@@ -520,40 +530,32 @@ export default function PromptDetailPage() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <div className="flex gap-2">
-                {isOwner && (
-                  <>
-                    <button
-                      onClick={() => router.push(`/prompts/${prompt.id}/edit`)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                    >
-                      <FaEdit />
-                      <span>수정</span>
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-60"
-                    >
-                      <FaTrash />
-                      <span>{deleting ? '삭제 중...' : '삭제'}</span>
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => router.push('/prompts')}
-                  className="px-5 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                >
-                  목록으로 돌아가기
-                </button>
-              </div>
+            <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
+              {isOwner && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/prompts/${prompt.id}/edit`)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition text-sm font-semibold"
+                  >
+                    <FaEdit />
+                    <span>수정</span>
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-60 text-sm font-semibold shadow-sm"
+                  >
+                    <FaTrash />
+                    <span>{deleting ? '삭제 중...' : '삭제'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* 댓글 */}
-        <div className="mt-8 bg-white dark:bg-gray-900 rounded-2xl shadow-md border border-gray-200 dark:border-gray-800 p-6">
+        <div className="mt-12 bg-white dark:bg-gray-900 rounded-2xl shadow-md border border-gray-200 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
             <FaCommentDots className="text-emerald-500" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">댓글</h3>

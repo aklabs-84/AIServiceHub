@@ -1,5 +1,11 @@
 export type AppCategory = string;
 
+export interface AppUrlItem {
+  url: string;
+  isPublic: boolean;
+  label?: string;
+}
+
 export interface AppAttachment {
   name: string;
   size: number;
@@ -12,7 +18,8 @@ export interface AIApp {
   id: string;
   name: string;
   description: string;
-  appUrl: string;
+  appUrl: string; // Deprecated, use appUrls
+  appUrls: AppUrlItem[];
   snsUrls: string[];
   category: AppCategory;
   isPublic: boolean;
@@ -31,7 +38,8 @@ export interface AIApp {
 export interface CreateAppInput {
   name: string;
   description: string;
-  appUrl: string;
+  appUrl?: string; // Optional for legacy support
+  appUrls: AppUrlItem[];
   snsUrls: string[];
   category: AppCategory;
   isPublic?: boolean;

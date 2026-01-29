@@ -30,11 +30,17 @@ const CATEGORIES_COLLECTION = 'categories';
 // Firestore 데이터를 AIApp 타입으로 변환
 function docToApp(id: string, data: DocumentData): AIApp {
   const likes = data.likes || [];
+  let appUrls = data.appUrls || [];
+  if (appUrls.length === 0 && data.appUrl) {
+    appUrls = [{ url: data.appUrl, isPublic: true, label: '이동하기' }];
+  }
+
   return {
     id,
     name: data.name,
     description: data.description,
-    appUrl: data.appUrl,
+    appUrl: data.appUrl || (appUrls[0]?.url || ''),
+    appUrls,
     snsUrls: data.snsUrls || [],
     category: data.category,
     isPublic: data.isPublic ?? true,
@@ -63,6 +69,8 @@ function docToPrompt(id: string, data: DocumentData): Prompt {
     category: data.category,
     isPublic: data.isPublic ?? true,
     thumbnailUrl: data.thumbnailUrl,
+    thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : undefined,
+    thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : undefined,
     attachments: data.attachments || [],
     createdBy: data.createdBy,
     createdByName: data.createdByName || '익명',
@@ -185,6 +193,7 @@ export async function createApp(input: CreateAppInput, userId: string): Promise<
   const appsCol = collection(db, APPS_COLLECTION);
   const payload: Record<string, unknown> = {
     ...input,
+    appUrl: input.appUrl || (input.appUrls[0]?.url || ''),
     createdBy: userId,
     snsUrls: input.snsUrls || [],
     attachments: input.attachments || [],
@@ -217,6 +226,7 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
 
   const payload: Record<string, unknown> = {
     ...data,
+    appUrl: data.appUrl || (data.appUrls?.[0]?.url),
     snsUrls: data.snsUrls || [],
     updatedAt: serverTimestamp(),
   };
@@ -254,6 +264,12 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
 
   if (payload.thumbnailUrl === undefined) {
     delete payload.thumbnailUrl;
+  }
+  if (payload.thumbnailPositionX === undefined) {
+    delete payload.thumbnailPositionX;
+  }
+  if (payload.thumbnailPositionY === undefined) {
+    delete payload.thumbnailPositionY;
   }
 
   const docRef = await addDoc(promptsCol, payload);

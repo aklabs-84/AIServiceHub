@@ -17,6 +17,8 @@ export interface Prompt {
   category: PromptCategory;
   isPublic: boolean;
   thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
   attachments: PromptAttachment[];
   createdBy: string;
   createdByName: string;
@@ -34,6 +36,8 @@ export interface CreatePromptInput {
   category: PromptCategory;
   isPublic?: boolean;
   thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
   createdByName: string;
   attachments?: PromptAttachment[];
 }

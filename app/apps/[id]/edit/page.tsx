@@ -5,9 +5,9 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppById, updateApp } from '@/lib/db';
-import { AIApp, AppAttachment, AppCategory } from '@/types/app';
+import { AIApp, AppAttachment, AppCategory, AppUrlItem } from '@/types/app';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaSave, FaPaperclip, FaDownload } from 'react-icons/fa';
+import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
 import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
 
 const detectUrls = (value: string) =>
@@ -49,10 +49,21 @@ export default function EditAppPage() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  interface AppFormData {
+    name: string;
+    description: string;
+    appUrls: AppUrlItem[];
+    category: AppCategory;
+    isPublic: boolean;
+    thumbnailUrl: string;
+    thumbnailPositionX: number;
+    thumbnailPositionY: number;
+  }
+
+  const [formData, setFormData] = useState<AppFormData>({
     name: '',
     description: '',
-    appUrl: '',
+    appUrls: [{ url: '', isPublic: true, label: '' }],
     category: 'chatbot' as AppCategory,
     isPublic: true,
     thumbnailUrl: '',
@@ -149,6 +160,28 @@ export default function EditAppPage() {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const addUrlField = () => {
+    setFormData((prev) => ({
+      ...prev,
+      appUrls: [...prev.appUrls, { url: '', isPublic: true, label: '' }],
+    }));
+  };
+
+  const removeUrlField = (index: number) => {
+    if (formData.appUrls.length <= 1) return;
+    setFormData((prev) => ({
+      ...prev,
+      appUrls: prev.appUrls.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateUrlField = (index: number, updates: Partial<{ url: string; isPublic: boolean; label: string }>) => {
+    setFormData((prev) => ({
+      ...prev,
+      appUrls: prev.appUrls.map((item, i) => (i === index ? { ...item, ...updates } : item)),
+    }));
+  };
+
   const hydrateSnsForm = (snsUrls: string[]) => {
     const next = { blog: '', instagram: '', tiktok: '', youtube: '', etc: [] as string[] };
     snsUrls.forEach((entry) => {
@@ -185,7 +218,9 @@ export default function EditAppPage() {
         setFormData({
           name: data.name,
           description: data.description,
-          appUrl: data.appUrl,
+          appUrls: data.appUrls && data.appUrls.length > 0
+            ? data.appUrls
+            : [{ url: data.appUrl, isPublic: true, label: '이동하기' }],
           category: data.category,
           isPublic: data.isPublic ?? true,
           thumbnailUrl: data.thumbnailUrl || '',
@@ -230,11 +265,13 @@ export default function EditAppPage() {
         ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
         : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
+      const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
+
       await updateApp({
         id: app.id,
         name: formData.name,
         description: formData.description,
-        appUrl: formData.appUrl,
+        appUrls: validAppUrls,
         snsUrls: buildSnsUrls(),
         category: formData.category,
         isPublic: formData.isPublic,
@@ -435,22 +472,90 @@ export default function EditAppPage() {
             />
           </div>
 
-          {/* 앱 URL */}
+          {/* 앱 URL (다중) */}
           <div className="mb-6">
-            <label htmlFor="appUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-              앱 URL <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="url"
-              id="appUrl"
-              required
-              value={formData.appUrl}
-              onChange={(e) => setFormData({ ...formData, appUrl: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="https://aistudio.google.com/..."
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Google AI Studio에서 공유한 앱 URL을 입력하세요
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                웹 URL <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={addUrlField}
+                className="flex items-center space-x-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition"
+              >
+                <FaPlus className="text-[10px]" />
+                <span>URL 추가</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {formData.appUrls.map((urlItem, index) => (
+                <div key={index} className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <FaLink className="text-sm" />
+                      </div>
+                      <input
+                        type="url"
+                        required={index === 0}
+                        value={urlItem.url}
+                        onChange={(e) => updateUrlField(index, { url: e.target.value })}
+                        className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        placeholder="https://aistudio.google.com/..."
+                      />
+                    </div>
+                    {formData.appUrls.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeUrlField(index)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="삭제"
+                      >
+                        <FaTrash className="text-sm" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={urlItem.label}
+                        onChange={(e) => updateUrlField(index, { label: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-950 text-xs text-gray-600 dark:text-gray-400 focus:ring-1 focus:ring-blue-500"
+                        placeholder="URL 라벨 (예: 메인 앱, 관리자 페이지 등)"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => updateUrlField(index, { isPublic: !urlItem.isPublic })}
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border transition-all text-[11px] font-bold ${urlItem.isPublic
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
+                        : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                        }`}
+                    >
+                      {urlItem.isPublic ? (
+                        <>
+                          <FaGlobe className="text-[10px]" />
+                          <span>전체 공개</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaLock className="text-[10px]" />
+                          <span>작성자만 공개</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pl-1">
+              • Google AI Studio에서 공유한 앱 URL을 입력하세요.<br />
+              • 비공개로 설정된 URL은 본인과 관리자만 볼 수 있습니다.
             </p>
           </div>
 
@@ -561,22 +666,20 @@ export default function EditAppPage() {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, isPublic: true })}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  formData.isPublic
-                    ? 'bg-blue-600 text-white border-blue-600 shadow'
-                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${formData.isPublic
+                  ? 'bg-blue-600 text-white border-blue-600 shadow'
+                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
               >
                 공개
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, isPublic: false })}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  !formData.isPublic
-                    ? 'bg-blue-600 text-white border-blue-600 shadow'
-                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${!formData.isPublic
+                  ? 'bg-blue-600 text-white border-blue-600 shadow'
+                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
               >
                 비공개
               </button>
@@ -615,11 +718,10 @@ export default function EditAppPage() {
               onPointerMove={handlePreviewPointerMove}
               onPointerUp={handlePreviewPointerUp}
               onPointerLeave={handlePreviewPointerUp}
-              className={`relative w-full h-48 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                previewUrl
-                  ? 'cursor-crosshair'
-                  : 'bg-gray-100 dark:bg-gray-800'
-              }`}
+              className={`relative w-full h-48 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${previewUrl
+                ? 'cursor-crosshair'
+                : 'bg-gray-100 dark:bg-gray-800'
+                }`}
             >
               {!previewUrl && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">

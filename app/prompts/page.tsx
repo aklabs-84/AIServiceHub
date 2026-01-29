@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { getAllPrompts, getPromptsByCategory } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
@@ -13,12 +14,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 
 export default function PromptsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-col justify-center items-center py-20 md:py-32">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">프롬프트를 불러오는 중...</p>
+      </div>
+    }>
+      <PromptsListContent />
+    </Suspense>
+  );
+}
+
+function PromptsListContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<Prompt['category'] | 'all'>('all');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+
+  // Read from URL params as source of truth
+  const selectedCategory = (searchParams.get('category') as Prompt['category'] | 'all') || 'all';
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const viewMode = (searchParams.get('view') as 'card' | 'list') || 'card';
+  const searchTerm = searchParams.get('search') || '';
+
   const [showScrollTop, setShowScrollTop] = useState(false);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { categories: promptCategories } = usePromptCategories();
@@ -43,21 +64,39 @@ export default function PromptsPage() {
   }, [selectedCategory]);
 
   useEffect(() => {
-    setCurrentPage(1);
     loadPrompts();
   }, [loadPrompts]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [viewMode]);
+  const updateParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams]);
+
+  const onCategoryChange = (category: Prompt['category'] | 'all') => {
+    updateParams({ category, page: '1' });
+  };
+
+  const onPageChange = (page: number) => {
+    updateParams({ page: Math.max(1, page).toString() });
+  };
+
+  const onSearchChange = (term: string) => {
+    updateParams({ search: term || null, page: '1' });
+  };
+
+  const onViewModeChange = (view: 'card' | 'list') => {
+    updateParams({ view, page: '1' });
+  };
+
   useEffect(() => {
     if (selectedCategory === 'all') return;
     if (promptCategories.length === 0) return;
     if (!promptCategories.find((cat) => cat.value === selectedCategory)) {
-      setSelectedCategory('all');
+      onCategoryChange('all');
     }
   }, [promptCategories, selectedCategory]);
 
@@ -107,7 +146,7 @@ export default function PromptsPage() {
 
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
+      onPageChange(totalPages);
     }
   }, [totalPages, currentPage]);
 
@@ -167,12 +206,11 @@ export default function PromptsPage() {
             </div>
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => setSelectedCategory('all')}
-                className={`w-full text-left px-4 py-2.5 rounded-xl border font-medium transition ${
-                  selectedCategory === 'all'
-                    ? 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white border-transparent shadow-md'
-                    : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
+                onClick={() => onCategoryChange('all')}
+                className={`w-full text-left px-4 py-2.5 rounded-xl border font-medium transition ${selectedCategory === 'all'
+                  ? 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white border-transparent shadow-md'
+                  : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
               >
                 전체
               </button>
@@ -181,12 +219,11 @@ export default function PromptsPage() {
                 return (
                   <button
                     key={category.value}
-                    onClick={() => setSelectedCategory(category.value)}
-                    className={`w-full text-left px-4 py-2.5 rounded-xl border font-medium transition flex items-center gap-2 ${
-                      selectedCategory === category.value
-                        ? `${category.color} text-white border-transparent shadow-md`
-                        : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                    onClick={() => onCategoryChange(category.value)}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl border font-medium transition flex items-center gap-2 ${selectedCategory === category.value
+                      ? `${category.color} text-white border-transparent shadow-md`
+                      : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
                   >
                     <Icon className="text-sm" />
                     <span>{category.label}</span>
@@ -255,12 +292,11 @@ export default function PromptsPage() {
 
               <div className="flex flex-wrap gap-2 sm:gap-3">
                 <button
-                  onClick={() => setSelectedCategory('all')}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all transform hover:scale-105 font-medium shadow-md ${
-                    selectedCategory === 'all'
-                      ? 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white shadow-lg'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
-                  }`}
+                  onClick={() => onCategoryChange('all')}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all transform hover:scale-105 font-medium shadow-md ${selectedCategory === 'all'
+                    ? 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white shadow-lg'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
+                    }`}
                 >
                   전체
                 </button>
@@ -269,12 +305,11 @@ export default function PromptsPage() {
                   return (
                     <button
                       key={category.value}
-                      onClick={() => setSelectedCategory(category.value)}
-                      className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all transform hover:scale-105 flex items-center space-x-2 font-medium shadow-md ${
-                        selectedCategory === category.value
-                          ? `${category.color} text-white shadow-lg`
-                          : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
-                      }`}
+                      onClick={() => onCategoryChange(category.value)}
+                      className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all transform hover:scale-105 flex items-center space-x-2 font-medium shadow-md ${selectedCategory === category.value
+                        ? `${category.color} text-white shadow-lg`
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600'
+                        }`}
                     >
                       <Icon className="text-sm" />
                       <span className="text-sm sm:text-base">{category.label}</span>
@@ -317,7 +352,7 @@ export default function PromptsPage() {
                       <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => onSearchChange(e.target.value)}
                         placeholder="제목 또는 작성자로 검색"
                         className="w-full sm:w-64 lg:w-72 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-9 pr-4 py-2 text-sm text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                         aria-label="프롬프트 검색"
@@ -326,24 +361,22 @@ export default function PromptsPage() {
                   </div>
                   <div className="inline-flex rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     <button
-                      onClick={() => setViewMode('card')}
-                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
-                        viewMode === 'card'
-                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
+                      onClick={() => onViewModeChange('card')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${viewMode === 'card'
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
                       aria-pressed={viewMode === 'card'}
                     >
                       <FaThLarge />
                       <span>카드형</span>
                     </button>
                     <button
-                      onClick={() => setViewMode('list')}
-                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
-                        viewMode === 'list'
-                          ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
+                      onClick={() => onViewModeChange('list')}
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${viewMode === 'list'
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
                       aria-pressed={viewMode === 'list'}
                     >
                       <FaList />
@@ -367,7 +400,7 @@ export default function PromptsPage() {
                         }}
                         className="animate-fadeIn h-full"
                       >
-                      <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
+                        <PromptCard prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                       </div>
                     ))}
                   </div>
@@ -414,7 +447,7 @@ export default function PromptsPage() {
                 {filteredPrompts.length > 0 && totalPages > 1 && (
                   <div className="flex items-center justify-center gap-3 pt-2">
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={() => onPageChange(currentPage - 1)}
                       className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                       disabled={currentPage === 1}
                     >
@@ -424,7 +457,7 @@ export default function PromptsPage() {
                       {currentPage} / {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      onClick={() => onPageChange(currentPage + 1)}
                       className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                       disabled={currentPage === totalPages}
                     >

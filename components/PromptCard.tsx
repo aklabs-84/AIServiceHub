@@ -75,9 +75,9 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         ? instagramFallback
         : icon === 'youtube'
           ? youtubeFallback
-        : icon === 'blog'
-          ? blogFallback
-          : defaultFallback;
+          : icon === 'blog'
+            ? blogFallback
+            : defaultFallback;
       const favicon = icon
         ? fallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
@@ -160,6 +160,9 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
             alt={prompt.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
+            style={{
+              objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
+            }}
             onError={() => setImageError(true)}
           />
         ) : (
@@ -192,11 +195,10 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
           <button
             onClick={handleLike}
             disabled={!user || isLiking}
-            className={`flex items-center space-x-1 transition-all ${
-              isLiked
+            className={`flex items-center space-x-1 transition-all ${isLiked
                 ? 'text-red-500'
                 : 'text-gray-400 hover:text-red-500'
-            } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             aria-label="좋아요 토글"
           >
             {isLiked ? <FaHeart /> : <FaRegHeart />}

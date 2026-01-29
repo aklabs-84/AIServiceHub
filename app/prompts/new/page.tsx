@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPrompt } from '@/lib/db';
@@ -40,6 +41,7 @@ export default function NewPromptPage() {
   const { user, signInWithGoogle } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const { categories: promptCategories } = usePromptCategories();
+  const previewRef = useRef<HTMLDivElement | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -47,6 +49,8 @@ export default function NewPromptPage() {
     category: 'daily' as Prompt['category'],
     isPublic: true,
     thumbnailUrl: '',
+    thumbnailPositionX: 50,
+    thumbnailPositionY: 50,
     createdByName: user?.displayName || '',
   });
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -58,6 +62,32 @@ export default function NewPromptPage() {
     youtube: '',
     etc: '',
   });
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+
+  const previewUrl = useMemo(() => {
+    const raw = formData.thumbnailUrl.trim();
+    if (!raw) return '';
+
+    const driveMatch = raw.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+    if (driveMatch?.[1]) {
+      return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+    }
+    const driveIdParam = raw.match(/[?&]id=([^&]+)/i);
+    if (raw.includes('drive.google.com') && driveIdParam?.[1]) {
+      return `https://drive.google.com/uc?export=view&id=${driveIdParam[1]}`;
+    }
+
+    return raw;
+  }, [formData.thumbnailUrl]);
+
+  const previewImageSrc = useMemo(() => {
+    if (!previewUrl) return '';
+    const isDrive = previewUrl.includes('drive.google.com');
+    return isDrive
+      ? `/api/image-proxy?url=${encodeURIComponent(previewUrl)}`
+      : previewUrl;
+  }, [previewUrl]);
 
   useEffect(() => {
     if (promptCategories.length === 0) return;
@@ -125,6 +155,7 @@ export default function NewPromptPage() {
       const uploadedAttachments = attachments.length
         ? await Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken)))
         : [];
+      const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const promptId = await createPrompt(
         {
           name: formData.name,
@@ -133,7 +164,9 @@ export default function NewPromptPage() {
           snsUrls: buildSnsUrls(),
           category: formData.category,
           isPublic: formData.isPublic,
-          thumbnailUrl: formData.thumbnailUrl || undefined,
+          thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+          thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+          thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
           attachments: uploadedAttachments,
           createdByName: formData.createdByName || user.displayName || '익명',
         },
@@ -155,6 +188,34 @@ export default function NewPromptPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const updateThumbnailPosition = (clientX: number, clientY: number) => {
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const nextX = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    const nextY = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    setFormData((prev) => ({
+      ...prev,
+      thumbnailPositionX: Math.round(nextX),
+      thumbnailPositionY: Math.round(nextY),
+    }));
+  };
+
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!previewUrl) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    updateThumbnailPosition(event.clientX, event.clientY);
+  };
+
+  const handlePreviewPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    updateThumbnailPosition(event.clientX, event.clientY);
+  };
+
+  const handlePreviewPointerUp = () => {
+    setIsDragging(false);
   };
 
   if (!user) {
@@ -359,22 +420,20 @@ export default function NewPromptPage() {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, isPublic: true })}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  formData.isPublic
-                    ? 'bg-emerald-500 text-white border-emerald-500 shadow'
-                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${formData.isPublic
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow'
+                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
               >
                 공개
               </button>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, isPublic: false })}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                  !formData.isPublic
-                    ? 'bg-emerald-500 text-white border-emerald-500 shadow'
-                    : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${!formData.isPublic
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow'
+                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
               >
                 비공개
               </button>
@@ -413,6 +472,96 @@ export default function NewPromptPage() {
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               입력하지 않으면 카테고리 아이콘이 표시됩니다.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              썸네일 위치 (이미지에서 직접 조정)
+            </label>
+            <div
+              ref={previewRef}
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPointerUp}
+              onPointerLeave={handlePreviewPointerUp}
+              className={`relative w-full h-48 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${previewUrl
+                ? 'cursor-crosshair'
+                : 'bg-gray-100 dark:bg-gray-800'
+                }`}
+            >
+              {!previewUrl && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                  썸네일 URL을 입력하면 미리보기가 표시됩니다
+                </div>
+              )}
+              {previewUrl && !previewError && (
+                <>
+                  <Image
+                    src={previewImageSrc}
+                    alt="썸네일 미리보기"
+                    fill
+                    unoptimized
+                    referrerPolicy="no-referrer"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    style={{
+                      objectPosition: `${formData.thumbnailPositionX}% ${formData.thumbnailPositionY}%`,
+                    }}
+                    onError={() => setPreviewError(true)}
+                    sizes="100vw"
+                  />
+                  <div className="absolute inset-0 bg-black/10" />
+                  <div
+                    className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md bg-emerald-500/80"
+                    style={{
+                      left: `${formData.thumbnailPositionX}%`,
+                      top: `${formData.thumbnailPositionY}%`,
+                    }}
+                  />
+                </>
+              )}
+              {previewUrl && previewError && (
+                <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                  이미지를 불러올 수 없습니다. URL을 확인해주세요.
+                </div>
+              )}
+            </div>
+            <div className="space-y-4 mt-4">
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <span>좌</span>
+                  <span>{formData.thumbnailPositionX}%</span>
+                  <span>우</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={formData.thumbnailPositionX}
+                  disabled={!formData.thumbnailUrl.trim()}
+                  onChange={(e) => setFormData({ ...formData, thumbnailPositionX: Number(e.target.value) })}
+                  className="w-full accent-emerald-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  <span>상</span>
+                  <span>{formData.thumbnailPositionY}%</span>
+                  <span>하</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={formData.thumbnailPositionY}
+                  disabled={!formData.thumbnailUrl.trim()}
+                  onChange={(e) => setFormData({ ...formData, thumbnailPositionY: Number(e.target.value) })}
+                  className="w-full accent-emerald-500 disabled:opacity-50"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              썸네일 이미지가 있을 때만 적용됩니다.
             </p>
           </div>
 
