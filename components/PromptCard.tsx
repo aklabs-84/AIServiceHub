@@ -23,7 +23,7 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
   const CategoryIcon = categoryInfo.icon;
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
-  const [isLiked, setIsLiked] = useState(user ? prompt.likes.includes(user.uid) : false);
+  const [isLiked, setIsLiked] = useState(user ? prompt.likes.includes(user.id) : false);
   const [likeCount, setLikeCount] = useState(prompt.likeCount ?? prompt.likes.length);
   const [isLiking, setIsLiking] = useState(false);
 
@@ -130,11 +130,11 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
     setIsLiking(true);
     try {
       if (isLiked) {
-        await unlikePrompt(prompt.id, user.uid);
+        await unlikePrompt(prompt.id, user.id);
         setIsLiked(false);
         setLikeCount((prev) => prev - 1);
       } else {
-        await likePrompt(prompt.id, user.uid);
+        await likePrompt(prompt.id, user.id);
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
       }

@@ -1,20 +1,19 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/';
+  const code = searchParams?.get('code');
+  const next = searchParams?.get('next') ?? '/';
 
   useEffect(() => {
     const handleCallback = async () => {
       if (code) {
-        // 클라이언트 사이드에서 코드 교환 (LocalStorage의 verifier 사용)
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           console.error('Auth callback error:', error);
@@ -23,7 +22,7 @@ export default function AuthCallbackPage() {
           router.push(next);
         }
       } else {
-         router.push('/'); 
+        router.push('/');
       }
     };
 
@@ -37,5 +36,13 @@ export default function AuthCallbackPage() {
         <p className="text-gray-600 dark:text-gray-300">로그인 처리 중...</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

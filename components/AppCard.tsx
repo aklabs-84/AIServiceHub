@@ -28,7 +28,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
   };
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
-  const [isLiked, setIsLiked] = useState(user ? app.likes.includes(user.uid) : false);
+  const [isLiked, setIsLiked] = useState(user ? app.likes.includes(user.id) : false);
   const [likeCount, setLikeCount] = useState(app.likeCount);
   const [isLiking, setIsLiking] = useState(false);
   const thumbnailPosition = app.thumbnailUrl
@@ -148,11 +148,11 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
     setIsLiking(true);
     try {
       if (isLiked) {
-        await unlikeApp(app.id, user.uid);
+        await unlikeApp(app.id, user.id);
         setIsLiked(false);
         setLikeCount(prev => prev - 1);
       } else {
-        await likeApp(app.id, user.uid);
+        await likeApp(app.id, user.id);
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -304,8 +304,8 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
                 onClick={handleLike}
                 disabled={!user || isLiking}
                 className={`flex items-center space-x-1 text-sm transition-all ${isLiked
-                    ? 'text-red-500'
-                    : 'text-gray-400 hover:text-red-500'
+                  ? 'text-red-500'
+                  : 'text-gray-400 hover:text-red-500'
                   } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {isLiked ? <FaHeart /> : <FaRegHeart />}
