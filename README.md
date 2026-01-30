@@ -30,7 +30,7 @@
 npm install
 ```
 
-### 2. Firebase 설정
+### 2. Supabase 설정 (Firebase Removed)
 
 1. [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성
 2. Authentication에서 Google 로그인 활성화
