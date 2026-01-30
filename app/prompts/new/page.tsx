@@ -177,37 +177,66 @@ export default function NewPromptPage() {
     }
 
     setSubmitting(true);
-    try {
-      let uploadedAttachments: any[] = [];
 
-      if (attachments.length > 0) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const idToken = session?.access_token;
-        if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
+    const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-        uploadedAttachments = await Promise.all(
-          attachments.map((file) => uploadPromptAttachment(file, idToken))
+      try {
+        console.log(`[Submission] Attempt ${attempt}/${maxAttempts} started...`);
+        let uploadedAttachments: any[] = [];
+
+        if (attachments.length > 0) {
+          console.log('[Submission] Uploading attachments...');
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError || !session) throw new Error('세션 확인 실패');
+
+          const idToken = session.access_token;
+
+          // 첨부파일 업로드 (병렬)
+          uploadedAttachments = await Promise.all(
+            attachments.map((file) => uploadPromptAttachment(file, idToken))
+          );
+        }
+
+        const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
+        console.log('[Submission] Creating prompt record...');
+
+        const promptId = await createPrompt(
+          {
+            name: formData.name,
+            description: formData.description,
+            promptContent: formData.promptContent,
+            snsUrls: buildSnsUrls(),
+            category: formData.category,
+            isPublic: formData.isPublic,
+            thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+            thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+            thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+            attachments: uploadedAttachments,
+            createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
+            tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+          },
+          user.id,
+          { signal: controller.signal }
         );
-      }
 
-      const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
-      const promptId = await createPrompt(
-        {
-          name: formData.name,
-          description: formData.description,
-          promptContent: formData.promptContent,
-          snsUrls: buildSnsUrls(),
-          category: formData.category,
-          isPublic: formData.isPublic,
-          thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
-          thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
-          thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-          attachments: uploadedAttachments,
-          createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-          tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-        },
-        user.id
-      );
+        clearTimeout(timeoutId);
+        return promptId;
+
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (attempt < maxAttempts) {
+          console.warn(`[Submission] Attempt ${attempt} failed: ${error.message}. Retrying...`);
+          await new Promise(res => setTimeout(res, 1000)); // 1초 대기 후 재시도
+          return submitWithRetry(attempt + 1, maxAttempts);
+        }
+        throw error;
+      }
+    };
+
+    try {
+      const promptId = await submitWithRetry();
 
       alert('프롬프트가 등록되었습니다!');
       router.replace(`/prompts/${promptId}`);
@@ -219,8 +248,9 @@ export default function NewPromptPage() {
         category: formData.category,
       });
     } catch (error: any) {
-      console.error('Error creating prompt:', error);
-      alert(`프롬프트 등록 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+      console.error('Final submission error:', error);
+      const msg = error.name === 'AbortError' ? '요청 시간이 초과되었습니다 (네트워크 지연).' : error.message;
+      alert(`프롬프트 등록 실패: ${msg || '알 수 없는 오류'} (3회 시도 실패)`);
     } finally {
       setSubmitting(false);
     }

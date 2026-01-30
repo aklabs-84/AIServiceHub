@@ -38,109 +38,113 @@ export default function Header() {
 
           {/* 데스크톱 네비게이션 */}
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
-            {!loading && (
-              <>
-                <NavLink href="/apps">바이브코딩</NavLink>
-                <NavLink href="/prompts">프롬프트</NavLink>
-                <NavLink href="/content">콘텐츠</NavLink>
-                <NavLink href="/guide">Q&A</NavLink>
-                <Link
-                  href="/request"
-                  className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none transition-all"
-                >
-                  제작 의뢰
-                </Link>
+            <NavLink href="/apps">바이브코딩</NavLink>
+            <NavLink href="/prompts">프롬프트</NavLink>
+            <NavLink href="/content">콘텐츠</NavLink>
+            <NavLink href="/guide">Q&A</NavLink>
+            <Link
+              href="/request"
+              className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none transition-all"
+            >
+              제작 의뢰
+            </Link>
 
-                <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
 
-                {/* 다크모드 토글 */}
-                <button
-                  onClick={toggleTheme}
-                  className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-all active:scale-90"
-                  title={theme === 'light' ? '다크모드' : '라이트모드'}
-                >
-                  {theme === 'light' ? (
-                    <FaMoon className="text-gray-600" />
-                  ) : (
-                    <FaSun className="text-yellow-400" />
-                  )}
-                </button>
+            {/* 다크모드 토글 */}
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-all active:scale-90"
+              title={theme === 'light' ? '다크모드' : '라이트모드'}
+            >
+              {theme === 'light' ? (
+                <FaMoon className="text-gray-600" />
+              ) : (
+                <FaSun className="text-yellow-400" />
+              )}
+            </button>
 
-                {user ? (
-                  <div className="relative ml-2">
-                    <button
-                      onClick={() => setProfileMenuOpen((prev) => !prev)}
-                      className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-                    >
-                      {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
-                        <Image
-                          src={user.user_metadata.avatar_url || user.user_metadata.picture}
-                          alt={user.user_metadata.full_name || user.user_metadata.name || '사용자'}
-                          width={32}
-                          height={32}
-                          className="w-8 h-8 rounded-full shadow-sm"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                          {user.email?.[0].toUpperCase()}
-                        </div>
-                      )}
-                    </button>
+            {!loading ? (
+              user ? (
+                <div className="relative ml-2">
+                  <button
+                    onClick={() => setProfileMenuOpen((prev) => !prev)}
+                    className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                  >
+                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                      <Image
+                        src={user.user_metadata.avatar_url || user.user_metadata.picture}
+                        alt={user.user_metadata.full_name || user.user_metadata.name || '사용자'}
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full shadow-sm"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                        {user.email?.[0].toUpperCase()}
+                      </div>
+                    )}
+                  </button>
 
-                    {profileMenuOpen && (
-                      <div className="absolute right-0 mt-3 w-64 rounded-2xl bg-white text-gray-800 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10 animate-fadeIn overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-                          <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Signed in as</p>
-                          <p className="font-bold truncate text-sm">{user.email}</p>
-                        </div>
-                        <div className="p-2 space-y-1">
+                  {profileMenuOpen && (
+                    <div className="absolute right-0 mt-3 w-64 rounded-2xl bg-white text-gray-800 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10 animate-fadeIn overflow-hidden">
+                      <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
+                        <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Signed in as</p>
+                        <p className="font-bold truncate text-sm">{user.email}</p>
+                      </div>
+                      <div className="p-2 space-y-1">
+                        <Link
+                          href="/my"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          마이페이지
+                        </Link>
+                        {user.email === 'mosebb@gmail.com' && (
                           <Link
-                            href="/my"
+                            href="/admin"
                             onClick={() => setProfileMenuOpen(false)}
                             className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                           >
-                            마이페이지
+                            관리자 설정
                           </Link>
-                          {user.email === 'mosebb@gmail.com' && (
-                            <Link
-                              href="/admin"
-                              onClick={() => setProfileMenuOpen(false)}
-                              className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              관리자 설정
-                            </Link>
-                          )}
-                          <button
-                            onClick={() => {
-                              signOut();
-                              setProfileMenuOpen(false);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
-                          >
-                            로그아웃
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setProfileMenuOpen(false);
+                          }}
+                          className="w-full flex items-center px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
+                        >
+                          로그아웃
+                        </button>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2 ml-2">
-                    <button
-                      onClick={signInWithKakao}
-                      className="p-2 rounded-xl bg-[#FEE500] hover:bg-[#FEE500]/90 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                    >
-                      <RiKakaoTalkFill className="text-lg text-black" />
-                    </button>
-                    <button
-                      onClick={signInWithGoogle}
-                      className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-all hover:scale-105 active:scale-95 shadow-sm"
-                    >
-                      <FcGoogle className="text-lg" />
-                    </button>
-                  </div>
-                )}
-              </>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 ml-2">
+                  <button
+                    onClick={signInWithKakao}
+                    className="p-2 rounded-xl bg-[#FEE500] hover:bg-[#FEE500]/90 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                  >
+                    <RiKakaoTalkFill className="text-lg text-black" />
+                  </button>
+                  <button
+                    onClick={signInWithGoogle}
+                    className="p-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                  >
+                    <FcGoogle className="text-lg" />
+                  </button>
+                </div>
+              )
+            ) : (
+              // Loading Skeleton for User Area
+              <div className="flex items-center space-x-2 ml-2 animate-pulse">
+                <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800"></div>
+                <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800"></div>
+              </div>
             )}
           </nav>
 
@@ -229,8 +233,8 @@ function MobileNavLink({ href, children, onClick, highlight }: { href: string; c
       href={href}
       onClick={onClick}
       className={`flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-bold transition-all ${highlight
-          ? "bg-blue-600 text-white shadow-lg"
-          : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+        ? "bg-blue-600 text-white shadow-lg"
+        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
         }`}
     >
       {children}

@@ -53,9 +53,16 @@ function AppsListContent() {
     setLoading(true);
     console.log('[AppsPage] Loading apps started...', { category: selectedCategory });
     try {
-      const data = selectedCategory === 'all'
-        ? await getAllApps()
-        : await getAppsByCategory(selectedCategory);
+      // 7초 타임아웃을 적용한 데이터 로딩
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('전체 앱 목록 로딩 시간 초과')), 7000)
+      );
+
+      const fetchPromise = selectedCategory === 'all'
+        ? getAllApps()
+        : getAppsByCategory(selectedCategory);
+
+      const data = await Promise.race([fetchPromise, timeoutPromise]) as AIApp[];
 
       if (isMounted.current) {
         setApps(data || []);
@@ -64,6 +71,7 @@ function AppsListContent() {
     } catch (error) {
       if (isMounted.current) {
         console.error('[AppsPage] Error loading apps:', error);
+        // 타임아웃이나 에러 발생 시 빈 배열이나 에러 상태 처리 가능
       }
     } finally {
       if (isMounted.current) {

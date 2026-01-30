@@ -302,7 +302,8 @@ export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
     .filter((p: Prompt) => p.isPublic || p.createdBy === userId);
 }
 
-export async function createPrompt(input: CreatePromptInput, userId: string): Promise<string> {
+export async function createPrompt(input: CreatePromptInput, userId: string, options?: { signal?: AbortSignal }): Promise<string> {
+  console.log('[DEBUG-DB] createPrompt called via userId:', userId);
   const payload = {
     name: input.name,
     description: input.description,
@@ -317,15 +318,30 @@ export async function createPrompt(input: CreatePromptInput, userId: string): Pr
     created_by: userId,
     created_by_name: input.createdByName,
   };
+  console.log('[DEBUG-DB] Payload prepared:', payload);
 
-  const { data, error } = await supabase
+  const query = supabase
     .from('prompts')
     .insert(payload)
-    .select('id')
-    .single();
+    .select('id');
 
-  if (error) throw error;
-  return data.id;
+  if (options?.signal) {
+    query.abortSignal(options.signal);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[DEBUG-DB] Insert error:', error);
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('데이터가 저장되지 않았습니다 (No ID returned)');
+  }
+
+  console.log('[DEBUG-DB] Insert successful, ID:', data[0].id);
+  return data[0].id;
 }
 
 export async function updatePrompt(input: UpdatePromptInput): Promise<void> {

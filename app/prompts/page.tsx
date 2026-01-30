@@ -54,10 +54,15 @@ function PromptsListContent() {
     setLoading(true);
     console.log('[PromptsPage] Loading prompts started...', { category: selectedCategory });
     try {
-      const data =
-        selectedCategory === 'all'
-          ? await getAllPrompts()
-          : await getPromptsByCategory(selectedCategory);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('프롬프트 목록 로딩 시간 초과')), 7000)
+      );
+
+      const fetchPromise = selectedCategory === 'all'
+        ? getAllPrompts()
+        : getPromptsByCategory(selectedCategory);
+
+      const data = await Promise.race([fetchPromise, timeoutPromise]) as Prompt[];
 
       if (isMounted.current) {
         setPrompts(data || []);

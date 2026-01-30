@@ -43,38 +43,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Get initial session
+    let mounted = true;
+
+    // 1. Get initial session with timeout safety
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserRole(session.user.id);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchUserRole(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error fetching session:', error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
     };
 
     getSession();
 
+    // Safety timeout: if Supabase doesn't respond in 3s, stop loading
+    const timeoutId = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth session check timed out, forcing loading to false');
+        setLoading(false);
+      }
+    }, 3000);
+
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      if (currentUser) {
-        await fetchUserRole(currentUser.id);
+      try {
+        if (currentUser) {
+          await fetchUserRole(currentUser.id);
 
-        if (event === 'SIGNED_IN') {
-          const { id, email, user_metadata } = currentUser;
-          const displayName = user_metadata.full_name || user_metadata.name;
-          await ensureUserProfile(id, email, displayName);
+          if (event === 'SIGNED_IN') {
+            const { id, email, user_metadata } = currentUser;
+            const displayName = user_metadata.full_name || user_metadata.name;
+            await ensureUserProfile(id, email, displayName);
+          }
+        } else {
+          setRole(null);
         }
-      } else {
-        setRole(null);
-        setLoading(false);
+      } catch (error) {
+        console.error('Error handling auth change:', error);
+      } finally {
+        if (mounted) setLoading(false);
       }
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
