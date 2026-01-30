@@ -165,156 +165,117 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
   };
 
   return (
-    <Link href={`/apps/${app.id}`} className="group">
-      <div className="card-hover bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden cursor-pointer h-full flex flex-col border border-gray-200 dark:border-gray-700">
-        {/* 썸네일 또는 카테고리 아이콘 */}
-        <div className="relative w-full h-48 overflow-hidden">
+    <Link href={`/apps/${app.id}`} className="group h-full">
+      <div className="relative h-full flex flex-col bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10 group-hover:-translate-y-2 group-hover:scale-[1.02]">
+
+        {/* 썸네일 영역 */}
+        <div className="relative aspect-video overflow-hidden">
           {app.thumbnailUrl && !imageError ? (
-            <div className="relative w-full h-full">
+            <>
               <Image
                 src={app.thumbnailUrl}
                 alt={app.name}
                 fill
-                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                className="object-cover transition-transform duration-700 group-hover:scale-110"
                 style={thumbnailPosition}
                 onError={() => setImageError(true)}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            </>
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${categoryBackground} relative overflow-hidden`}>
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white rounded-full" />
-                <div className="absolute -left-8 -top-8 w-24 h-24 bg-white rounded-full" />
-              </div>
-              <CategoryIcon className="text-white text-7xl drop-shadow-lg relative z-10 group-hover:scale-110 transition-transform duration-300" />
+              <CategoryIcon className="text-white/20 text-8xl absolute -right-4 -bottom-4 rotate-12" />
+              <CategoryIcon className="text-white text-6xl drop-shadow-2xl relative z-10 transition-transform duration-500 group-hover:scale-110" />
             </div>
           )}
 
-          {/* 카테고리 배지 - 썸네일 위에 오버레이 */}
-          <div className="absolute top-3 right-3 z-10">
-            <span className={`text-xs px-3 py-1.5 rounded-full text-white ${categoryInfo.color} backdrop-blur-sm bg-opacity-90 font-medium shadow-lg`}>
-              {categoryInfo.label}
-            </span>
+          {/* 카테고리 배지 */}
+          <div className="absolute top-4 left-4 z-20">
+            <div className={`px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/90 dark:bg-gray-950/80 border border-white/20 dark:border-gray-800/50 shadow-sm flex items-center space-x-1.5`}>
+              <CategoryIcon className={`text-sm ${categoryInfo.color.replace('bg-', 'text-')}`} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">
+                {categoryInfo.label}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* 카드 내용 */}
-        <div className="p-5 flex-1 flex flex-col">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {app.name}
-          </h3>
+        {/* 카드 상세 */}
+        <div className="p-6 flex-1 flex flex-col">
+          <div className="mb-4">
+            <h3 className="text-lg font-black tracking-tight text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              {app.name}
+            </h3>
 
-          {/* 태그 영역 */}
-          {app.tags && app.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-3">
-              {app.tags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={(e) => handleTagClick(tag, e)}
-                  className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md bg-gray-50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition-all font-medium"
-                >
-                  #{tag}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 flex-1 leading-relaxed">
-            {plainDescription}
-          </p>
-
-          {/* SNS 미리보기 */}
-          {app.snsUrls.length > 0 && (
-            <div className="mt-3">
-              <div className="flex flex-wrap gap-2">
-                {snsPreview.map((url, idx) => {
-                  const preview = getLinkPreview(url);
-                  const renderIcon = () => {
-                    switch (preview.icon) {
-                      case 'instagram':
-                        return <Image src="/instagram-icon.svg" alt="Instagram" width={20} height={20} />;
-                      case 'youtube':
-                        return <Image src="/youtube.svg" alt="YouTube" width={20} height={20} />;
-                      case 'tiktok':
-                        return <FaTiktok className="text-gray-800 dark:text-white" />;
-                      case 'twitter':
-                        return <FaTwitter className="text-sky-500" />;
-                      case 'notion':
-                        return <FaFileAlt className="text-gray-700 dark:text-gray-200" />;
-                      case 'form':
-                        return <FaClipboardList className="text-emerald-500" />;
-                      case 'blog':
-                        return <Image src="/naver-blog.svg" alt="Naver Blog" width={20} height={20} />;
-                      default:
-                        return null;
-                    }
-                  };
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.open(url, '_blank', 'noopener,noreferrer');
-                      }}
-                      className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      aria-label={preview.hostname}
-                    >
-                      <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                        {renderIcon() ? (
-                          renderIcon()
-                        ) : (
-                          <Image
-                            src={preview.favicon}
-                            alt={preview.hostname}
-                            fill
-                            sizes="20px"
-                            className="object-contain"
-                            onError={(e) => {
-                              const target = e.currentTarget as HTMLImageElement;
-                              if (!target.src.includes(preview.fallback)) {
-                                target.src = preview.fallback;
-                              }
-                            }}
-                          />
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-                {app.snsUrls.length > snsPreview.length && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                    +{app.snsUrls.length - snsPreview.length}
-                  </span>
+            {/* 태그 */}
+            {app.tags && app.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {app.tags.slice(0, 3).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={(e) => handleTagClick(tag, e)}
+                    className="text-[10px] font-bold px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+                  >
+                    #{tag}
+                  </button>
+                ))}
+                {app.tags.length > 3 && (
+                  <span className="text-[10px] font-bold text-gray-400 px-1 py-1">+{app.tags.length - 3}</span>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 하단 정보 */}
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                <FaUser className="text-purple-500 dark:text-purple-400" />
-                <span>{app.createdByName}</span>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed h-11">
+              {plainDescription}
+            </p>
+          </div>
+
+          <div className="mt-auto pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-[10px] font-bold border border-indigo-100 dark:border-indigo-900/50">
+                {app.createdByName?.[0]?.toUpperCase() || 'U'}
               </div>
+              <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
+                {app.createdByName}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              {/* SNS 링크 (최대 2개 미리보기) */}
+              <div className="flex -space-x-1.5">
+                {snsPreview.slice(0, 2).map((url, idx) => {
+                  const preview = getLinkPreview(url);
+                  return (
+                    <div key={idx} className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center overflow-hidden">
+                      <Image
+                        src={preview.favicon}
+                        alt="SNS"
+                        width={14}
+                        height={14}
+                        className="object-contain"
+                        onError={(e) => (e.currentTarget.src = '/globe.svg')}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
               <button
                 onClick={handleLike}
                 disabled={!user || isLiking}
-                className={`flex items-center space-x-1 text-sm transition-all ${isLiked
-                  ? 'text-red-500'
-                  : 'text-gray-400 hover:text-red-500'
-                  } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition-all ${isLiked
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
+                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500'
+                  }`}
               >
-                {isLiked ? <FaHeart /> : <FaRegHeart />}
-                <span>{likeCount}</span>
+                {isLiked ? <FaHeart className="text-xs" /> : <FaRegHeart className="text-xs" />}
+                <span className="text-xs font-black">{likeCount}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
     </Link>
+
   );
 }

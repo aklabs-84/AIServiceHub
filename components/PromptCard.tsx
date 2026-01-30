@@ -148,7 +148,7 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
 
   return (
     <div
-      className="group h-full overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg card-hover cursor-pointer flex flex-col"
+      className="group relative flex flex-col h-full bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-500/10 group-hover:-translate-y-2 group-hover:scale-[1.02] cursor-pointer"
       onClick={() => router.push(`/prompts/${prompt.id}`)}
       role="button"
       tabIndex={0}
@@ -159,152 +159,124 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         }
       }}
     >
-      <div className="relative h-44 w-full">
+      {/* 썸네일 영역 */}
+      <div className="relative aspect-[16/10] overflow-hidden">
         {prompt.thumbnailUrl && !imageError ? (
-          <Image
-            src={prompt.thumbnailUrl}
-            alt={prompt.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            style={{
-              objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
-            }}
-            onError={() => setImageError(true)}
-          />
+          <>
+            <Image
+              src={prompt.thumbnailUrl}
+              alt={prompt.name}
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-110"
+              style={{
+                objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
+              }}
+              onError={() => setImageError(true)}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          </>
         ) : (
           <div className={`h-full w-full bg-gradient-to-br ${badgeTone} flex items-center justify-center relative overflow-hidden`}>
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute -right-10 -bottom-10 h-28 w-28 bg-white rounded-full" />
-              <div className="absolute -left-6 -top-8 h-20 w-20 bg-white rounded-full" />
-            </div>
-            <CategoryIcon className="relative z-10 text-6xl text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-300" />
+            <CategoryIcon className="text-white/20 text-8xl absolute -right-4 -bottom-4 rotate-12" />
+            <CategoryIcon className="relative z-10 text-6xl text-white drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" />
           </div>
         )}
 
-        <div className="absolute top-3 right-3 z-10">
-          <span className="rounded-full bg-white/80 dark:bg-gray-900/80 text-gray-800 dark:text-gray-100 text-xs font-semibold px-3 py-1 shadow">
-            {categoryInfo.label}
-          </span>
+        {/* 카테고리 배지 */}
+        <div className="absolute top-4 left-4 z-20">
+          <div className="px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/90 dark:bg-gray-950/80 border border-white/20 dark:border-gray-800/50 shadow-sm flex items-center space-x-1.5">
+            <CategoryIcon className="text-sm text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">
+              {categoryInfo.label}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="p-5 space-y-3 flex-1 flex flex-col">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
-          {prompt.name}
-        </h3>
+      <div className="p-6 flex-1 flex flex-col">
+        <div className="mb-4">
+          <h3 className="text-lg font-black tracking-tight text-gray-900 dark:text-white mb-3 line-clamp-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            {prompt.name}
+          </h3>
 
-        {/* 태그 영역 */}
-        {prompt.tags && prompt.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {prompt.tags.map((tag) => (
-              <button
-                key={tag}
-                onClick={(e) => handleTagClick(tag, e)}
-                className="text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all font-medium"
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* 태그 영역 */}
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {prompt.tags.slice(0, 3).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={(e) => handleTagClick(tag, e)}
+                  className="text-[10px] font-bold px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all font-medium"
+                >
+                  #{tag}
+                </button>
+              ))}
+              {prompt.tags.length > 3 && (
+                <span className="text-[10px] font-bold text-gray-400 px-1 py-1">+{prompt.tags.length - 3}</span>
+              )}
+            </div>
+          )}
 
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <FaUser className="text-emerald-500" />
-            <span className="truncate">{prompt.createdByName}</span>
+          <div className="text-sm font-medium text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-3 h-[4.5rem]">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => <span className="m-0">{children}</span>,
+                ul: ({ children }) => <span className="m-0">{children}</span>,
+                ol: ({ children }) => <span className="m-0">{children}</span>,
+                li: ({ children }) => <span className="m-0">{children}</span>,
+                strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+              }}
+            >
+              {getTrimmedDescription(prompt.description, 150)}
+            </ReactMarkdown>
           </div>
-          <button
-            onClick={handleLike}
-            disabled={!user || isLiking}
-            className={`flex items-center space-x-1 transition-all ${isLiked
-              ? 'text-red-500'
-              : 'text-gray-400 hover:text-red-500'
-              } ${!user ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-            aria-label="좋아요 토글"
-          >
-            {isLiked ? <FaHeart /> : <FaRegHeart />}
-            <span>{likeCount}</span>
-          </button>
         </div>
 
-        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-4">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              p: ({ children }) => <p className="m-0">{children}</p>,
-              ul: ({ children }) => <ul className="m-0 list-disc list-inside space-y-1">{children}</ul>,
-              ol: ({ children }) => <ol className="m-0 list-decimal list-inside space-y-1">{children}</ol>,
-              li: ({ children }) => <li className="m-0">{children}</li>,
-              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-            }}
-          >
-            {getTrimmedDescription(prompt.description)}
-          </ReactMarkdown>
-        </div>
+        <div className="mt-auto pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/50">
+              {prompt.createdByName?.[0]?.toUpperCase() || 'U'}
+            </div>
+            <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
+              {prompt.createdByName}
+            </span>
+          </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 mt-auto">
-          {snsPreview.map((url, idx) => {
-            const preview = getLinkPreview(url);
-            const renderIcon = () => {
-              switch (preview.icon) {
-                case 'instagram':
-                  return <Image src="/instagram-icon.svg" alt="Instagram" width={20} height={20} />;
-                case 'youtube':
-                  return <Image src="/youtube.svg" alt="YouTube" width={20} height={20} />;
-                case 'tiktok':
-                  return <FaTiktok className="text-gray-800 dark:text-white" />;
-                case 'twitter':
-                  return <FaTwitter className="text-sky-500" />;
-                case 'notion':
-                  return <FaFileAlt className="text-gray-700 dark:text-gray-200" />;
-                case 'form':
-                  return <FaClipboardList className="text-emerald-500" />;
-                case 'blog':
-                  return <Image src="/naver-blog.svg" alt="Naver Blog" width={20} height={20} />;
-                default:
-                  return null;
-              }
-            };
-            return (
-              <a
-                key={idx}
-                href={url}
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={preview.hostname}
-              >
-                <span className="relative h-5 w-5 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                  {renderIcon() ? (
-                    renderIcon()
-                  ) : (
+          <div className="flex items-center space-x-3">
+            <div className="flex -space-x-1.5">
+              {snsPreview.map((url, idx) => {
+                const preview = getLinkPreview(url);
+                return (
+                  <div key={idx} className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center overflow-hidden">
                     <Image
                       src={preview.favicon}
-                      alt={preview.hostname}
-                      fill
-                      sizes="20px"
+                      alt="SNS"
+                      width={14}
+                      height={14}
                       className="object-contain"
-                      onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        if (!target.src.includes(preview.fallback)) {
-                          target.src = preview.fallback;
-                        }
-                      }}
+                      onError={(e) => (e.currentTarget.src = '/globe.svg')}
                     />
-                  )}
-                </span>
-              </a>
-            );
-          })}
-          {prompt.snsUrls.length > 2 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-              +{prompt.snsUrls.length - 2}
-            </span>
-          )}
-        </div>
+                  </div>
+                );
+              })}
+            </div>
 
+            <button
+              onClick={handleLike}
+              disabled={!user || isLiking}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition-all ${isLiked
+                  ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
+                  : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500'
+                }`}
+            >
+              {isLiked ? <FaHeart className="text-xs" /> : <FaRegHeart className="text-xs" />}
+              <span className="text-xs font-black">{likeCount}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+
   );
 }

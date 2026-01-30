@@ -2,270 +2,248 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
-import HeroPreview from '@/components/HeroPreview';
+
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20">
-        {/* 히어로 */}
-        <div className="grid lg:grid-cols-[1.05fr_0.95fr] xl:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-12 items-center">
-          <div className="space-y-6 w-full lg:pr-6">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 text-sm font-semibold">
-              <FaRocket />
-              <span>AI LABS</span>
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
-              AI LABS에서
-              <br />
-              아이디어를 실험하고
-              <br />
-              공유하세요
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl leading-relaxed">
-              바이브코딩으로 만든 AI 앱과 프롬프트를 실험하고 기록하는 랩입니다.
-              <br />
-              실행 링크와 본문을 안전하게 모아두고 팀과 빠르게 검증해 보세요.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/apps"
-                className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold hover:-translate-y-0.5 transition-all shadow-sm"
-              >
-                <FaRocket />
-                <span>앱 둘러보기</span>
-              </Link>
-              <Link
-                href="/prompts"
-                className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
-              >
-                <FaFeatherAlt />
-                <span>프롬프트 아카이브</span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -inset-8 bg-gradient-to-tr from-emerald-200 via-cyan-200 to-blue-200 dark:from-emerald-900/40 dark:via-cyan-900/30 dark:to-blue-900/30 blur-3xl opacity-70" />
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/40 dark:ring-gray-800/60 bg-transparent backdrop-blur-sm">
-              <HeroPreview />
-            </div>
-          </div>
-        </div>
-        {/* 소개 섹션 */}
-        <div className="mt-20 md:mt-28 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-7 sm:p-10 shadow-xl space-y-10">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="space-y-2 max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                <FaShieldAlt className="text-emerald-500" />
-                <span>이 앱을 쓰는 방법</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-snug">
-                내가 만든 앱·프롬프트, 혼자 쓰지 말고 공유해서 키우세요
-              </h2>
-              <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
-                만든 걸 올려 팀/커뮤니티와 아이디어를 주고받고,
-                <span className="block">다른 사람들의 작업을 보며 영감을 얻으세요.</span>
-                <span className="block">저장(🔒), 공유(🔗), 피드백(💬)까지 한 자리에서 끝납니다.</span>
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link
-                href="/apps"
-                className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-              >
-                <FaRocket />
-                <span>앱 보러가기</span>
-              </Link>
-              <Link
-                href="/prompts"
-                className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-              >
-                <FaFeatherAlt />
-                <span>프롬프트 보기</span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                <FaListUl className="text-blue-500" />
-                <span>🚀 발견 · 영감</span>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">다른 사람 작업 보며 아이디어 얻기</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">필터·좋아요로 흩어진 앱/프롬프트를 모으고, 잘 만든 사례에서 바로 영감을 얻으세요.</p>
-            </div>
-            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                <FaPlus className="text-emerald-500" />
-                <span>💾 공유 · 실행</span>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">내가 만든 것 올리고 함께 써보기</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">URL·썸네일·SNS까지 올려두면 팀원이 바로 실행·활용할 수 있는 공유 라이브러리가 됩니다.</p>
-            </div>
-            <div className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                <FaLock className="text-purple-500" />
-                <span>🔒 피드백 · 개선</span>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 mb-2">로그인한 팀만 보기, 댓글로 더 나은 버전</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">보안을 유지한 채 피드백을 받고, 프롬프트·앱을 반복 개선해 더 나은 결과물을 만들어보세요.</p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white dark:bg-gray-950 font-sans selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900/40">
+      {/* 배경 장식 요소 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/40 dark:bg-blue-900/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-100/40 dark:bg-emerald-900/10 blur-[120px] rounded-full" />
       </div>
 
-      {/* 뉴스레터 섹션 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-10 md:mt-12">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-emerald-50 via-cyan-50 to-blue-50 dark:from-emerald-900/20 dark:via-cyan-900/20 dark:to-blue-900/20 p-6 sm:p-10 shadow-lg">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">뉴스레터</p>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">AI 활용 팁과 최신 소식을 받아보세요</h3>
-              <p className="text-gray-700 dark:text-gray-300">
-                다양한 인공지능 활용 방법과 새로운 업데이트를 가장 빠르게 받아볼 수 있는 뉴스레터입니다.
-              </p>
-              <div className="pt-2">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* === 히어로 섹션 === */}
+        <div className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* 텍스트 영역 */}
+            <div className="relative z-20 space-y-8 text-center lg:text-left">
+              <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs sm:text-sm font-bold tracking-tight border border-blue-100 dark:border-blue-800">
+                <FaRocket className="animate-pulse" />
+                <span>AI LABS - EXPLORE THE FUTURE</span>
+              </div>
+
+              <div className="space-y-6">
+                <h1 className="font-black tracking-tighter text-gray-900 dark:text-white leading-[1.1]">
+                  <span className="block text-3xl sm:text-4xl xl:text-5xl mb-2 opacity-80">AI LABS에서</span>
+                  <span className="block text-5xl sm:text-6xl xl:text-7xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 leading-tight">
+                    아이디어를
+                  </span>
+                  <span className="block text-6xl sm:text-8xl xl:text-9xl bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-emerald-500 dark:from-cyan-300 dark:to-emerald-400 leading-none">
+                    실현하세요
+                  </span>
+                </h1>
+                <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
+                  바이브코딩으로 만든 AI 앱과 프롬프트를 보관하고 실험하는 공간입니다.
+                  당신의 창의력을 팀과 공유하고 함께 성장시키세요.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <Link
-                  href="https://tally.so/r/mepkae"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
+                  href="/apps"
+                  className="group w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-gray-200 dark:shadow-none"
                 >
-                  뉴스레터 신청하기
+                  <FaRocket className="mr-2" />
+                  <span>앱 둘러보기</span>
+                </Link>
+                <Link
+                  href="/prompts"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-800 font-bold text-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shadow-sm"
+                >
+                  <FaFeatherAlt className="mr-2" />
+                  <span>프롬프트 아카이브</span>
                 </Link>
               </div>
+
+              {/* 통계/신뢰 요소 (필요시) */}
+              <div className="pt-4 flex items-center justify-center lg:justify-start gap-6 text-sm text-gray-500 font-medium">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>100+ AI Tools</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>Active Community</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-200/60 via-cyan-200/50 to-blue-200/60 dark:from-emerald-800/40 dark:via-cyan-800/30 dark:to-blue-800/40" />
+
+            {/* 이미지 영역 */}
+            <div className="relative z-10 lg:pl-10">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-br from-blue-400/20 via-cyan-400/10 to-emerald-400/20 blur-[80px] -z-10 rounded-full opacity-60 pointer-events-none" />
+              <div className="relative flex justify-center items-center drop-shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:drop-shadow-none">
+                {/* 라이트 모드용 이미지 */}
                 <Image
-                  src="/newsletter.png"
-                  alt="뉴스레터 일러스트"
-                  width={360}
-                  height={240}
-                  className="relative max-h-56 w-auto object-contain"
+                  src="/hero-partner-robot-light.png"
+                  alt="AI Collaboration Partner"
+                  width={1024}
+                  height={1024}
+                  priority
+                  className="w-full h-auto max-w-[320px] sm:max-w-[480px] lg:max-w-[650px] object-contain transform hover:rotate-2 transition-transform duration-700 select-none pointer-events-none mix-blend-multiply dark:hidden contrast-[1.05] brightness-[1.05]"
+                  style={{
+                    maskImage: 'radial-gradient(circle at center, black 60%, transparent 95%)',
+                    WebkitMaskImage: 'radial-gradient(circle at center, black 60%, transparent 95%)'
+                  }}
+                />
+                {/* 다크 모드용 이미지 */}
+                <Image
+                  src="/hero-partner-robot-dark.png"
+                  alt="AI Collaboration Partner"
+                  width={1024}
+                  height={1024}
+                  priority
+                  className="hidden dark:block w-full h-auto max-w-[320px] sm:max-w-[480px] lg:max-w-[650px] object-contain transform hover:rotate-2 transition-transform duration-700 select-none pointer-events-none mix-blend-screen contrast-[1.1] brightness-[0.9]"
+                  style={{
+                    maskImage: 'radial-gradient(circle at center, black 60%, transparent 95%)',
+                    WebkitMaskImage: 'radial-gradient(circle at center, black 60%, transparent 95%)'
+                  }}
                 />
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 설문 참여 섹션 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 sm:p-10 shadow-xl">
-          <div className="absolute -inset-12 bg-gradient-to-br from-purple-100 via-emerald-50 to-cyan-50 dark:from-purple-900/10 dark:via-emerald-900/10 dark:to-cyan-900/10 blur-3xl opacity-70 pointer-events-none" />
-          <div className="relative grid md:grid-cols-2 items-center gap-6 md:gap-8">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-purple-600 dark:text-purple-300">AI 활용 설문</p>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50 leading-tight">
-                AI로 풀고 싶은 문제와 목표를 알려주세요
-              </h3>
-              <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
-                어떤 일을 자동화하거나 개선하고 싶은지, AI를 활용해 해결하고 싶은 문제는 무엇인지 간단히 적어주세요.
-                <span className="block mt-1">답변을 모아 더 맞춤화된 콘텐츠와 기능을 준비할게요.</span>
-              </p>
-              <Link
-                href="https://codepen.io/moruma/full/emJzvev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-max items-center space-x-2 px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-              >
-                <span>설문 작성하러 가기</span>
-              </Link>
+        {/* === 핵심 기능/소개 섹션 === */}
+        <div className="py-20 md:py-28 relative">
+          <div className="text-center space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-[10px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-300 uppercase tracking-widest border border-emerald-100 dark:border-emerald-800">
+              How to reach perfection
             </div>
-            <div className="flex justify-center md:justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-200/60 via-emerald-200/50 to-cyan-200/60 dark:from-purple-800/40 dark:via-emerald-800/30 dark:to-cyan-800/40" />
-                <Image
-                  src="/survey.png"
-                  alt="설문 일러스트"
-                  width={360}
-                  height={240}
-                  className="relative max-h-56 w-auto object-contain"
-                />
-              </div>
-            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+              아이디어가 결과물이 되는 과정
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+            <FeatureCard
+              icon={<FaListUl className="text-blue-500" />}
+              title="발견과 영감"
+              description="다른 사람들이 만든 앱과 프롬프트를 살펴보며 당신만의 영감을 얻으세요."
+              bgColor="bg-blue-50/50 dark:bg-blue-900/10"
+              borderColor="border-blue-100/50 dark:border-blue-800/50"
+            />
+            <FeatureCard
+              icon={<FaPlus className="text-emerald-500" />}
+              title="공유와 실행"
+              description="당신의 작업을 URL 하나로 팀원들에게 공유하고 브라우저에서 바로 실행하세요."
+              bgColor="bg-emerald-50/50 dark:bg-emerald-900/10"
+              borderColor="border-emerald-100/50 dark:border-emerald-800/50"
+            />
+            <FeatureCard
+              icon={<FaLock className="text-purple-500" />}
+              title="피드백과 개선"
+              description="댓글로 의견을 나누고 반복적인 개선을 통해 더 나은 AI 서비스를 만드세요."
+              bgColor="bg-purple-50/50 dark:bg-purple-900/10"
+              borderColor="border-purple-100/50 dark:border-purple-800/50"
+            />
           </div>
         </div>
-      </div>
 
-      {/* 인공지능 교육 신청 섹션 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-indigo-50 via-sky-50 to-emerald-50 dark:from-indigo-900/20 dark:via-sky-900/20 dark:to-emerald-900/20 p-6 sm:p-10 shadow-lg">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">인공지능 교육 신청</p>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">팀 맞춤 AI 교육을 신청해 보세요</h3>
-              <p className="text-gray-700 dark:text-gray-300">
-                실무에 바로 쓸 수 있는 AI 도구 활용법부터 워크플로우 자동화, 프롬프트 작성법까지
-                <span className="block mt-1">팀 목표에 맞춘 교육 커리큘럼을 준비해 드립니다.</span>
-              </p>
-              <div className="pt-2">
-                <Link
-                  href="https://tally.so/r/yPMJRX"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-                >
-                  교육 신청하기
-                </Link>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-200/60 via-sky-200/50 to-emerald-200/60 dark:from-indigo-800/40 dark:via-sky-800/30 dark:to-emerald-800/40" />
-                <Image
-                  src="/study.png"
-                  alt="인공지능 교육 일러스트"
-                  width={360}
-                  height={240}
-                  className="relative max-h-56 w-auto object-contain"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* === CTA 섹션들 (Grid Layout) === */}
+        <div className="py-20 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
 
-      {/* 제작 의뢰 섹션 */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 md:mt-10">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-r from-purple-50 via-fuchsia-50 to-amber-50 dark:from-purple-900/20 dark:via-fuchsia-900/20 dark:to-amber-900/20 p-6 sm:p-10 shadow-lg">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">바이브 코딩 제작 의뢰</p>
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">머릿속 한 줄을 바로 작동하는 서비스로</h3>
-              <p className="text-gray-700 dark:text-gray-300">
-                아이디어를 빠르게 정리하고, 1~7일 안에 돌아가는 MVP로 제작해 드립니다.
-                <span className="block mt-1">프로토타입부터 배포까지 한 번에 맡겨보세요.</span>
-              </p>
-              <div className="pt-2">
-                <Link
-                  href="/request"
-                  className="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 border border-gray-900 dark:border-white font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
-                >
-                  제작 의뢰하기
-                </Link>
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-white/40 dark:border-gray-700/60">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-200/60 via-fuchsia-200/50 to-amber-200/60 dark:from-purple-800/40 dark:via-fuchsia-800/30 dark:to-amber-800/40" />
-                <Image
-                  src="/request.svg"
-                  alt="제작 의뢰 일러스트"
-                  width={360}
-                  height={240}
-                  className="relative max-h-56 w-auto object-contain"
-                />
-              </div>
-            </div>
-          </div>
+          {/* 뉴스레터 */}
+          <CTACard
+            title="AI 트렌드를 놓치지 마세요"
+            description="바이브코딩의 최신 AI 활용 팁과 새로운 업데이트 소식을 가장 빠르게 전달해 드립니다."
+            link="https://tally.so/r/mepkae"
+            btnText="뉴스레터 신청하기"
+            imgSrc="/newsletter.png"
+            theme="emerald"
+          />
+
+          {/* AI 교육 */}
+          <CTACard
+            title="팀 맞춤 AI 교육 신청"
+            description="실무에 바로 적용 가능한 AI 도구 활용법부터 프롬프트 디자인까지 커리큘럼을 준비해 드립니다."
+            link="https://tally.so/r/yPMJRX"
+            btnText="교육 신청하기"
+            imgSrc="/study.png"
+            theme="indigo"
+          />
+
+          {/* 설문 참여 */}
+          <CTACard
+            title="당신의 목소리를 들려주세요"
+            description="AI로 해결하고 싶은 문제나 목표를 알려주시면 더 좋은 기능으로 보답하겠습니다."
+            link="https://codepen.io/moruma/full/emJzvev"
+            btnText="설문 참여하기"
+            imgSrc="/survey.png"
+            theme="purple"
+          />
+
+          {/* 제작 의뢰 */}
+          <CTACard
+            title="아이디어를 실전 서비스로"
+            description="머릿속에만 있던 프로젝트를 단 7일 안에 돌아가는 MVP로 제작해 드립니다."
+            link="/request"
+            btnText="제작 의뢰하기"
+            imgSrc="/request.svg"
+            theme="amber"
+          />
+
         </div>
       </div>
       <Footer />
     </div>
   );
+}
+
+// === 서브 컴포넌트 ===
+
+function FeatureCard({ icon, title, description, bgColor, borderColor }: any) {
+  return (
+    <div className={`group p-8 rounded-[2rem] border ${borderColor} ${bgColor} backdrop-blur-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500`}>
+      <div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-white dark:bg-gray-800 shadow-sm mb-6 group-hover:scale-110 transition-transform">
+        <div className="text-2xl">{icon}</div>
+      </div>
+      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
+      <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function CTACard({ title, description, link, btnText, imgSrc, theme }: any) {
+  const themes: any = {
+    emerald: "from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800 hover:shadow-emerald-200/50",
+    indigo: "from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-indigo-100 dark:border-indigo-800 hover:shadow-indigo-200/50",
+    purple: "from-purple-50 to-fuchsia-50 dark:from-purple-900/20 dark:to-fuchsia-900/20 border-purple-100 dark:border-purple-800 hover:shadow-purple-200/50",
+    amber: "from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-100 dark:border-amber-800 hover:shadow-amber-200/50",
+  }
+
+  return (
+    <div className={`relative overflow-hidden p-8 sm:p-10 rounded-[2.5rem] border bg-gradient-to-br ${themes[theme]} hover:shadow-xl transition-all duration-500 flex flex-col justify-between items-start`}>
+      <div className="space-y-4 relative z-10 w-full mb-8">
+        <h3 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug">
+          {title}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 font-medium leading-relaxed max-w-[85%]">
+          {description}
+        </p>
+        <div className="pt-2">
+          <Link
+            href={link}
+            target={link.startsWith('http') ? "_blank" : "_self"}
+            className="inline-flex items-center px-6 py-3 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold hover:scale-105 active:scale-95 transition-all"
+          >
+            {btnText}
+          </Link>
+        </div>
+      </div>
+
+      <div className="absolute right-[-10%] bottom-[-5%] w-[45%] h-auto opacity-40 group-hover:opacity-100 transition-opacity">
+        <Image
+          src={imgSrc}
+          alt={title}
+          width={400}
+          height={300}
+          className="object-contain max-h-48 drop-shadow-xl"
+        />
+      </div>
+    </div>
+  )
 }
