@@ -229,10 +229,19 @@ function AdminPageContent() {
 
   const handleCreateCategory = async (type: 'app' | 'prompt') => {
     const form = type === 'app' ? appCategoryForm : promptCategoryForm;
+    const existing = type === 'app' ? appCategories : promptCategories;
+
     if (!form.value.trim() || !form.label.trim()) {
       alert('값과 라벨을 입력해주세요.');
       return;
     }
+
+    // 클라이언트 사이드 중복 체크
+    if (existing.some(c => c.value === form.value.trim())) {
+      alert(`이미 존재하는 '${form.value}' 값입니다.`);
+      return;
+    }
+
     setSavingCategory(true);
     try {
       await createCategory({
@@ -248,9 +257,10 @@ function AdminPageContent() {
         setPromptCategoryForm((prev) => ({ ...prev, value: '', label: '' }));
       }
       await loadCategories();
+      alert('카테고리가 성공적으로 추가되었습니다.');
     } catch (error) {
       console.error('Failed to create category:', error);
-      alert('카테고리 추가 중 오류가 발생했습니다.');
+      alert('카테고리 추가 중 오류가 발생했습니다. (중복된 값이거나 권한 문제일 수 있습니다)');
     } finally {
       setSavingCategory(false);
     }
@@ -364,9 +374,16 @@ function AdminPageContent() {
 
   const handleSeedDefaults = async (type: 'app' | 'prompt') => {
     const defaults = type === 'app' ? appCategoryDefaults : promptCategoryDefaults;
+    const existing = type === 'app' ? appCategories : promptCategories;
+    const existingValues = new Set(existing.map(c => c.value));
+
     setSavingCategory(true);
+    let addedCount = 0;
     try {
       for (const item of defaults) {
+        // 이미 존재하는 value는 건너뜀
+        if (existingValues.has(item.value)) continue;
+
         await createCategory({
           type,
           value: item.value,
@@ -374,8 +391,14 @@ function AdminPageContent() {
           color: item.color,
           icon: item.icon,
         });
+        addedCount++;
       }
       await loadCategories();
+      if (addedCount > 0) {
+        alert(`${addedCount}개의 기본 카테고리가 추가되었습니다.`);
+      } else {
+        alert('이미 모든 기본 카테고리가 등록되어 있습니다.');
+      }
     } catch (error) {
       console.error('Failed to seed categories:', error);
       alert('기본 카테고리 추가 중 오류가 발생했습니다.');
@@ -390,12 +413,16 @@ function AdminPageContent() {
     if (edit.label === category.label && edit.color === category.color && edit.icon === category.icon) {
       return;
     }
+    setSavingCategory(true);
     try {
       await updateCategory(category.id, edit);
       await loadCategories();
+      alert('카테고리가 수정되었습니다.');
     } catch (error) {
       console.error('Failed to update category:', error);
-      alert('카테고리 수정 중 오류가 발생했습니다.');
+      alert('카테고리 수정 중 오류가 발생했습니다. (권한 문제일 수 있습니다)');
+    } finally {
+      setSavingCategory(false);
     }
   };
 

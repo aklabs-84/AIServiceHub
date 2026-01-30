@@ -41,7 +41,7 @@ function AppsListContent() {
   const selectedTag = searchParams.get('tag') || null;
 
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const { categories } = useAppCategories();
+  const { categories, loading: loadingCategories } = useAppCategories();
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
@@ -104,12 +104,13 @@ function AppsListContent() {
   };
 
   useEffect(() => {
+    if (loadingCategories) return; // 카테고리 로딩 중에는 체크하지 않음
     if (selectedCategory === 'all') return;
     if (categories.length === 0) return;
     if (!categories.find((cat) => cat.value === selectedCategory)) {
       onCategoryChange('all');
     }
-  }, [categories, selectedCategory]);
+  }, [categories, selectedCategory, loadingCategories]);
 
   useEffect(() => {
     const updateVisibility = () => {

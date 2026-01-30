@@ -43,7 +43,7 @@ function PromptsListContent() {
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
-  const { categories: promptCategories } = usePromptCategories();
+  const { categories: promptCategories, loading: loadingCategories } = usePromptCategories();
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
@@ -106,12 +106,13 @@ function PromptsListContent() {
   };
 
   useEffect(() => {
+    if (loadingCategories) return;
     if (selectedCategory === 'all') return;
     if (promptCategories.length === 0) return;
     if (!promptCategories.find((cat) => cat.value === selectedCategory)) {
       onCategoryChange('all');
     }
-  }, [promptCategories, selectedCategory]);
+  }, [promptCategories, selectedCategory, loadingCategories]);
 
   useEffect(() => {
     const updateVisibility = () => {

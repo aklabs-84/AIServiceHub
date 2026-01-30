@@ -55,15 +55,16 @@ export function useAppCategories() {
   useEffect(() => {
     let active = true;
     const load = async () => {
+      setLoading(true);
       try {
         const data = await getCategoriesByType('app');
         if (!active) return;
-        if (data.length === 0) {
-          setCategories(defaultAppCategories);
-        } else {
+        if (data && data.length > 0) {
           const mapped = data.map(buildAppCategoryInfo);
           const unique = Array.from(new Map(mapped.map(item => [item.value, item])).values());
           setCategories(unique);
+        } else {
+          setCategories(defaultAppCategories);
         }
       } catch (error) {
         console.error('Failed to load app categories:', error);
@@ -88,15 +89,16 @@ export function usePromptCategories() {
   useEffect(() => {
     let active = true;
     const load = async () => {
+      setLoading(true);
       try {
         const data = await getCategoriesByType('prompt');
         if (!active) return;
-        if (data.length === 0) {
-          setCategories(defaultPromptCategories);
-        } else {
+        if (data && data.length > 0) {
           const mapped = data.map(buildPromptCategoryInfo);
           const unique = Array.from(new Map(mapped.map(item => [item.value, item])).values());
           setCategories(unique);
+        } else {
+          setCategories(defaultPromptCategories);
         }
       } catch (error) {
         console.error('Failed to load prompt categories:', error);

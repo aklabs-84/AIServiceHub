@@ -2,6 +2,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { sendSlackNotification } from '@/lib/notifications';
@@ -36,6 +37,7 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,12 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      setLoading(true); // 로그아웃 진행 중 UI 깜빡임 방지 (헤더에서 로딩 중엔 버튼 숨김)
       await supabase.auth.signOut();
-      window.location.href = '/';
+      router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
-      setLoading(false); // 에러 발생 시 로딩 해제
     }
   };
 
