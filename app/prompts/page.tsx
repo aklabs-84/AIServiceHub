@@ -49,23 +49,37 @@ function PromptsListContent() {
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
 
-  const loadPrompts = useCallback(async () => {
+  const loadPrompts = useCallback(async (isMounted: { current: boolean }) => {
+    if (!isMounted.current) return;
     setLoading(true);
+    console.log('[PromptsPage] Loading prompts started...', { category: selectedCategory });
     try {
       const data =
         selectedCategory === 'all'
           ? await getAllPrompts()
           : await getPromptsByCategory(selectedCategory);
-      setPrompts(data);
+
+      if (isMounted.current) {
+        setPrompts(data || []);
+        console.log(`[PromptsPage] Loading finished. ${data?.length || 0} prompts found.`);
+      }
     } catch (error) {
-      console.error('Error loading prompts:', error);
+      if (isMounted.current) {
+        console.error('[PromptsPage] Error loading prompts:', error);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [selectedCategory]);
 
   useEffect(() => {
-    loadPrompts();
+    const mounted = { current: true };
+    loadPrompts(mounted);
+    return () => {
+      mounted.current = false;
+    };
   }, [loadPrompts]);
 
   useEffect(() => {

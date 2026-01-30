@@ -81,6 +81,13 @@ export default function NewPromptPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
 
+  useEffect(() => {
+    if (user && !formData.createdByName) {
+      const name = user.user_metadata?.full_name || user.user_metadata?.name || '';
+      setFormData(prev => ({ ...prev, createdByName: name }));
+    }
+  }, [user, formData.createdByName]);
+
   const previewUrl = useMemo(() => {
     const raw = formData.thumbnailUrl.trim();
     if (!raw) return '';
@@ -151,6 +158,9 @@ export default function NewPromptPage() {
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+    if (attachments.length <= 1) {
+      setAttachmentError(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,18 +171,25 @@ export default function NewPromptPage() {
       return;
     }
 
+    if (attachmentError) {
+      alert(attachmentError);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const idToken = session?.access_token;
-      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      if (attachmentError) {
-        alert(attachmentError);
-        return;
+      let uploadedAttachments: any[] = [];
+
+      if (attachments.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const idToken = session?.access_token;
+        if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
+
+        uploadedAttachments = await Promise.all(
+          attachments.map((file) => uploadPromptAttachment(file, idToken))
+        );
       }
-      const uploadedAttachments = attachments.length
-        ? await Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken)))
-        : [];
+
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const promptId = await createPrompt(
         {
@@ -186,7 +203,7 @@ export default function NewPromptPage() {
           thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
           attachments: uploadedAttachments,
-          createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
+          createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
           tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
         },
         user.id
@@ -201,9 +218,9 @@ export default function NewPromptPage() {
         author: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
         category: formData.category,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating prompt:', error);
-      alert('프롬프트 등록 중 오류가 발생했습니다.');
+      alert(`프롬프트 등록 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
     } finally {
       setSubmitting(false);
     }

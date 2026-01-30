@@ -159,10 +159,16 @@ function MyPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
+    let isMounted = true;
     const fetchData = async () => {
+      if (!isMounted) return;
       setLoading(true);
+      console.log('[MyPage] Loading my data started...', { userId: user.id });
       try {
         const [apps, prompts, likes, likedPromptsData] = await Promise.all([
           getAppsByUser(user.id),
@@ -170,18 +176,23 @@ function MyPageContent() {
           getLikedAppsByUser(user.id),
           getLikedPromptsByUser(user.id),
         ]);
-        setMyApps(apps);
-        setMyPrompts(prompts);
-        setLikedApps(likes);
-        setLikedPrompts(likedPromptsData);
+
+        if (isMounted) {
+          setMyApps(apps || []);
+          setMyPrompts(prompts || []);
+          setLikedApps(likes || []);
+          setLikedPrompts(likedPromptsData || []);
+          console.log('[MyPage] Loading finished.');
+        }
       } catch (error) {
-        console.error('Error loading my page data:', error);
+        if (isMounted) console.error('[MyPage] Error loading my page data:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+    return () => { isMounted = false; };
   }, [user]);
 
   const stats = useMemo(

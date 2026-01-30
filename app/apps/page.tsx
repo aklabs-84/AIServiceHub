@@ -48,22 +48,36 @@ function AppsListContent() {
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
 
-  const loadApps = useCallback(async () => {
+  const loadApps = useCallback(async (isMounted: { current: boolean }) => {
+    if (!isMounted.current) return;
     setLoading(true);
+    console.log('[AppsPage] Loading apps started...', { category: selectedCategory });
     try {
       const data = selectedCategory === 'all'
         ? await getAllApps()
         : await getAppsByCategory(selectedCategory);
-      setApps(data);
+
+      if (isMounted.current) {
+        setApps(data || []);
+        console.log(`[AppsPage] Loading finished. ${data?.length || 0} apps found.`);
+      }
     } catch (error) {
-      console.error('Error loading apps:', error);
+      if (isMounted.current) {
+        console.error('[AppsPage] Error loading apps:', error);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [selectedCategory]);
 
   useEffect(() => {
-    loadApps();
+    const mounted = { current: true };
+    loadApps(mounted);
+    return () => {
+      mounted.current = false;
+    };
   }, [loadApps]);
 
   useEffect(() => {

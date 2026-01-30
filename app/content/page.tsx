@@ -112,18 +112,25 @@ function ContentPageInner() {
   const pageSize = 8;
 
   useEffect(() => {
+    let isMounted = true;
     const load = async () => {
+      if (!isMounted) return;
       setLoading(true);
+      console.log('[ContentPage] Loading apps started...');
       try {
         const data = await getAllApps();
-        setApps(data);
+        if (isMounted) {
+          setApps(data || []);
+          console.log(`[ContentPage] Loading finished. ${data?.length || 0} apps found.`);
+        }
       } catch (error) {
-        console.error('Failed to load apps:', error);
+        if (isMounted) console.error('[ContentPage] Failed to load apps:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     load();
+    return () => { isMounted = false; };
   }, []);
 
   const visibleApps = useMemo(() => {
@@ -228,11 +235,10 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedCategory('all')}
-          className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
-            selectedCategory === 'all'
+          className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${selectedCategory === 'all'
               ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           전체
         </button>
@@ -241,11 +247,10 @@ function ContentPageInner() {
             key={category.value}
             type="button"
             onClick={() => setSelectedCategory(category.value)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
-              selectedCategory === category.value
+            className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${selectedCategory === category.value
                 ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 border-transparent'
                 : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
+              }`}
           >
             {category.label}
           </button>
@@ -260,22 +265,20 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedPlatform('all')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition ${
-            selectedPlatform === 'all'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition ${selectedPlatform === 'all'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           전체
         </button>
         <button
           type="button"
           onClick={() => setSelectedPlatform('blog')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${
-            selectedPlatform === 'blog'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${selectedPlatform === 'blog'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           <FaBlog />
           블로그
@@ -283,11 +286,10 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedPlatform('youtube')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${
-            selectedPlatform === 'youtube'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${selectedPlatform === 'youtube'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           <FaYoutube />
           유튜브
@@ -295,11 +297,10 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedPlatform('instagram')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${
-            selectedPlatform === 'instagram'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${selectedPlatform === 'instagram'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           <FaInstagram />
           인스타
@@ -307,11 +308,10 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedPlatform('tiktok')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${
-            selectedPlatform === 'tiktok'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${selectedPlatform === 'tiktok'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           <FaTiktok />
           틱톡
@@ -319,11 +319,10 @@ function ContentPageInner() {
         <button
           type="button"
           onClick={() => setSelectedPlatform('other')}
-          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${
-            selectedPlatform === 'other'
+          className={`px-3 py-2 rounded-full text-xs font-semibold border transition flex items-center gap-2 ${selectedPlatform === 'other'
               ? 'bg-blue-600 text-white border-transparent'
               : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-          }`}
+            }`}
         >
           <FaGlobe />
           기타
