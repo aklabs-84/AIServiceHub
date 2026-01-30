@@ -1,30 +1,30 @@
+
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  User,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  onAuthStateChanged,
-  getAdditionalUserInfo
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { sendSlackNotification } from '@/lib/notifications';
 import { ensureUserProfile } from '@/lib/db';
 
 interface AuthContextType {
   user: User | null;
+  role: 'user' | 'admin' | null;
+  isAdmin: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithKakao: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  role: null,
+  isAdmin: false,
   loading: true,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
+  signInWithGoogle: async () => { },
+  signInWithKakao: async () => { },
+  signOut: async () => { },
 });
 
 export const useAuth = () => {
@@ -37,57 +37,103 @@ export const useAuth = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // 1. Get initial session
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchUserRole(session.user.id);
+      }
       setLoading(false);
+    };
+
+    getSession();
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        await fetchUserRole(currentUser.id);
+
+        if (event === 'SIGNED_IN') {
+          const { id, email, user_metadata } = currentUser;
+          const displayName = user_metadata.full_name || user_metadata.name;
+          await ensureUserProfile(id, email, displayName);
+        }
+      } else {
+        setRole(null);
+        setLoading(false);
+      }
     });
 
-    return unsubscribe;
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
+  const fetchUserRole = async (userId: string) => {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const isNewUser = getAdditionalUserInfo(result)?.isNewUser;
-      if (isNewUser && result.user) {
-        const { uid, email, displayName } = result.user;
-        await ensureUserProfile(uid, email, displayName || undefined);
-        sendSlackNotification({
-          type: 'signup',
-          uid,
-          email: email || undefined,
-          name: displayName || '신규 사용자',
-        });
-      } else if (result.user) {
-        // 기존 회원도 프로필이 없을 수 있으니 보장
-        const { uid, email, displayName } = result.user;
-        await ensureUserProfile(uid, email, displayName || undefined);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+
+      if (data) {
+        setRole(data.role as 'user' | 'admin');
       }
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === 'auth/popup-closed-by-user') {
-        console.warn('Login popup closed by user.');
-        return;
-      }
+    } catch (error) {
+      console.error('Error fetching role:', error);
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
       console.error('Error signing in with Google:', error);
+      throw error;
+    }
+  };
+
+  const signInWithKakao = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      console.error('Error signing in with Kakao:', error);
       throw error;
     }
   };
 
   const signOut = async () => {
     try {
-      await firebaseSignOut(auth);
+      setLoading(true); // 로그아웃 진행 중 UI 깜빡임 방지 (헤더에서 로딩 중엔 버튼 숨김)
+      await supabase.auth.signOut();
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-      throw error;
+      setLoading(false); // 에러 발생 시 로딩 해제
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, role, isAdmin: role === 'admin', loading, signInWithGoogle, signInWithKakao, signOut }}>
       {children}
     </AuthContext.Provider>
   );

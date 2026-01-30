@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { verifyFirebaseIdToken } from '@/lib/firebaseAdmin';
+
 
 export const runtime = 'nodejs';
 
@@ -10,7 +10,9 @@ const requireAuth = async (request: Request) => {
   if (!token) {
     return null;
   }
-  return verifyFirebaseIdToken(token);
+  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !user) return null;
+  return { uid: user.id };
 };
 
 const bucket = process.env.SUPABASE_STORAGE_BUCKET;

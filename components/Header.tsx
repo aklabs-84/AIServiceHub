@@ -5,10 +5,12 @@ import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FaGoogle, FaSignOutAlt, FaMoon, FaSun, FaBars, FaTimes, FaUserCircle } from 'react-icons/fa';
+import { RiKakaoTalkFill } from 'react-icons/ri';
+import { FcGoogle } from 'react-icons/fc';
 import { useState } from 'react';
 
 export default function Header() {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithKakao, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -87,10 +89,10 @@ export default function Header() {
                       onClick={() => setProfileMenuOpen((prev) => !prev)}
                       className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      {user.photoURL ? (
+                      {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
                         <Image
-                          src={user.photoURL}
-                          alt={user.displayName || '사용자'}
+                          src={user.user_metadata.avatar_url || user.user_metadata.picture}
+                          alt={user.user_metadata.full_name || user.user_metadata.name || '사용자'}
                           width={36}
                           height={36}
                           className="w-9 h-9 rounded-full border-2 border-blue-500 dark:border-purple-500"
@@ -100,7 +102,7 @@ export default function Header() {
                         <FaUserCircle className="w-9 h-9 text-white" />
                       )}
                       <span className="text-sm font-medium text-white hidden lg:inline">
-                        {user.displayName}
+                        {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
                       </span>
                     </button>
 
@@ -108,7 +110,7 @@ export default function Header() {
                       <div className="absolute right-0 mt-3 w-56 rounded-xl bg-white text-gray-800 shadow-2xl ring-1 ring-black/5 dark:bg-gray-800 dark:text-gray-100 dark:ring-white/10 animate-fadeIn">
                         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                           <p className="text-sm text-gray-500 dark:text-gray-400">로그인됨</p>
-                          <p className="font-semibold truncate">{user.displayName || '사용자'}</p>
+                          <p className="font-semibold truncate">{user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '사용자'}</p>
                         </div>
                         <div className="py-2">
                           <Link
@@ -141,13 +143,22 @@ export default function Header() {
                     )}
                   </div>
                 ) : (
-                  <button
-                    onClick={signInWithGoogle}
-                    className="flex items-center space-x-2 bg-white/10 border border-white/30 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-all transform hover:scale-105 shadow-sm"
-                  >
-                    <FaGoogle className="text-red-500" />
-                    <span>로그인</span>
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={signInWithKakao}
+                      title="카카오 로그인"
+                      className="flex items-center justify-center w-10 h-10 bg-[#FEE500] text-[#000000] rounded-full hover:bg-[#FEE500]/90 transition-all transform hover:scale-105 shadow-sm"
+                    >
+                      <RiKakaoTalkFill className="text-xl" />
+                    </button>
+                    <button
+                      onClick={signInWithGoogle}
+                      title="구글 로그인"
+                      className="flex items-center justify-center w-10 h-10 bg-white text-gray-700 border border-gray-200 rounded-full hover:bg-gray-50 transition-all transform hover:scale-105 shadow-sm"
+                    >
+                      <FcGoogle className="text-xl" />
+                    </button>
+                  </div>
                 )}
               </>
             )}
@@ -240,18 +251,18 @@ export default function Header() {
                       )}
                       <div className="flex items-center justify-between px-4 py-3 bg-white/10 rounded-lg">
                         <div className="flex items-center space-x-2">
-                          {user.photoURL && (
+                          {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
                             <Image
-                              src={user.photoURL}
-                              alt={user.displayName || '사용자'}
+                              src={user.user_metadata.avatar_url || user.user_metadata.picture}
+                              alt={user.user_metadata.full_name || user.user_metadata.name || '사용자'}
                               width={32}
                               height={32}
                               className="w-8 h-8 rounded-full border-2 border-blue-500"
                               unoptimized
                             />
-                          )}
+                          ) : null}
                           <span className="text-sm font-medium text-white">
-                            {user.displayName}
+                            {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
                           </span>
                         </div>
                         <button
@@ -266,16 +277,28 @@ export default function Header() {
                       </div>
                     </>
                   ) : (
-                    <button
-                      onClick={() => {
-                        signInWithGoogle();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center justify-center space-x-2 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <FaGoogle className="text-red-500" />
-                      <span>Google 로그인</span>
-                    </button>
+                    <div className="flex justify-center space-x-4 py-2">
+                      <button
+                        onClick={() => {
+                          signInWithKakao();
+                          setMobileMenuOpen(false);
+                        }}
+                        title="카카오 로그인"
+                        className="flex items-center justify-center w-12 h-12 bg-[#FEE500] text-[#000000] rounded-full hover:bg-[#FEE500]/90 transition-transform active:scale-95 shadow-md"
+                      >
+                        <RiKakaoTalkFill className="text-2xl" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          signInWithGoogle();
+                          setMobileMenuOpen(false);
+                        }}
+                        title="구글 로그인"
+                        className="flex items-center justify-center w-12 h-12 bg-white text-gray-700 border border-gray-200 rounded-full hover:bg-gray-50 transition-transform active:scale-95 shadow-md"
+                      >
+                        <FcGoogle className="text-2xl" />
+                      </button>
+                    </div>
                   )}
                 </>
               )}

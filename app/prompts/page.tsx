@@ -136,9 +136,9 @@ function PromptsListContent() {
 
   const visiblePrompts = useMemo(() => {
     if (hasOneTimeAccess) return prompts;
-    const uid = user?.uid;
+    const uid = user?.id;
     return prompts.filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === uid);
-  }, [prompts, user?.uid, hasOneTimeAccess]);
+  }, [prompts, user?.id, hasOneTimeAccess]);
 
   const allTags = useMemo(() => {
     const tagsSet = new Set<string>();

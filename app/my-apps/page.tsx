@@ -18,7 +18,7 @@ export default function MyAppsPage() {
 
     setLoading(true);
     try {
-      const data = await getAppsByUser(user.uid);
+      const data = await getAppsByUser(user.id);
       setApps(data);
     } catch (error) {
       console.error('Error loading my apps:', error);

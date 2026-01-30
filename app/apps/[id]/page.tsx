@@ -11,11 +11,13 @@ import { getAppById, deleteApp, likeApp, unlikeApp, addComment, getComments, upd
 import { AIApp } from '@/types/app';
 import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { downloadAppAttachment } from '@/lib/storage';
 import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock, FaGlobe } from 'react-icons/fa';
+import { ADMIN_EMAIL } from '@/lib/constants';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -32,7 +34,7 @@ export default function AppDetailPage() {
 
   const params = useParams();
   const router = useRouter();
-  const { user, signInWithGoogle } = useAuth();
+  const { user, isAdmin, signInWithGoogle } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories } = useAppCategories();
   const [app, setApp] = useState<AIApp | null>(null);
@@ -60,7 +62,7 @@ export default function AppDetailPage() {
       const data = await getAppById(params.id as string);
       setApp(data);
       if (data) {
-        setIsLiked(user ? data.likes.includes(user.uid) : false);
+        setIsLiked(user ? data.likes.includes(user.id) : false);
         setLikeCount(data.likeCount);
       }
     } catch (error) {
@@ -94,7 +96,7 @@ export default function AppDetailPage() {
     if (!user || !app || !newComment.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await addComment(app.id, 'app', newComment.trim(), user.uid, user.displayName || '익명');
+      await addComment(app.id, 'app', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
       setNewComment('');
       await loadComments();
     } catch (error) {
@@ -143,11 +145,11 @@ export default function AppDetailPage() {
     setIsLiking(true);
     try {
       if (isLiked) {
-        await unlikeApp(app.id, user.uid);
+        await unlikeApp(app.id, user.id);
         setIsLiked(false);
         setLikeCount(prev => prev - 1);
       } else {
-        await likeApp(app.id, user.uid);
+        await likeApp(app.id, user.id);
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -185,7 +187,9 @@ export default function AppDetailPage() {
     }
     setDownloadingPath(storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Failed to download attachment:', error);
@@ -218,7 +222,7 @@ export default function AppDetailPage() {
 
   const categoryInfo = getCategoryInfo(app.category, categories);
   const CategoryIcon = categoryInfo.icon;
-  const isOwner = user?.uid === app.createdBy;
+  const isOwner = user?.id === app.createdBy || isAdmin;
   const isPublic = app.isPublic ?? true;
 
   if (!isPublic && !isOwner && !hasOneTimeAccess) {
@@ -271,6 +275,26 @@ export default function AppDetailPage() {
         favicon: isEtcLink ? blogFallback : defaultFallback,
         fallback: isEtcLink ? blogFallback : defaultFallback,
       };
+    }
+  };
+
+  const getDomainLabel = (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.replace('www.', '');
+
+      if (hostname.includes('github.com') || hostname.includes('github.io')) return 'GitHub';
+      if (hostname.includes('ai.studio') || hostname.includes('aistudio.google.com')) return 'Google AI Studio';
+      if (hostname.includes('colab.research.google.com')) return 'Google Colab';
+      if (hostname === 'huggingface.co') return 'Hugging Face';
+      if (hostname === 'chat.openai.com' || hostname === 'chatgpt.com') return 'ChatGPT';
+      if (hostname === 'youtube.com' || hostname === 'youtu.be') return 'YouTube';
+      if (hostname.includes('naver.com')) return 'Naver';
+      if (hostname.includes('notion.site') || hostname.includes('notion.so')) return 'Notion';
+      if (hostname === 'figma.com') return 'Figma';
+
+      return '웹사이트';
+    } catch {
+      return '웹사이트';
     }
   };
 
@@ -389,38 +413,43 @@ export default function AppDetailPage() {
                 <div className="grid gap-3">
                   {app.appUrls
                     .filter((u) => u.isPublic || isOwner)
-                    .map((urlItem, idx) => (
-                      <div
-                        key={idx}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800/50 transition-colors group"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                              {urlItem.label || (idx === 0 ? '메인 앱' : `링크 ${idx + 1}`)}
-                            </span>
-                            {!urlItem.isPublic && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                <FaLock className="text-[9px]" />
-                                나만 보기
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {urlItem.url}
-                          </p>
-                        </div>
-                        <a
-                          href={urlItem.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-sm font-bold hover:bg-blue-50 dark:hover:bg-blue-800/50 transition-all whitespace-nowrap"
+                    .map((urlItem, idx) => {
+                      const isDefaultLabel = urlItem.label === '이동하기' || (urlItem.label || '').startsWith('링크 ');
+                      const displayLabel = (!urlItem.label || isDefaultLabel) ? getDomainLabel(urlItem.url) : urlItem.label;
+
+                      return (
+                        <div
+                          key={idx}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800/50 transition-colors group"
                         >
-                          <span>바로가기</span>
-                          <FaExternalLinkAlt className="text-[10px]" />
-                        </a>
-                      </div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                {displayLabel}
+                              </span>
+                              {!urlItem.isPublic && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                  <FaLock className="text-[9px]" />
+                                  나만 보기
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {urlItem.url}
+                            </p>
+                          </div>
+                          <a
+                            href={urlItem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 text-sm font-bold hover:bg-blue-50 dark:hover:bg-blue-800/50 transition-all whitespace-nowrap"
+                          >
+                            <span>바로가기</span>
+                            <FaExternalLinkAlt className="text-[10px]" />
+                          </a>
+                        </div>
+                      );
+                    })}
                   {app.appUrls.filter((u) => u.isPublic || isOwner).length === 0 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">
                       표시할 수 있는 URL이 없습니다.
@@ -587,7 +616,7 @@ export default function AppDetailPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400">첫 댓글을 작성해 보세요.</p>
             ) : (
               paginatedComments.map((comment) => {
-                const isAuthor = user?.uid === comment.createdBy;
+                const isAuthor = user?.id === comment.createdBy;
                 const isEditing = editingId === comment.id;
                 return (
                   <div key={comment.id} className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-2">

@@ -5,11 +5,13 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPromptById, updatePrompt } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { Prompt } from '@/types/prompt';
 import { usePromptCategories } from '@/lib/useCategories';
 import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
 import { PromptAttachment } from '@/types/prompt';
 import { uploadPromptAttachment, downloadPromptAttachment, deletePromptAttachment } from '@/lib/storage';
+import { ADMIN_EMAIL } from '@/lib/constants';
 
 const detectUrls = (value: string) =>
   value
@@ -39,7 +41,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 export default function EditPromptPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, signInWithGoogle } = useAuth();
+  const { user, isAdmin, signInWithGoogle } = useAuth();
   const { categories: promptCategories } = usePromptCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -224,7 +226,7 @@ export default function EditPromptPage() {
       alert('로그인이 필요하거나, 프롬프트를 찾을 수 없습니다.');
       return;
     }
-    if (prompt.createdBy !== user.uid) {
+    if (prompt.createdBy !== user.id && !isAdmin) {
       alert('작성자만 수정할 수 있습니다.');
       return;
     }
@@ -235,7 +237,9 @@ export default function EditPromptPage() {
         alert(attachmentError);
         return;
       }
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       const uploadedAttachments = attachments.length
         ? await Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken)))
         : [];
@@ -250,7 +254,7 @@ export default function EditPromptPage() {
         thumbnailUrl: formData.thumbnailUrl || undefined,
         thumbnailPositionX: formData.thumbnailUrl.trim() ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: formData.thumbnailUrl.trim() ? formData.thumbnailPositionY : undefined,
-        createdByName: formData.createdByName || user.displayName || '익명',
+        createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
         attachments: [...existingAttachments, ...uploadedAttachments],
         tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
@@ -268,7 +272,9 @@ export default function EditPromptPage() {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
@@ -283,7 +289,9 @@ export default function EditPromptPage() {
     if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
     setDeletingPath(attachment.storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await deletePromptAttachment(attachment.storagePath, idToken);
       const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
       setExistingAttachments(nextAttachments);
@@ -347,7 +355,7 @@ export default function EditPromptPage() {
     );
   }
 
-  if (prompt.createdBy !== user.uid) {
+  if (prompt.createdBy !== user.id) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">권한이 없습니다</h1>

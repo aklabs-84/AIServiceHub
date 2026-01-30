@@ -9,6 +9,8 @@ import { AIApp, AppAttachment, AppCategory, AppUrlItem } from '@/types/app';
 import { useAppCategories } from '@/lib/useCategories';
 import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
 import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
+import { ADMIN_EMAIL } from '@/lib/constants';
 
 const detectUrls = (value: string) =>
   value
@@ -38,7 +40,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 export default function EditAppPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { categories } = useAppCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [app, setApp] = useState<AIApp | null>(null);
@@ -254,7 +256,7 @@ export default function EditAppPage() {
       return;
     }
 
-    if (user.uid !== app.createdBy) {
+    if (user.id !== app.createdBy && !isAdmin) {
       alert('앱 소유자만 수정할 수 있습니다.');
       return;
     }
@@ -265,7 +267,9 @@ export default function EditAppPage() {
         alert(attachmentError);
         return;
       }
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       const uploadedAttachments = attachments.length
         ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
         : [];
@@ -301,7 +305,9 @@ export default function EditAppPage() {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
@@ -316,7 +322,9 @@ export default function EditAppPage() {
     if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
     setDeletingPath(attachment.storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await deleteAppAttachment(attachment.storagePath, idToken);
       const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
       setExistingAttachments(nextAttachments);
@@ -375,7 +383,7 @@ export default function EditAppPage() {
     );
   }
 
-  if (!user || user.uid !== app.createdBy) {
+  if (!user || user.id !== app.createdBy) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">

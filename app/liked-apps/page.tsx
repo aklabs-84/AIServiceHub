@@ -19,7 +19,7 @@ export default function LikedAppsPage() {
 
     setLoading(true);
     try {
-      const data = await getLikedAppsByUser(user.uid);
+      const data = await getLikedAppsByUser(user.id);
       setApps(data);
     } catch (error) {
       console.error('Error loading liked apps:', error);

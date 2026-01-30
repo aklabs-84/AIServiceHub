@@ -165,10 +165,10 @@ function MyPageContent() {
       setLoading(true);
       try {
         const [apps, prompts, likes, likedPromptsData] = await Promise.all([
-          getAppsByUser(user.uid),
-          getPromptsByUser(user.uid),
-          getLikedAppsByUser(user.uid),
-          getLikedPromptsByUser(user.uid),
+          getAppsByUser(user.id),
+          getPromptsByUser(user.id),
+          getLikedAppsByUser(user.id),
+          getLikedPromptsByUser(user.id),
         ]);
         setMyApps(apps);
         setMyPrompts(prompts);
@@ -277,14 +277,14 @@ function MyPageContent() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">마이페이지</p>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">{user.displayName || '나의 대시보드'}</h1>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">{user.user_metadata?.full_name || user.user_metadata?.name || '나의 대시보드'}</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">내 정보와 내가 만든 것을 한 곳에서 관리하세요.</p>
           </div>
           <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 shadow">
-            {user.photoURL ? (
+            {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
               <Image
-                src={user.photoURL}
-                alt={user.displayName || '사용자'}
+                src={user.user_metadata?.avatar_url || user.user_metadata?.picture}
+                alt={user.user_metadata?.full_name || '사용자'}
                 width={48}
                 height={48}
                 className="w-12 h-12 rounded-full border-2 border-blue-500"
@@ -297,7 +297,7 @@ function MyPageContent() {
             )}
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">환영합니다!</p>
-              <p className="font-semibold text-gray-900 dark:text-white">{user.displayName || '사용자'}</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{user.user_metadata?.full_name || user.user_metadata?.name || '사용자'}</p>
             </div>
           </div>
         </div>
@@ -317,21 +317,21 @@ function MyPageContent() {
                 <FaIdCard className="text-emerald-500" />
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">UID</p>
-                  <p className="font-medium text-gray-900 dark:text-white truncate">{user.uid}</p>
+                  <p className="font-medium text-gray-900 dark:text-white truncate">{user.id}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
                 <FaRegClock className="text-purple-500" />
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">가입일</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{formatDate(user.metadata?.creationTime)}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(user.created_at)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
                 <FaRegClock className="text-orange-500" />
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">최근 로그인</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{formatDate(user.metadata?.lastSignInTime)}</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(user.last_sign_in_at)}</p>
                 </div>
               </div>
             </div>
@@ -376,11 +376,10 @@ function MyPageContent() {
           <div className="inline-flex rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
             <button
               onClick={() => setViewMode('card')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
-                viewMode === 'card'
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${viewMode === 'card'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
               aria-pressed={viewMode === 'card'}
             >
               <FaThLarge />
@@ -388,11 +387,10 @@ function MyPageContent() {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${
-                viewMode === 'list'
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition ${viewMode === 'list'
+                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
               aria-pressed={viewMode === 'list'}
             >
               <FaList />

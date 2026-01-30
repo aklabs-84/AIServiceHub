@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPrompt } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { usePromptCategories } from '@/lib/useCategories';
 import { FaFeatherAlt, FaPaperclip, FaSave } from 'react-icons/fa';
 import { Prompt } from '@/types/prompt';
@@ -64,7 +65,7 @@ export default function NewPromptPage() {
     thumbnailUrl: '',
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
-    createdByName: user?.displayName || '',
+    createdByName: (user?.user_metadata?.full_name || user?.user_metadata?.name) || '',
     tags: [],
   });
   const [tagInput, setTagInput] = useState('');
@@ -162,7 +163,9 @@ export default function NewPromptPage() {
 
     setSubmitting(true);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       if (attachmentError) {
         alert(attachmentError);
         return;
@@ -183,10 +186,10 @@ export default function NewPromptPage() {
           thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
           attachments: uploadedAttachments,
-          createdByName: formData.createdByName || user.displayName || '익명',
+          createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
           tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
         },
-        user.uid
+        user.id
       );
 
       alert('프롬프트가 등록되었습니다!');
@@ -195,7 +198,7 @@ export default function NewPromptPage() {
         type: 'prompt',
         id: promptId,
         name: formData.name,
-        author: formData.createdByName || user.displayName || '익명',
+        author: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
         category: formData.category,
       });
     } catch (error) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { createCategory, deleteCategory, getAllApps, getAllComments, getAllPrompts, getAllUsers, getCategoriesByType, updateCategory, UserProfile } from '@/lib/db';
 import { AIApp } from '@/types/app';
 import { Prompt } from '@/types/prompt';
@@ -11,8 +12,7 @@ import { CategoryRecord } from '@/types/category';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
 import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import Link from 'next/link';
-
-const ADMIN_EMAIL = 'mosebb@gmail.com';
+import { ADMIN_EMAIL } from '@/lib/constants';
 
 interface CreatorStat {
   userId: string;
@@ -46,7 +46,7 @@ const AdminPage = dynamic(() => Promise.resolve(AdminPageContent), {
 export default AdminPage;
 
 function AdminPageContent() {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, isAdmin, loading, signInWithGoogle, signOut } = useAuth();
   const [apps, setApps] = useState<AIApp[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -93,7 +93,7 @@ function AdminPageContent() {
   const pageSize = 10;
 
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!user || !isAdmin) return;
     const fetchAll = async () => {
       setLoadingData(true);
       try {
@@ -115,7 +115,7 @@ function AdminPageContent() {
       }
     };
     fetchAll();
-  }, [user]);
+  }, [user, isAdmin]);
 
   const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
@@ -140,10 +140,11 @@ function AdminPageContent() {
   }, []);
 
   const loadOneTimeInfo = useCallback(async () => {
-    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!user || !isAdmin) return;
     setOneTimeError(null);
     try {
-      const token = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
       const response = await fetch('/api/one-time/credentials', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -198,9 +199,9 @@ function AdminPageContent() {
   ]);
 
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!user || !isAdmin) return;
     loadCategories();
-  }, [user, loadCategories]);
+  }, [user, isAdmin, loadCategories]);
 
   useEffect(() => {
     loadOneTimeInfo();
@@ -211,7 +212,7 @@ function AdminPageContent() {
   }, []);
 
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!user || !isAdmin) return;
     if (!autoSeededApp && appCategories.length === 0 && apps.length > 0) {
       setAutoSeededApp(true);
       handleSeedFromData('app');
@@ -219,7 +220,7 @@ function AdminPageContent() {
   }, [user, autoSeededApp, appCategories.length, apps.length, handleSeedFromData]);
 
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) return;
+    if (!user || !isAdmin) return;
     if (!autoSeededPrompt && promptCategories.length === 0 && prompts.length > 0) {
       setAutoSeededPrompt(true);
       handleSeedFromData('prompt');
@@ -260,7 +261,8 @@ function AdminPageContent() {
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
-      const token = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
       const response = await fetch('/api/one-time/credentials', {
         method: 'POST',
         headers: {
@@ -295,7 +297,8 @@ function AdminPageContent() {
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
-      const token = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
       const response = await fetch(`/api/one-time/credentials/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -318,7 +321,8 @@ function AdminPageContent() {
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
-      const token = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
       const response = await fetch(`/api/one-time/credentials/${editingOneTime.id}`, {
         method: 'PUT',
         headers: {
@@ -508,7 +512,7 @@ function AdminPageContent() {
     );
   }
 
-  if (user.email !== ADMIN_EMAIL) {
+  if (!isAdmin) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-red-50 text-red-500 mb-4">
@@ -533,12 +537,20 @@ function AdminPageContent() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">관리자 대시보드</h1>
           <p className="text-gray-600 dark:text-gray-400">가입자, 앱/프롬프트, 댓글 현황을 한 눈에 확인하세요.</p>
         </div>
-        <button
-          onClick={signOut}
-          className="text-sm px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-        >
-          로그아웃
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/users"
+            className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-semibold"
+          >
+            유저 권한 관리
+          </Link>
+          <button
+            onClick={signOut}
+            className="text-sm px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-4 gap-4 mb-8">
@@ -752,21 +764,20 @@ function AdminPageContent() {
         <div className="space-y-8">
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-                {[
-                  { key: 'creators', label: '작성자 활동' },
-                  { key: 'apps', label: '최신 앱' },
-                  { key: 'prompts', label: '최신 프롬프트' },
-                  { key: 'users', label: '신규 가입자' },
-                  { key: 'categories', label: '카테고리 관리' },
-                ].map((tab) => (
+              {[
+                { key: 'creators', label: '작성자 활동' },
+                { key: 'apps', label: '최신 앱' },
+                { key: 'prompts', label: '최신 프롬프트' },
+                { key: 'users', label: '신규 가입자' },
+                { key: 'categories', label: '카테고리 관리' },
+              ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as TabKey)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                    activeTab === tab.key
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === tab.key
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
                 >
                   {tab.label}
                 </button>

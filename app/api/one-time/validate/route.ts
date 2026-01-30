@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebaseAdmin';
 
-const COLLECTION = 'oneTimeAccess';
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request: Request) {
   try {
@@ -11,14 +10,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ active: false });
     }
 
-    const snapshot = await adminDb.collection(COLLECTION).where('sessionToken', '==', token).limit(1).get();
-    if (snapshot.empty) {
+    const { data, error } = await supabaseAdmin
+      .from('one_time_access')
+      .select('session_expires_at')
+      .eq('session_token', token)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
       return NextResponse.json({ active: false });
     }
 
-    const data = snapshot.docs[0].data() || {};
-
-    const expiresAt = data.sessionExpiresAt?.toDate?.();
+    const expiresAt = data.session_expires_at ? new Date(data.session_expires_at) : null;
     if (!expiresAt || expiresAt.getTime() < Date.now()) {
       return NextResponse.json({ active: false });
     }

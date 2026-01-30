@@ -133,9 +133,9 @@ function AppsListContent() {
 
   const visibleApps = useMemo(() => {
     if (hasOneTimeAccess) return apps;
-    const uid = user?.uid;
+    const uid = user?.id;
     return apps.filter((app) => (app.isPublic ?? true) || app.createdBy === uid);
-  }, [apps, user?.uid, hasOneTimeAccess]);
+  }, [apps, user?.id, hasOneTimeAccess]);
 
   const allTags = useMemo(() => {
     const tagsSet = new Set<string>();

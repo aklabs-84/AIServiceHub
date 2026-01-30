@@ -8,6 +8,7 @@ import { addComment, deleteComment, getComments, getPromptById, updateComment } 
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck } from 'react-icons/fa';
@@ -17,6 +18,7 @@ import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
 import { downloadPromptAttachment } from '@/lib/storage';
+import { ADMIN_EMAIL } from '@/lib/constants';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -70,7 +72,7 @@ export default function PromptDetailPage() {
 
   const params = useParams();
   const router = useRouter();
-  const { user, signInWithGoogle } = useAuth();
+  const { user, isAdmin, signInWithGoogle } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories: promptCategories } = usePromptCategories();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -121,7 +123,7 @@ export default function PromptDetailPage() {
     if (!user || !prompt || !newComment.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await addComment(prompt.id, 'prompt', newComment.trim(), user.uid, user.displayName || '익명');
+      await addComment(prompt.id, 'prompt', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
       setNewComment('');
       await loadComments();
     } catch (error) {
@@ -187,7 +189,7 @@ export default function PromptDetailPage() {
 
   const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
   const CategoryIcon = categoryInfo.icon;
-  const isOwner = user?.uid === prompt.createdBy;
+  const isOwner = user?.id === prompt.createdBy || isAdmin;
   const isPublic = prompt.isPublic ?? true;
 
   if (!isPublic && !isOwner && !hasOneTimeAccess) {
@@ -306,7 +308,9 @@ export default function PromptDetailPage() {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
-      const idToken = await user.getIdToken();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
@@ -617,7 +621,7 @@ export default function PromptDetailPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400">첫 댓글을 작성해 보세요.</p>
             ) : (
               paginatedComments.map((comment) => {
-                const isAuthor = user?.uid === comment.createdBy;
+                const isAuthor = user?.id === comment.createdBy;
                 const isEditing = editingId === comment.id;
                 return (
                   <div key={comment.id} className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-2">

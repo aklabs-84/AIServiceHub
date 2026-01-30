@@ -1,531 +1,519 @@
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  DocumentData,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove,
-  setDoc
-} from 'firebase/firestore';
-import { db } from './firebase';
+
+import { supabase } from './supabase';
 import { AIApp, CreateAppInput, UpdateAppInput, AppCategory } from '@/types/app';
 import { Prompt, CreatePromptInput, UpdatePromptInput, PromptCategory } from '@/types/prompt';
 import { Comment, CommentTargetType } from '@/types/comment';
 import { CategoryInput, CategoryRecord, CategoryType } from '@/types/category';
 
-const APPS_COLLECTION = 'apps';
-const PROMPTS_COLLECTION = 'prompts';
-const COMMENTS_COLLECTION = 'comments';
-const USERS_COLLECTION = 'users';
-const CATEGORIES_COLLECTION = 'categories';
+// --- Helpers for Data Mapping ---
 
-// Firestore 데이터를 AIApp 타입으로 변환
-function docToApp(id: string, data: DocumentData): AIApp {
-  const likes = data.likes || [];
-  let appUrls = data.appUrls || [];
-  if (appUrls.length === 0 && data.appUrl) {
-    appUrls = [{ url: data.appUrl, isPublic: true, label: '이동하기' }];
-  }
+function mapAppFromDB(data: any): AIApp {
+  // Extract User IDs from the joined app_likes table [{user_id: '...'}, ...]
+  const likes = data.app_likes?.map((l: any) => l.user_id) || [];
 
   return {
-    id,
+    id: data.id,
     name: data.name,
     description: data.description,
-    appUrl: data.appUrl || (appUrls[0]?.url || ''),
-    appUrls,
-    snsUrls: data.snsUrls || [],
+    appUrl: data.app_urls?.[0]?.url || '',
+    appUrls: data.app_urls || [],
+    snsUrls: data.sns_urls || [],
     category: data.category,
-    isPublic: data.isPublic ?? true,
-    thumbnailUrl: data.thumbnailUrl,
-    thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : undefined,
-    thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : undefined,
+    isPublic: data.is_public ?? true,
+    thumbnailUrl: data.thumbnail_url,
+    thumbnailPositionX: data.thumbnail_pos?.x,
+    thumbnailPositionY: data.thumbnail_pos?.y,
     attachments: data.attachments || [],
-    createdBy: data.createdBy,
-    createdByName: data.createdByName || '익명',
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date(),
+    createdBy: data.created_by,
+    createdByName: data.created_by_name || 'Anonymous',
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
     likes,
     likeCount: likes.length,
     tags: data.tags || [],
   };
 }
 
-// Firestore 데이터를 Prompt 타입으로 변환
-function docToPrompt(id: string, data: DocumentData): Prompt {
-  const likes = data.likes || [];
+function mapPromptFromDB(data: any): Prompt {
+  const likes = data.prompt_likes?.map((l: any) => l.user_id) || [];
+
   return {
-    id,
+    id: data.id,
     name: data.name,
     description: data.description,
-    promptContent: data.promptContent,
-    snsUrls: data.snsUrls || [],
+    promptContent: data.prompt_content,
+    snsUrls: data.sns_urls || [],
     category: data.category,
-    isPublic: data.isPublic ?? true,
-    thumbnailUrl: data.thumbnailUrl,
-    thumbnailPositionX: typeof data.thumbnailPositionX === 'number' ? data.thumbnailPositionX : undefined,
-    thumbnailPositionY: typeof data.thumbnailPositionY === 'number' ? data.thumbnailPositionY : undefined,
+    isPublic: data.is_public ?? true,
+    thumbnailUrl: data.thumbnail_url,
+    thumbnailPositionX: data.thumbnail_pos?.x,
+    thumbnailPositionY: data.thumbnail_pos?.y,
     attachments: data.attachments || [],
-    createdBy: data.createdBy,
-    createdByName: data.createdByName || '익명',
-    createdAt: data.createdAt?.toDate() || new Date(),
-    updatedAt: data.updatedAt?.toDate() || new Date(),
+    createdBy: data.created_by,
+    createdByName: data.created_by_name || 'Anonymous',
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
     likes,
     likeCount: likes.length,
     tags: data.tags || [],
   };
 }
 
-// Firestore 데이터를 Comment 타입으로 변환
-function docToComment(id: string, data: DocumentData): Comment {
+function mapCommentFromDB(data: any): Comment {
   return {
-    id,
-    targetId: data.targetId,
-    targetType: data.targetType,
+    id: data.id,
+    targetId: data.target_id,
+    targetType: data.target_type,
     content: data.content,
-    createdBy: data.createdBy,
-    createdByName: data.createdByName || '익명',
-    createdAt: data.createdAt?.toDate() || new Date(),
+    createdBy: data.created_by,
+    createdByName: data.created_by_name || 'Anonymous',
+    createdAt: new Date(data.created_at),
   };
 }
 
-// 모든 앱 가져오기
+// --- Apps ---
+
 export async function getAllApps(): Promise<AIApp[]> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const q = query(appsCol, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from('apps')
+    .select('*, app_likes(user_id)')
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+  if (error) throw error;
+  return data.map(mapAppFromDB);
 }
 
-// 카테고리별 앱 가져오기
 export async function getAppsByCategory(category: AppCategory): Promise<AIApp[]> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const q = query(
-    appsCol,
-    where('category', '==', category),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from('apps')
+    .select('*, app_likes(user_id)')
+    .eq('category', category)
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+  if (error) throw error;
+  return data.map(mapAppFromDB);
 }
 
-// 태그별 앱 가져오기
 export async function getAppsByTag(tag: string): Promise<AIApp[]> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const q = query(
-    appsCol,
-    where('tags', 'array-contains', tag),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from('apps')
+    .select('*, app_likes(user_id)')
+    .contains('tags', [tag])
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+  if (error) throw error;
+  return data.map(mapAppFromDB);
 }
 
-// 특정 앱 가져오기
 export async function getAppById(id: string): Promise<AIApp | null> {
-  const docRef = doc(db, APPS_COLLECTION, id);
-  const docSnap = await getDoc(docRef);
+  const { data, error } = await supabase
+    .from('apps')
+    .select('*, app_likes(user_id)')
+    .eq('id', id)
+    .single();
 
-  if (!docSnap.exists()) {
-    return null;
-  }
-
-  return docToApp(docSnap.id, docSnap.data());
+  if (error || !data) return null;
+  return mapAppFromDB(data);
 }
 
-// 프롬프트 가져오기
-export async function getPromptById(id: string): Promise<Prompt | null> {
-  const docRef = doc(db, PROMPTS_COLLECTION, id);
-  const docSnap = await getDoc(docRef);
-
-  if (!docSnap.exists()) {
-    return null;
-  }
-
-  return docToPrompt(docSnap.id, docSnap.data());
-}
-
-// 사용자가 만든 앱 가져오기
 export async function getAppsByUser(userId: string): Promise<AIApp[]> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const q = query(
-    appsCol,
-    where('createdBy', '==', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
+  const { data, error } = await supabase
+    .from('apps')
+    .select('*, app_likes(user_id)')
+    .eq('created_by', userId)
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map(doc => docToApp(doc.id, doc.data()));
+  if (error) throw error;
+  return data.map(mapAppFromDB);
 }
 
-// 프롬프트 가져오기 - 전체
-export async function getAllPrompts(): Promise<Prompt[]> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const q = query(promptsCol, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
+export async function getLikedAppsByUser(userId: string): Promise<AIApp[]> {
+  // Join app_likes where user_id matches, then get the apps
+  const { data, error } = await supabase
+    .from('app_likes')
+    .select('app:apps(*, app_likes(user_id))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
 
-  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
+  if (error) throw error;
+
+  // Clean up structure
+  return data
+    .map((item: any) => item.app)
+    .filter(Boolean)
+    .map(mapAppFromDB)
+    .filter((app: AIApp) => app.isPublic || app.createdBy === userId);
 }
 
-// 프롬프트 가져오기 - 카테고리별
-export async function getPromptsByCategory(category: PromptCategory): Promise<Prompt[]> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const q = query(
-    promptsCol,
-    where('category', '==', category),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
-}
-
-// 태그별 프롬프트 가져오기
-export async function getPromptsByTag(tag: string): Promise<Prompt[]> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const q = query(
-    promptsCol,
-    where('tags', 'array-contains', tag),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
-}
-
-// 사용자가 만든 프롬프트 가져오기
-export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const q = query(
-    promptsCol,
-    where('createdBy', '==', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map(doc => docToPrompt(doc.id, doc.data()));
-}
-
-// 앱 생성
 export async function createApp(input: CreateAppInput, userId: string): Promise<string> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const payload: Record<string, unknown> = {
-    ...input,
-    appUrl: input.appUrl || (input.appUrls[0]?.url || ''),
-    createdBy: userId,
-    snsUrls: input.snsUrls || [],
-    attachments: input.attachments || [],
-    isPublic: input.isPublic ?? true,
-    likes: [],
-    tags: input.tags || [],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const payload = {
+    name: input.name,
+    description: input.description,
+    app_urls: input.appUrls,
+    sns_urls: input.snsUrls,
+    category: input.category,
+    is_public: input.isPublic ?? true,
+    thumbnail_url: input.thumbnailUrl,
+    thumbnail_pos: { x: input.thumbnailPositionX, y: input.thumbnailPositionY },
+    attachments: input.attachments,
+    tags: input.tags,
+    created_by: userId,
+    created_by_name: input.createdByName,
+    // created_at, updated_at handled by default/trigger or Supabase handles it if not provided?
+    // SQL default is Now().
   };
 
-  // Firestore는 undefined 값을 허용하지 않으므로 빈 썸네일은 필드 자체를 제거
-  if (payload.thumbnailUrl === undefined) {
-    delete payload.thumbnailUrl;
-  }
-  if (payload.thumbnailPositionX === undefined) {
-    delete payload.thumbnailPositionX;
-  }
-  if (payload.thumbnailPositionY === undefined) {
-    delete payload.thumbnailPositionY;
-  }
+  const { data, error } = await supabase
+    .from('apps')
+    .insert(payload)
+    .select('id')
+    .single();
 
-  const docRef = await addDoc(appsCol, payload);
-
-  return docRef.id;
+  if (error) throw error;
+  return data.id;
 }
 
-// 앱 수정
 export async function updateApp(input: UpdateAppInput): Promise<void> {
   const { id, ...data } = input;
-  const docRef = doc(db, APPS_COLLECTION, id);
 
-  const payload: Record<string, unknown> = {
-    ...data,
-    appUrl: data.appUrl || (data.appUrls?.[0]?.url),
-    snsUrls: data.snsUrls || [],
-    tags: data.tags || undefined,
-    updatedAt: serverTimestamp(),
-  };
+  const payload: any = {};
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.description !== undefined) payload.description = data.description;
+  if (data.appUrls !== undefined) payload.app_urls = data.appUrls;
+  if (data.snsUrls !== undefined) payload.sns_urls = data.snsUrls;
+  if (data.category !== undefined) payload.category = data.category;
+  if (data.isPublic !== undefined) payload.is_public = data.isPublic;
+  if (data.thumbnailUrl !== undefined) payload.thumbnail_url = data.thumbnailUrl;
+  if (data.tags !== undefined) payload.tags = data.tags;
 
-  // undefined 필드는 제거
-  if (payload.thumbnailUrl === undefined) {
-    delete payload.thumbnailUrl;
-  }
-  if (payload.thumbnailPositionX === undefined) {
-    delete payload.thumbnailPositionX;
-  }
-  if (payload.thumbnailPositionY === undefined) {
-    delete payload.thumbnailPositionY;
-  }
-  if (payload.isPublic === undefined) {
-    delete payload.isPublic;
-  }
-  if (payload.tags === undefined) {
-    delete payload.tags;
+  // Handle thumbnail pos update effectively
+  if (data.thumbnailPositionX !== undefined || data.thumbnailPositionY !== undefined) {
+    // We ideally need previous value or just update object. 
+    // simpler: assumed passed fully? Or just update fields.
+    // For now construct object.
+    payload.thumbnail_pos = { x: data.thumbnailPositionX, y: data.thumbnailPositionY };
   }
 
-  await updateDoc(docRef, payload);
+  payload.updated_at = new Date().toISOString();
+
+  const { error } = await supabase
+    .from('apps')
+    .update(payload)
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
-// 프롬프트 생성
+export async function deleteApp(id: string): Promise<void> {
+  const { error } = await supabase.from('apps').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function likeApp(appId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('app_likes')
+    .insert({ app_id: appId, user_id: userId });
+
+  if (error) {
+    // If unique violation, ignore? Or throw.
+    // Ideally user shouldn't be able to click like if already liked.
+    // Supabase returns error on conflict.
+    if (error.code !== '23505') throw error; // unique_violation
+  }
+}
+
+export async function unlikeApp(appId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('app_likes')
+    .delete()
+    .match({ app_id: appId, user_id: userId });
+
+  if (error) throw error;
+}
+
+// --- Prompts ---
+
+export async function getAllPrompts(): Promise<Prompt[]> {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*, prompt_likes(user_id)')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapPromptFromDB);
+}
+
+export async function getPromptsByCategory(category: PromptCategory): Promise<Prompt[]> {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*, prompt_likes(user_id)')
+    .eq('category', category)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapPromptFromDB);
+}
+
+export async function getPromptsByTag(tag: string): Promise<Prompt[]> {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*, prompt_likes(user_id)')
+    .contains('tags', [tag])
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapPromptFromDB);
+}
+
+export async function getPromptById(id: string): Promise<Prompt | null> {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*, prompt_likes(user_id)')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return mapPromptFromDB(data);
+}
+
+export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
+  const { data, error } = await supabase
+    .from('prompts')
+    .select('*, prompt_likes(user_id)')
+    .eq('created_by', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapPromptFromDB);
+}
+
+export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
+  const { data, error } = await supabase
+    .from('prompt_likes')
+    .select('prompt:prompts(*, prompt_likes(user_id))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data
+    .map((item: any) => item.prompt)
+    .filter(Boolean)
+    .map(mapPromptFromDB)
+    .filter((p: Prompt) => p.isPublic || p.createdBy === userId);
+}
+
 export async function createPrompt(input: CreatePromptInput, userId: string): Promise<string> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const payload: Record<string, unknown> = {
-    ...input,
-    snsUrls: input.snsUrls || [],
-    attachments: input.attachments || [],
-    isPublic: input.isPublic ?? true,
-    createdBy: userId,
-    likes: [],
-    tags: input.tags || [],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const payload = {
+    name: input.name,
+    description: input.description,
+    prompt_content: input.promptContent,
+    sns_urls: input.snsUrls,
+    category: input.category,
+    is_public: input.isPublic ?? true,
+    thumbnail_url: input.thumbnailUrl,
+    thumbnail_pos: { x: input.thumbnailPositionX, y: input.thumbnailPositionY },
+    attachments: input.attachments,
+    tags: input.tags,
+    created_by: userId,
+    created_by_name: input.createdByName,
   };
 
-  if (payload.thumbnailUrl === undefined) {
-    delete payload.thumbnailUrl;
-  }
-  if (payload.thumbnailPositionX === undefined) {
-    delete payload.thumbnailPositionX;
-  }
-  if (payload.thumbnailPositionY === undefined) {
-    delete payload.thumbnailPositionY;
-  }
+  const { data, error } = await supabase
+    .from('prompts')
+    .insert(payload)
+    .select('id')
+    .single();
 
-  const docRef = await addDoc(promptsCol, payload);
-  return docRef.id;
+  if (error) throw error;
+  return data.id;
 }
 
-// 프롬프트 수정
 export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
   const { id, ...data } = input;
-  const docRef = doc(db, PROMPTS_COLLECTION, id);
+  const payload: any = { updated_at: new Date().toISOString() };
 
-  const payload: Record<string, unknown> = {
-    ...data,
-    tags: data.tags || undefined,
-    updatedAt: serverTimestamp(),
-  };
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.description !== undefined) payload.description = data.description;
+  if (data.promptContent !== undefined) payload.prompt_content = data.promptContent;
+  if (data.snsUrls !== undefined) payload.sns_urls = data.snsUrls;
+  if (data.category !== undefined) payload.category = data.category;
+  if (data.isPublic !== undefined) payload.is_public = data.isPublic;
+  if (data.thumbnailUrl !== undefined) payload.thumbnail_url = data.thumbnailUrl;
+  if (data.tags !== undefined) payload.tags = data.tags;
 
-  if (payload.thumbnailUrl === undefined) {
-    delete payload.thumbnailUrl;
-  }
-  if (payload.isPublic === undefined) {
-    delete payload.isPublic;
-  }
-  if (payload.tags === undefined) {
-    delete payload.tags;
+  if (data.thumbnailPositionX !== undefined || data.thumbnailPositionY !== undefined) {
+    payload.thumbnail_pos = { x: data.thumbnailPositionX, y: data.thumbnailPositionY };
   }
 
-  await updateDoc(docRef, payload);
+  const { error } = await supabase
+    .from('prompts')
+    .update(payload)
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
-// 프롬프트 삭제
 export async function deletePrompt(id: string): Promise<void> {
-  const docRef = doc(db, PROMPTS_COLLECTION, id);
-  await deleteDoc(docRef);
+  const { error } = await supabase.from('prompts').delete().eq('id', id);
+  if (error) throw error;
 }
 
-// 앱 삭제
-export async function deleteApp(id: string): Promise<void> {
-  const docRef = doc(db, APPS_COLLECTION, id);
-  await deleteDoc(docRef);
+export async function likePrompt(promptId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('prompt_likes')
+    .insert({ prompt_id: promptId, user_id: userId });
+  if (error && error.code !== '23505') throw error;
 }
 
-// 좋아요 추가
-export async function likeApp(appId: string, userId: string): Promise<void> {
-  const docRef = doc(db, APPS_COLLECTION, appId);
-  await updateDoc(docRef, {
-    likes: arrayUnion(userId)
-  });
+export async function unlikePrompt(promptId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('prompt_likes')
+    .delete()
+    .match({ prompt_id: promptId, user_id: userId });
+  if (error) throw error;
 }
 
-// 좋아요 취소
-export async function unlikeApp(appId: string, userId: string): Promise<void> {
-  const docRef = doc(db, APPS_COLLECTION, appId);
-  await updateDoc(docRef, {
-    likes: arrayRemove(userId)
-  });
-}
+// --- Comments ---
 
-// 사용자가 좋아요한 앱 가져오기
-export async function getLikedAppsByUser(userId: string): Promise<AIApp[]> {
-  const appsCol = collection(db, APPS_COLLECTION);
-  const q = query(
-    appsCol,
-    where('likes', 'array-contains', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs
-    .map(doc => docToApp(doc.id, doc.data()))
-    .filter((app) => (app.isPublic ?? true) || app.createdBy === userId);
-}
-
-// 사용자가 좋아요한 프롬프트 가져오기
-export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
-  const promptsCol = collection(db, PROMPTS_COLLECTION);
-  const q = query(
-    promptsCol,
-    where('likes', 'array-contains', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs
-    .map(doc => docToPrompt(doc.id, doc.data()))
-    .filter((prompt) => (prompt.isPublic ?? true) || prompt.createdBy === userId);
-}
-
-// 전체 댓글 가져오기
 export async function getAllComments(): Promise<Comment[]> {
-  const commentsCol = collection(db, COMMENTS_COLLECTION);
-  const q = query(commentsCol, orderBy('createdAt', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapCommentFromDB);
 }
+
+export async function getComments(targetId: string, targetType: CommentTargetType): Promise<Comment[]> {
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('target_id', targetId)
+    .eq('target_type', targetType)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapCommentFromDB);
+}
+
+export async function addComment(targetId: string, targetType: CommentTargetType, content: string, userId: string, userName: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      target_id: targetId,
+      target_type: targetType,
+      content,
+      created_by: userId,
+      created_by_name: userName,
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function updateComment(commentId: string, content: string): Promise<void> {
+  const { error } = await supabase
+    .from('comments')
+    .update({ content, updated_at: new Date().toISOString() })
+    .eq('id', commentId);
+
+  if (error) throw error;
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+// --- Categories ---
 
 export async function getCategoriesByType(type: CategoryType): Promise<CategoryRecord[]> {
-  const categoriesCol = collection(db, CATEGORIES_COLLECTION);
-  const q = query(categoriesCol, where('type', '==', type), orderBy('createdAt', 'asc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      type: data.type,
-      value: data.value,
-      label: data.label,
-      color: data.color,
-      icon: data.icon,
-      createdAt: data.createdAt?.toDate?.() || undefined,
-    } as CategoryRecord;
-  });
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('type', type)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  // Map snake_case to ... actually categories fields are simple? 
+  // Schema: type, label, value, color, icon, created_at
+  // Interface: same.
+  return data.map((d: any) => ({
+    ...d,
+    createdAt: new Date(d.created_at),
+  }));
 }
 
 export async function createCategory(input: CategoryInput): Promise<string> {
-  const categoriesCol = collection(db, CATEGORIES_COLLECTION);
-  const payload = {
-    ...input,
-    createdAt: serverTimestamp(),
-  };
-  const docRef = await addDoc(categoriesCol, payload);
-  return docRef.id;
-}
+  const { data, error } = await supabase
+    .from('categories')
+    .insert(input)
+    .select('id')
+    .single();
 
-export async function deleteCategory(id: string): Promise<void> {
-  const docRef = doc(db, CATEGORIES_COLLECTION, id);
-  await deleteDoc(docRef);
+  if (error) throw error;
+  return data.id;
 }
 
 export async function updateCategory(id: string, data: Partial<Pick<CategoryInput, 'label' | 'color' | 'icon'>>): Promise<void> {
-  const docRef = doc(db, CATEGORIES_COLLECTION, id);
-  await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
+  const { error } = await supabase
+    .from('categories')
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) throw error;
 }
 
-// 회원 목록 가져오기
+export async function deleteCategory(id: string): Promise<void> {
+  const { error } = await supabase.from('categories').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// --- Users (Profiles) ---
+
 export interface UserProfile {
   id: string;
   email?: string;
   displayName?: string;
+  role?: 'user' | 'admin';
   createdAt?: Date;
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-  const usersCol = collection(db, USERS_COLLECTION);
-  const snapshot = await getDocs(usersCol);
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      email: data.email,
-      displayName: data.displayName,
-      createdAt: data.createdAt?.toDate?.() || undefined,
-    };
-  });
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*');
+
+  if (error) throw error;
+  return data.map((d: any) => ({
+    id: d.id,
+    email: d.email,
+    displayName: d.display_name,
+    role: d.role || 'user',
+    createdAt: new Date(d.created_at),
+  }));
+}
+
+export async function updateUserRole(userId: string, role: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId);
+
+  if (error) throw error;
 }
 
 export async function ensureUserProfile(uid: string, email?: string | null, displayName?: string | null) {
-  const userRef = doc(db, USERS_COLLECTION, uid);
-  const snap = await getDoc(userRef);
-  if (snap.exists()) return;
-  await setDoc(userRef, {
+  // Try upsert
+  const { error } = await supabase.from('profiles').upsert({
+    id: uid,
     email: email || undefined,
-    displayName: displayName || undefined,
-    createdAt: serverTimestamp(),
-  });
-}
+    display_name: displayName || undefined,
+    // created_at default
+  }, { onConflict: 'id' });
 
-// 프롬프트 좋아요 추가/취소
-export async function likePrompt(promptId: string, userId: string): Promise<void> {
-  const docRef = doc(db, PROMPTS_COLLECTION, promptId);
-  await updateDoc(docRef, {
-    likes: arrayUnion(userId)
-  });
-}
-
-export async function unlikePrompt(promptId: string, userId: string): Promise<void> {
-  const docRef = doc(db, PROMPTS_COLLECTION, promptId);
-  await updateDoc(docRef, {
-    likes: arrayRemove(userId)
-  });
-}
-
-// 댓글 추가
-export async function addComment(targetId: string, targetType: CommentTargetType, content: string, userId: string, userName: string): Promise<string> {
-  const commentsCol = collection(db, COMMENTS_COLLECTION);
-  const payload = {
-    targetId,
-    targetType,
-    content,
-    createdBy: userId,
-    createdByName: userName || '익명',
-    createdAt: serverTimestamp(),
-  };
-  const docRef = await addDoc(commentsCol, payload);
-  return docRef.id;
-}
-
-// 댓글 목록 가져오기
-export async function getComments(targetId: string, targetType: CommentTargetType): Promise<Comment[]> {
-  const commentsCol = collection(db, COMMENTS_COLLECTION);
-  const q = query(
-    commentsCol,
-    where('targetId', '==', targetId),
-    where('targetType', '==', targetType),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => docToComment(doc.id, doc.data()));
-}
-
-// 댓글 수정
-export async function updateComment(commentId: string, content: string): Promise<void> {
-  const docRef = doc(db, COMMENTS_COLLECTION, commentId);
-  await updateDoc(docRef, {
-    content,
-    // createdAt은 수정하지 않음
-    updatedAt: serverTimestamp(),
-  });
-}
-
-// 댓글 삭제
-export async function deleteComment(commentId: string): Promise<void> {
-  const docRef = doc(db, COMMENTS_COLLECTION, commentId);
-  await deleteDoc(docRef);
+  if (error) console.error('ensureUserProfile error:', error);
 }

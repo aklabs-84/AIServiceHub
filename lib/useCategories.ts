@@ -61,7 +61,9 @@ export function useAppCategories() {
         if (data.length === 0) {
           setCategories(defaultAppCategories);
         } else {
-          setCategories(data.map(buildAppCategoryInfo));
+          const mapped = data.map(buildAppCategoryInfo);
+          const unique = Array.from(new Map(mapped.map(item => [item.value, item])).values());
+          setCategories(unique);
         }
       } catch (error) {
         console.error('Failed to load app categories:', error);
@@ -92,7 +94,9 @@ export function usePromptCategories() {
         if (data.length === 0) {
           setCategories(defaultPromptCategories);
         } else {
-          setCategories(data.map(buildPromptCategoryInfo));
+          const mapped = data.map(buildPromptCategoryInfo);
+          const unique = Array.from(new Map(mapped.map(item => [item.value, item])).values());
+          setCategories(unique);
         }
       } catch (error) {
         console.error('Failed to load prompt categories:', error);
