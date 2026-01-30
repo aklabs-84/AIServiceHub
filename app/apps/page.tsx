@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function AppsPage() {
   return (
@@ -45,35 +46,45 @@ function AppsListContent() {
   const itemsPerPage = viewMode === 'card' ? 12 : 10;
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
+  const { showError, showInfo } = useToast();
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
+
+  // useRef로 함수 참조 저장하여 의존성 배열에서 제거
+  const showErrorRef = useRef(showError);
+  const showInfoRef = useRef(showInfo);
+  useEffect(() => {
+    showErrorRef.current = showError;
+    showInfoRef.current = showInfo;
+  });
 
   const loadApps = useCallback(async (isMounted: { current: boolean }) => {
     if (!isMounted.current) return;
     setLoading(true);
-    console.log('[AppsPage] Loading apps started...', { category: selectedCategory });
+    let slowNoticeId: ReturnType<typeof setTimeout> | null = null;
     try {
-      // 7초 타임아웃을 적용한 데이터 로딩
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('전체 앱 목록 로딩 시간 초과')), 7000)
-      );
+      slowNoticeId = setTimeout(() => {
+        if (isMounted.current) {
+          showInfoRef.current('앱 목록을 불러오는 중입니다. 잠시만 기다려 주세요.');
+        }
+      }, 7000);
 
       const fetchPromise = selectedCategory === 'all'
         ? getAllApps()
         : getAppsByCategory(selectedCategory);
 
-      const data = await Promise.race([fetchPromise, timeoutPromise]) as AIApp[];
+      const data = await fetchPromise as AIApp[];
 
       if (isMounted.current) {
         setApps(data || []);
-        console.log(`[AppsPage] Loading finished. ${data?.length || 0} apps found.`);
       }
     } catch (error) {
       if (isMounted.current) {
-        console.error('[AppsPage] Error loading apps:', error);
-        // 타임아웃이나 에러 발생 시 빈 배열이나 에러 상태 처리 가능
+        const message = error instanceof Error ? error.message : '앱 목록을 불러오는 중 오류가 발생했습니다.';
+        showErrorRef.current(message);
       }
     } finally {
+      if (slowNoticeId) clearTimeout(slowNoticeId);
       if (isMounted.current) {
         setLoading(false);
       }

@@ -18,7 +18,7 @@ import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
 import { downloadPromptAttachment } from '@/lib/storage';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { useToast } from '@/contexts/ToastContext';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -73,6 +73,7 @@ export default function PromptDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAdmin, signInWithGoogle } = useAuth();
+  const { showSuccess, showError } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories: promptCategories } = usePromptCategories();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -128,7 +129,7 @@ export default function PromptDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error adding comment:', error);
-      alert('댓글 작성 중 오류가 발생했습니다.');
+      showError('댓글 작성 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -149,7 +150,7 @@ export default function PromptDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error updating comment:', error);
-      alert('댓글 수정 중 오류가 발생했습니다.');
+      showError('댓글 수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +163,7 @@ export default function PromptDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error deleting comment:', error);
-      alert('댓글 삭제 중 오류가 발생했습니다.');
+      showError('댓글 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -294,11 +295,12 @@ export default function PromptDetailPage() {
     setDeleting(true);
     try {
       await deletePrompt(prompt.id);
-      alert('프롬프트가 삭제되었습니다.');
-      router.push('/prompts');
+      showSuccess('프롬프트가 삭제되었습니다.');
+      const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
+      router.push(lastUrl || '/prompts');
     } catch (error) {
       console.error('Error deleting prompt:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      showError('삭제 중 오류가 발생했습니다.');
     } finally {
       setDeleting(false);
     }
@@ -314,7 +316,7 @@ export default function PromptDetailPage() {
       await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
-      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+      showError('다운로드 링크 생성 중 오류가 발생했습니다.');
     } finally {
       setDownloadingPath(null);
     }

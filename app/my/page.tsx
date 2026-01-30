@@ -168,7 +168,6 @@ function MyPageContent() {
     const fetchData = async () => {
       if (!isMounted) return;
       setLoading(true);
-      console.log('[MyPage] Loading my data started...', { userId: user.id });
       try {
         const [apps, prompts, likes, likedPromptsData] = await Promise.all([
           getAppsByUser(user.id),
@@ -182,10 +181,9 @@ function MyPageContent() {
           setMyPrompts(prompts || []);
           setLikedApps(likes || []);
           setLikedPrompts(likedPromptsData || []);
-          console.log('[MyPage] Loading finished.');
         }
-      } catch (error) {
-        if (isMounted) console.error('[MyPage] Error loading my page data:', error);
+      } catch {
+        // 에러 무시 (UI에서 빈 상태로 표시)
       } finally {
         if (isMounted) setLoading(false);
       }

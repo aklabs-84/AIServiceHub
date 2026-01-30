@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OneTimeAccessProvider } from "@/contexts/OneTimeAccessContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import Header from "@/components/Header";
 
 const geistSans = Geist({
@@ -75,14 +76,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}
       >
         <ThemeProvider>
-          <OneTimeAccessProvider>
-            <AuthProvider>
-              <Header />
-              <main className="min-h-screen">
-                {children}
-              </main>
-            </AuthProvider>
-          </OneTimeAccessProvider>
+          <ToastProvider>
+            <OneTimeAccessProvider>
+              <AuthProvider>
+                <Header />
+                <main className="min-h-screen">
+                  {children}
+                </main>
+              </AuthProvider>
+            </OneTimeAccessProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

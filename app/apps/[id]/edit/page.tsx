@@ -10,7 +10,7 @@ import { useAppCategories } from '@/lib/useCategories';
 import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
 import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { useToast } from '@/contexts/ToastContext';
 
 const detectUrls = (value: string) =>
   value
@@ -41,6 +41,7 @@ export default function EditAppPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAdmin } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const { categories } = useAppCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [app, setApp] = useState<AIApp | null>(null);
@@ -252,19 +253,19 @@ export default function EditAppPage() {
     e.preventDefault();
 
     if (!user || !app) {
-      alert('권한이 없습니다.');
+      showError('권한이 없습니다.');
       return;
     }
 
     if (user.id !== app.createdBy && !isAdmin) {
-      alert('앱 소유자만 수정할 수 있습니다.');
+      showWarning('앱 소유자만 수정할 수 있습니다.');
       return;
     }
 
     setSubmitting(true);
     try {
       if (attachmentError) {
-        alert(attachmentError);
+        showError(attachmentError);
         return;
       }
       const { data: { session } } = await supabase.auth.getSession();
@@ -291,11 +292,11 @@ export default function EditAppPage() {
         tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
 
-      alert('앱이 수정되었습니다!');
+      showSuccess('앱이 수정되었습니다!');
       router.replace(`/apps/${app.id}`);
     } catch (error) {
       console.error('Error updating app:', error);
-      alert('앱 수정 중 오류가 발생했습니다.');
+      showError('앱 수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -311,7 +312,7 @@ export default function EditAppPage() {
       await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
-      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+      showError('다운로드 링크 생성 중 오류가 발생했습니다.');
     } finally {
       setDownloadingPath(null);
     }
@@ -331,7 +332,7 @@ export default function EditAppPage() {
       await updateApp({ id: app.id, attachments: nextAttachments });
     } catch (error) {
       console.error('Error deleting attachment:', error);
-      alert('첨부 파일 삭제 중 오류가 발생했습니다.');
+      showError('첨부 파일 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingPath(null);
     }

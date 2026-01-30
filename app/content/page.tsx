@@ -116,15 +116,13 @@ function ContentPageInner() {
     const load = async () => {
       if (!isMounted) return;
       setLoading(true);
-      console.log('[ContentPage] Loading apps started...');
       try {
         const data = await getAllApps();
         if (isMounted) {
           setApps(data || []);
-          console.log(`[ContentPage] Loading finished. ${data?.length || 0} apps found.`);
         }
-      } catch (error) {
-        if (isMounted) console.error('[ContentPage] Failed to load apps:', error);
+      } catch {
+        // 에러 무시 (UI에서 빈 상태로 표시)
       } finally {
         if (isMounted) setLoading(false);
       }

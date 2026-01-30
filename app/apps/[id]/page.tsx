@@ -11,13 +11,13 @@ import { getAppById, deleteApp, likeApp, unlikeApp, addComment, getComments, upd
 import { AIApp } from '@/types/app';
 import { Comment } from '@/types/comment';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { downloadAppAttachment } from '@/lib/storage';
-import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock, FaGlobe } from 'react-icons/fa';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -35,6 +35,7 @@ export default function AppDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAdmin, signInWithGoogle } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories } = useAppCategories();
   const [app, setApp] = useState<AIApp | null>(null);
@@ -101,7 +102,7 @@ export default function AppDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error adding comment:', error);
-      alert('댓글 작성 중 오류가 발생했습니다.');
+      showError('댓글 작성 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -122,7 +123,7 @@ export default function AppDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error updating comment:', error);
-      alert('댓글 수정 중 오류가 발생했습니다.');
+      showError('댓글 수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +136,7 @@ export default function AppDetailPage() {
       await loadComments();
     } catch (error) {
       console.error('Error deleting comment:', error);
-      alert('댓글 삭제 중 오류가 발생했습니다.');
+      showError('댓글 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -170,11 +171,12 @@ export default function AppDetailPage() {
     setDeleting(true);
     try {
       await deleteApp(app.id);
-      alert('앱이 삭제되었습니다.');
-      router.push('/');
+      showSuccess('앱이 삭제되었습니다.');
+      const lastUrl = sessionStorage.getItem('lastAppsListUrl');
+      router.push(lastUrl || '/apps');
     } catch (error) {
       console.error('Error deleting app:', error);
-      alert('앱 삭제 중 오류가 발생했습니다.');
+      showError('앱 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeleting(false);
     }
@@ -182,7 +184,7 @@ export default function AppDetailPage() {
 
   const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
     if (!user) {
-      alert('로그인 후 다운로드할 수 있습니다.');
+      showWarning('로그인 후 다운로드할 수 있습니다.');
       return;
     }
     setDownloadingPath(storagePath);
@@ -193,7 +195,7 @@ export default function AppDetailPage() {
       await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Failed to download attachment:', error);
-      alert('첨부 파일 다운로드 중 오류가 발생했습니다.');
+      showError('첨부 파일 다운로드 중 오류가 발생했습니다.');
     } finally {
       setDownloadingPath(null);
     }

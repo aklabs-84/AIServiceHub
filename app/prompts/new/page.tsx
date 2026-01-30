@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { createPrompt } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
 import { usePromptCategories } from '@/lib/useCategories';
 import { FaFeatherAlt, FaPaperclip, FaSave } from 'react-icons/fa';
 import { Prompt } from '@/types/prompt';
 import { sendSlackNotification } from '@/lib/notifications';
 import { uploadPromptAttachment } from '@/lib/storage';
+import { useToast } from '@/contexts/ToastContext';
 
 const detectUrls = (value: string) =>
   value
@@ -40,9 +40,18 @@ const ALLOWED_ATTACHMENT_TYPES = [
 export default function NewPromptPage() {
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const { categories: promptCategories } = usePromptCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;  // Strict Mode 대응: 마운트 시 true로 설정
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   interface PromptFormData {
     name: string;
     description: string;
@@ -167,67 +176,102 @@ export default function NewPromptPage() {
     e.preventDefault();
 
     if (!user) {
-      alert('로그인이 필요합니다.');
+      showInfo('로그인이 필요합니다.');
       return;
     }
 
     if (attachmentError) {
-      alert(attachmentError);
+      showError(attachmentError);
       return;
     }
 
     setSubmitting(true);
 
-    const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
-
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), ms);
+      });
       try {
-        console.log(`[Submission] Attempt ${attempt}/${maxAttempts} started...`);
-        let uploadedAttachments: any[] = [];
+        return await Promise.race([promise, timeoutPromise]) as T;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    };
 
-        if (attachments.length > 0) {
-          console.log('[Submission] Uploading attachments...');
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          if (sessionError || !session) throw new Error('세션 확인 실패');
+  const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
+    const controller = new AbortController();
+    const abortId = setTimeout(() => controller.abort(), 10000); // 네트워크 중단 대비
 
-          const idToken = session.access_token;
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('세션 확인 실패');
+      }
+      let uploadedAttachments: any[] = [];
 
-          // 첨부파일 업로드 (병렬)
-          uploadedAttachments = await Promise.all(
-            attachments.map((file) => uploadPromptAttachment(file, idToken))
-          );
-        }
+      if (attachments.length > 0) {
+        const idToken = session.access_token;
 
-        const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
-        console.log('[Submission] Creating prompt record...');
-
-        const promptId = await createPrompt(
-          {
-            name: formData.name,
-            description: formData.description,
-            promptContent: formData.promptContent,
-            snsUrls: buildSnsUrls(),
-            category: formData.category,
-            isPublic: formData.isPublic,
-            thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
-            thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
-            thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-            attachments: uploadedAttachments,
-            createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-            tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-          },
-          user.id,
-          { signal: controller.signal }
+        // 첨부파일 업로드 (병렬)
+        uploadedAttachments = await withTimeout(
+          Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken))),
+          20000,
+          '첨부 파일 업로드 시간이 초과되었습니다.'
         );
+      }
 
-        clearTimeout(timeoutId);
-        return promptId;
+      const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
+
+      const slowNoticeId = setTimeout(() => {
+        showInfo('저장에 시간이 걸리고 있습니다. 잠시만 기다려 주세요.');
+      }, 8000);
+
+      let response: Response;
+      try {
+        response = await withTimeout(
+          fetch('/api/prompts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              name: formData.name,
+              description: formData.description,
+              promptContent: formData.promptContent,
+              snsUrls: buildSnsUrls(),
+              category: formData.category,
+              isPublic: formData.isPublic,
+              thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+              thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+              thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+              attachments: uploadedAttachments,
+              createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
+              tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+            }),
+            signal: controller.signal,
+          }),
+          30000,
+          '프롬프트 저장 시간이 초과되었습니다.'
+        );
+      } finally {
+        clearTimeout(slowNoticeId);
+      }
+
+      if (!response.ok) {
+        const { error: message } = await response.json().catch(() => ({ error: null }));
+        throw new Error(message || '프롬프트 저장 중 오류가 발생했습니다.');
+      }
+
+      const { id: promptId } = await response.json();
+
+      clearTimeout(abortId);
+      return promptId;
 
       } catch (error: any) {
-        clearTimeout(timeoutId);
+        clearTimeout(abortId);
         if (attempt < maxAttempts) {
-          console.warn(`[Submission] Attempt ${attempt} failed: ${error.message}. Retrying...`);
           await new Promise(res => setTimeout(res, 1000)); // 1초 대기 후 재시도
           return submitWithRetry(attempt + 1, maxAttempts);
         }
@@ -238,8 +282,10 @@ export default function NewPromptPage() {
     try {
       const promptId = await submitWithRetry();
 
-      alert('프롬프트가 등록되었습니다!');
-      router.replace(`/prompts/${promptId}`);
+      if (isMountedRef.current) {
+        showSuccess('프롬프트가 등록되었습니다!');
+        router.replace(`/prompts/${promptId}`);
+      }
       sendSlackNotification({
         type: 'prompt',
         id: promptId,
@@ -248,11 +294,14 @@ export default function NewPromptPage() {
         category: formData.category,
       });
     } catch (error: any) {
-      console.error('Final submission error:', error);
-      const msg = error.name === 'AbortError' ? '요청 시간이 초과되었습니다 (네트워크 지연).' : error.message;
-      alert(`프롬프트 등록 실패: ${msg || '알 수 없는 오류'} (3회 시도 실패)`);
+      if (isMountedRef.current) {
+        const msg = error.name === 'AbortError' ? '요청 시간이 초과되었습니다 (네트워크 지연).' : error.message;
+        showError(`프롬프트 등록 실패: ${msg || '알 수 없는 오류'} (3회 시도 실패)`);
+      }
     } finally {
-      setSubmitting(false);
+      if (isMountedRef.current) {
+        setSubmitting(false);
+      }
     }
   };
 

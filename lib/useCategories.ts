@@ -68,7 +68,9 @@ export function useAppCategories() {
         }
       } catch (error) {
         console.error('Failed to load app categories:', error);
-        setCategories(defaultAppCategories);
+        if (active) {
+          setCategories(defaultAppCategories);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -102,7 +104,9 @@ export function usePromptCategories() {
         }
       } catch (error) {
         console.error('Failed to load prompt categories:', error);
-        setCategories(defaultPromptCategories);
+        if (active) {
+          setCategories(defaultPromptCategories);
+        }
       } finally {
         if (active) setLoading(false);
       }

@@ -25,43 +25,34 @@ export const useTheme = () => {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
-  const applyTheme = useCallback((newTheme: Theme) => {
-    const root = document.documentElement;
-    console.log('🎨 Applying theme:', newTheme);
-    console.log('📋 Current classes:', root.classList.toString());
+  // 초기 마운트 시 localStorage에서 테마 로드 (한 번만 실행)
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    if (savedTheme && savedTheme !== 'dark') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTheme(savedTheme);
+    } else if (!savedTheme) {
+      localStorage.setItem('theme', 'dark');
+    }
+  }, []);
 
-    if (newTheme === 'dark') {
+  // theme 변경 시 DOM 업데이트
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-
-    console.log('✅ After classes:', root.classList.toString());
-  }, []);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const nextTheme = savedTheme || 'dark';
-    if (nextTheme !== theme) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTheme(nextTheme);
-    }
-    console.log('💾 Saved theme from localStorage:', nextTheme);
-    applyTheme(nextTheme);
-    if (!savedTheme) {
-      localStorage.setItem('theme', nextTheme);
-    }
-  }, [applyTheme, theme]);
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    console.log('🔄 Toggle clicked! Current theme:', theme);
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    console.log('➡️ New theme will be:', newTheme);
-
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    applyTheme(newTheme);
-  }, [theme, applyTheme]);
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
+    });
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

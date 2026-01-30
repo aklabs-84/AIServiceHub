@@ -11,7 +11,7 @@ import { usePromptCategories } from '@/lib/useCategories';
 import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
 import { PromptAttachment } from '@/types/prompt';
 import { uploadPromptAttachment, downloadPromptAttachment, deletePromptAttachment } from '@/lib/storage';
-import { ADMIN_EMAIL } from '@/lib/constants';
+import { useToast } from '@/contexts/ToastContext';
 
 const detectUrls = (value: string) =>
   value
@@ -42,6 +42,7 @@ export default function EditPromptPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isAdmin, signInWithGoogle } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const { categories: promptCategories } = usePromptCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
@@ -223,18 +224,18 @@ export default function EditPromptPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !prompt) {
-      alert('로그인이 필요하거나, 프롬프트를 찾을 수 없습니다.');
+      showError('로그인이 필요하거나, 프롬프트를 찾을 수 없습니다.');
       return;
     }
     if (prompt.createdBy !== user.id && !isAdmin) {
-      alert('작성자만 수정할 수 있습니다.');
+      showWarning('작성자만 수정할 수 있습니다.');
       return;
     }
 
     setSubmitting(true);
     try {
       if (attachmentError) {
-        alert(attachmentError);
+        showError(attachmentError);
         return;
       }
       const { data: { session } } = await supabase.auth.getSession();
@@ -258,11 +259,11 @@ export default function EditPromptPage() {
         attachments: [...existingAttachments, ...uploadedAttachments],
         tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
-      alert('프롬프트가 수정되었습니다.');
+      showSuccess('프롬프트가 수정되었습니다.');
       router.replace(`/prompts/${prompt.id}`);
     } catch (error) {
       console.error('Error updating prompt:', error);
-      alert('수정 중 오류가 발생했습니다.');
+      showError('수정 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -278,7 +279,7 @@ export default function EditPromptPage() {
       await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
-      alert('다운로드 링크 생성 중 오류가 발생했습니다.');
+      showError('다운로드 링크 생성 중 오류가 발생했습니다.');
     } finally {
       setDownloadingPath(null);
     }
@@ -298,7 +299,7 @@ export default function EditPromptPage() {
       await updatePrompt({ id: prompt.id, attachments: nextAttachments });
     } catch (error) {
       console.error('Error deleting attachment:', error);
-      alert('첨부 파일 삭제 중 오류가 발생했습니다.');
+      showError('첨부 파일 삭제 중 오류가 발생했습니다.');
     } finally {
       setDeletingPath(null);
     }

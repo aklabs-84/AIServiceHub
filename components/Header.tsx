@@ -111,9 +111,9 @@ export default function Header() {
                           </Link>
                         )}
                         <button
-                          onClick={() => {
-                            signOut();
+                          onClick={async () => {
                             setProfileMenuOpen(false);
+                            await signOut();
                           }}
                           className="w-full flex items-center px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
                         >
@@ -204,7 +204,7 @@ export default function Header() {
                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Logged in</p>
                   </div>
                 </div>
-                <button onClick={signOut} className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold hover:scale-105 active:scale-95 transition-all">
+                <button onClick={async () => await signOut()} className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-bold hover:scale-105 active:scale-95 transition-all">
                   <FaSignOutAlt />
                 </button>
               </div>

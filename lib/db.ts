@@ -303,7 +303,6 @@ export async function getLikedPromptsByUser(userId: string): Promise<Prompt[]> {
 }
 
 export async function createPrompt(input: CreatePromptInput, userId: string, options?: { signal?: AbortSignal }): Promise<string> {
-  console.log('[DEBUG-DB] createPrompt called via userId:', userId);
   const payload = {
     name: input.name,
     description: input.description,
@@ -318,7 +317,6 @@ export async function createPrompt(input: CreatePromptInput, userId: string, opt
     created_by: userId,
     created_by_name: input.createdByName,
   };
-  console.log('[DEBUG-DB] Payload prepared:', payload);
 
   const query = supabase
     .from('prompts')
@@ -331,16 +329,12 @@ export async function createPrompt(input: CreatePromptInput, userId: string, opt
 
   const { data, error } = await query;
 
-  if (error) {
-    console.error('[DEBUG-DB] Insert error:', error);
-    throw error;
-  }
+  if (error) throw error;
 
   if (!data || data.length === 0) {
     throw new Error('데이터가 저장되지 않았습니다 (No ID returned)');
   }
 
-  console.log('[DEBUG-DB] Insert successful, ID:', data[0].id);
   return data[0].id;
 }
 

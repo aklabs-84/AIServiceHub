@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { getAllUsers, updateUserRole, UserProfile } from '@/lib/db';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { FaUserShield, FaUser } from 'react-icons/fa';
 
 export default function AdminUsersPage() {
     const { user, isAdmin, loading: authLoading } = useAuth();
+    const { showError } = useToast();
     const router = useRouter();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -30,7 +31,7 @@ export default function AdminUsersPage() {
             setUsers(data);
         } catch (error) {
             console.error('Error loading users:', error);
-            alert('사용자 목록을 불러오는데 실패했습니다.');
+            showError('사용자 목록을 불러오는데 실패했습니다.');
         } finally {
             setLoading(false);
         }
@@ -46,7 +47,7 @@ export default function AdminUsersPage() {
             setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as 'user' | 'admin' } : u));
         } catch (error) {
             console.error('Error updating role:', error);
-            alert('권한 변경 중 오류가 발생했습니다.');
+            showError('권한 변경 중 오류가 발생했습니다.');
         } finally {
             setUpdating(null);
         }

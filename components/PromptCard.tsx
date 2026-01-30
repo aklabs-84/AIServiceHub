@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Prompt } from '@/types/prompt';
 import { PromptCategoryInfo, getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaUser, FaHeart, FaRegHeart, FaTiktok, FaTwitter, FaFileAlt, FaClipboardList } from 'react-icons/fa';
+import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';

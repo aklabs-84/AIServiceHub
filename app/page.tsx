@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaFeatherAlt, FaPlus, FaRocket, FaShieldAlt, FaListUl, FaLock } from 'react-icons/fa';
+import { FaFeatherAlt, FaPlus, FaRocket, FaListUl, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 

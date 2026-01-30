@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { createCategory, deleteCategory, getAllApps, getAllComments, getAllPrompts, getAllUsers, getCategoriesByType, updateCategory, UserProfile } from '@/lib/db';
 import { AIApp } from '@/types/app';
@@ -12,7 +13,6 @@ import { CategoryRecord } from '@/types/category';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
 import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import Link from 'next/link';
-import { ADMIN_EMAIL } from '@/lib/constants';
 
 interface CreatorStat {
   userId: string;
@@ -47,6 +47,7 @@ export default AdminPage;
 
 function AdminPageContent() {
   const { user, isAdmin, loading, signInWithGoogle, signOut } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
   const [apps, setApps] = useState<AIApp[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -109,7 +110,7 @@ function AdminPageContent() {
         setUsers(usersData);
       } catch (err) {
         console.error('Failed to load admin data', err);
-        alert('관리자 데이터를 불러오는 중 오류가 발생했습니다.');
+        showError('관리자 데이터를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setLoadingData(false);
       }
@@ -133,7 +134,7 @@ function AdminPageContent() {
       setCategoryEdits(nextEdits);
     } catch (error) {
       console.error('Failed to load categories:', error);
-      alert('카테고리를 불러오는 중 오류가 발생했습니다.');
+      showError('카테고리를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoadingCategories(false);
     }
@@ -167,7 +168,7 @@ function AdminPageContent() {
       (type === 'app' ? apps : prompts).map((item) => item.category).filter(Boolean)
     );
     if (sourceValues.size === 0) {
-      alert('등록된 데이터에서 카테고리를 찾을 수 없습니다.');
+      showInfo('등록된 데이터에서 카테고리를 찾을 수 없습니다.');
       return;
     }
     setSavingCategory(true);
@@ -186,7 +187,7 @@ function AdminPageContent() {
       await loadCategories();
     } catch (error) {
       console.error('Failed to seed categories from data:', error);
-      alert('카테고리 가져오기 중 오류가 발생했습니다.');
+      showError('카테고리 가져오기 중 오류가 발생했습니다.');
     } finally {
       setSavingCategory(false);
     }
@@ -232,13 +233,13 @@ function AdminPageContent() {
     const existing = type === 'app' ? appCategories : promptCategories;
 
     if (!form.value.trim() || !form.label.trim()) {
-      alert('값과 라벨을 입력해주세요.');
+      showError('값과 라벨을 입력해주세요.');
       return;
     }
 
     // 클라이언트 사이드 중복 체크
     if (existing.some(c => c.value === form.value.trim())) {
-      alert(`이미 존재하는 '${form.value}' 값입니다.`);
+      showError(`이미 존재하는 '${form.value}' 값입니다.`);
       return;
     }
 
@@ -257,10 +258,10 @@ function AdminPageContent() {
         setPromptCategoryForm((prev) => ({ ...prev, value: '', label: '' }));
       }
       await loadCategories();
-      alert('카테고리가 성공적으로 추가되었습니다.');
+      showSuccess('카테고리가 성공적으로 추가되었습니다.');
     } catch (error) {
       console.error('Failed to create category:', error);
-      alert('카테고리 추가 중 오류가 발생했습니다. (중복된 값이거나 권한 문제일 수 있습니다)');
+      showError('카테고리 추가 중 오류가 발생했습니다. (중복된 값이거나 권한 문제일 수 있습니다)');
     } finally {
       setSavingCategory(false);
     }
@@ -368,7 +369,7 @@ function AdminPageContent() {
       await loadCategories();
     } catch (error) {
       console.error('Failed to delete category:', error);
-      alert('카테고리 삭제 중 오류가 발생했습니다.');
+      showError('카테고리 삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -395,13 +396,13 @@ function AdminPageContent() {
       }
       await loadCategories();
       if (addedCount > 0) {
-        alert(`${addedCount}개의 기본 카테고리가 추가되었습니다.`);
+        showSuccess(`${addedCount}개의 기본 카테고리가 추가되었습니다.`);
       } else {
-        alert('이미 모든 기본 카테고리가 등록되어 있습니다.');
+        showInfo('이미 모든 기본 카테고리가 등록되어 있습니다.');
       }
     } catch (error) {
       console.error('Failed to seed categories:', error);
-      alert('기본 카테고리 추가 중 오류가 발생했습니다.');
+      showError('기본 카테고리 추가 중 오류가 발생했습니다.');
     } finally {
       setSavingCategory(false);
     }
@@ -417,10 +418,10 @@ function AdminPageContent() {
     try {
       await updateCategory(category.id, edit);
       await loadCategories();
-      alert('카테고리가 수정되었습니다.');
+      showSuccess('카테고리가 수정되었습니다.');
     } catch (error) {
       console.error('Failed to update category:', error);
-      alert('카테고리 수정 중 오류가 발생했습니다. (권한 문제일 수 있습니다)');
+      showError('카테고리 수정 중 오류가 발생했습니다. (권한 문제일 수 있습니다)');
     } finally {
       setSavingCategory(false);
     }

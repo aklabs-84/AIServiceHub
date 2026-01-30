@@ -11,6 +11,7 @@ import { useAppCategories } from '@/lib/useCategories';
 import { FaPaperclip, FaSave, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
 import { sendSlackNotification } from '@/lib/notifications';
 import { uploadAppAttachment } from '@/lib/storage';
+import { useToast } from '@/contexts/ToastContext';
 
 const detectUrls = (value: string) =>
   value
@@ -40,9 +41,18 @@ const ALLOWED_ATTACHMENT_TYPES = [
 export default function NewAppPage() {
   const router = useRouter();
   const { user, signInWithGoogle } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const { categories } = useAppCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;  // Strict Mode 대응: 마운트 시 true로 설정
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   interface AppFormData {
     name: string;
     description: string;
@@ -187,7 +197,7 @@ export default function NewAppPage() {
     e.preventDefault();
 
     if (!user) {
-      alert('로그인이 필요합니다.');
+      showInfo('로그인이 필요합니다.');
       return;
     }
 
@@ -197,7 +207,7 @@ export default function NewAppPage() {
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       if (attachmentError) {
-        alert(attachmentError);
+        showError(attachmentError);
         return;
       }
       const uploadedAttachments = attachments.length
@@ -224,8 +234,10 @@ export default function NewAppPage() {
         user.id
       );
 
-      alert('앱이 등록되었습니다!');
-      router.replace(`/apps/${appId}`);
+      if (isMountedRef.current) {
+        showSuccess('앱이 등록되었습니다!');
+        router.replace(`/apps/${appId}`);
+      }
       sendSlackNotification({
         type: 'app',
         id: appId,
@@ -235,9 +247,13 @@ export default function NewAppPage() {
       });
     } catch (error) {
       console.error('Error creating app:', error);
-      alert('앱 등록 중 오류가 발생했습니다.');
+      if (isMountedRef.current) {
+        showError('앱 등록 중 오류가 발생했습니다.');
+      }
     } finally {
-      setSubmitting(false);
+      if (isMountedRef.current) {
+        setSubmitting(false);
+      }
     }
   };
 

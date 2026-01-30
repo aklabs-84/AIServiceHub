@@ -12,6 +12,7 @@ import { FaFeatherAlt, FaFilter, FaList, FaPlus, FaSearch, FaThLarge, FaUser, Fa
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function PromptsPage() {
   return (
@@ -46,33 +47,45 @@ function PromptsListContent() {
   const { categories: promptCategories, loading: loadingCategories } = usePromptCategories();
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
+  const { showError, showInfo } = useToast();
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const listControlsRef = useRef<HTMLDivElement | null>(null);
+
+  // useRef로 함수 참조 저장하여 의존성 배열에서 제거
+  const showErrorRef = useRef(showError);
+  const showInfoRef = useRef(showInfo);
+  useEffect(() => {
+    showErrorRef.current = showError;
+    showInfoRef.current = showInfo;
+  });
 
   const loadPrompts = useCallback(async (isMounted: { current: boolean }) => {
     if (!isMounted.current) return;
     setLoading(true);
-    console.log('[PromptsPage] Loading prompts started...', { category: selectedCategory });
+    let slowNoticeId: ReturnType<typeof setTimeout> | null = null;
     try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('프롬프트 목록 로딩 시간 초과')), 7000)
-      );
+      slowNoticeId = setTimeout(() => {
+        if (isMounted.current) {
+          showInfoRef.current('프롬프트 목록을 불러오는 중입니다. 잠시만 기다려 주세요.');
+        }
+      }, 7000);
 
       const fetchPromise = selectedCategory === 'all'
         ? getAllPrompts()
         : getPromptsByCategory(selectedCategory);
 
-      const data = await Promise.race([fetchPromise, timeoutPromise]) as Prompt[];
+      const data = await fetchPromise as Prompt[];
 
       if (isMounted.current) {
         setPrompts(data || []);
-        console.log(`[PromptsPage] Loading finished. ${data?.length || 0} prompts found.`);
       }
     } catch (error) {
       if (isMounted.current) {
-        console.error('[PromptsPage] Error loading prompts:', error);
+        const message = error instanceof Error ? error.message : '프롬프트 목록을 불러오는 중 오류가 발생했습니다.';
+        showErrorRef.current(message);
       }
     } finally {
+      if (slowNoticeId) clearTimeout(slowNoticeId);
       if (isMounted.current) {
         setLoading(false);
       }

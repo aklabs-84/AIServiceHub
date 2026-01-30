@@ -3,9 +3,8 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Session } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { sendSlackNotification } from '@/lib/notifications';
 import { ensureUserProfile } from '@/lib/db';
 
 interface AuthContextType {
@@ -44,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let sessionChecked = false;
 
     // 1. Get initial session with timeout safety
     const getSession = async () => {
@@ -58,16 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error fetching session:', error);
       } finally {
+        sessionChecked = true;
         if (mounted) setLoading(false);
       }
     };
 
     getSession();
 
-    // Safety timeout: if Supabase doesn't respond in 3s, stop loading
+    // Safety timeout: only trigger if session check hasn't completed
     const timeoutId = setTimeout(() => {
-      if (mounted && loading) {
+      if (mounted && !sessionChecked) {
         console.warn('Auth session check timed out, forcing loading to false');
+        setUser(null);
+        setRole(null);
         setLoading(false);
       }
     }, 3000);
@@ -116,8 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         setRole(data.role as 'user' | 'admin');
       }
-    } catch (error) {
-      console.error('Error fetching role:', error);
+    } catch {
+      // 역할 가져오기 실패 시 무시 (기본값 사용)
     }
   };
 
@@ -151,10 +154,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('로그아웃 타임아웃')), 5000)
+      );
+      await Promise.race([supabase.auth.signOut(), timeoutPromise]);
+      setUser(null);
+      setRole(null);
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      // 타임아웃 또는 에러 시에도 로컬 상태 정리
+      setUser(null);
+      setRole(null);
+      router.push('/');
     }
   };
 

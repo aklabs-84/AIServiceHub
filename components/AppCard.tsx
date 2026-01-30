@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AIApp } from '@/types/app';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useMemo, useState } from 'react';
-import { FaHeart, FaRegHeart, FaUser, FaTiktok, FaTwitter, FaFileAlt, FaClipboardList } from 'react-icons/fa';
+import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { likeApp, unlikeApp } from '@/lib/db';
 
