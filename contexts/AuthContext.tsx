@@ -116,10 +116,8 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         }
       } else {
         setRole(null);
-        if (event === 'SIGNED_OUT') {
-          setLoading(false);
-          router.refresh();
-        }
+        setLoading(false);
+        // router.refresh() 제거 - React Context 상태 변경만으로 UI 자동 업데이트
       }
     });
 
