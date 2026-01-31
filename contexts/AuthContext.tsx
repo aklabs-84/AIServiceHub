@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
-  const sessionTimeoutMs = 6000;
 
   const getRedirectTo = () => {
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
@@ -82,56 +81,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    let sessionChecked = false;
 
-    // 1. Get initial session with timeout safety
-    const getSession = async () => {
-      try {
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), sessionTimeoutMs)
-        );
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          timeoutPromise,
-        ]);
-        if (!mounted) return;
-        if (sessionResult === null) {
-          console.warn('Auth session check timed out, attempting server sync');
-          await syncSessionFromServer();
-          return;
+    const bootstrap = async () => {
+      setLoading(true);
+      const synced = await syncSessionFromServer();
+      if (!mounted) return;
+      if (!synced) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!mounted) return;
+          const currentUser = session?.user ?? null;
+          setUser(currentUser);
+          if (currentUser) {
+            await fetchUserRole(currentUser.id);
+          }
+        } catch (error) {
+          console.error('Error fetching session:', error);
         }
-
-        const { data: { session } } = sessionResult;
-        if (!mounted) return;
-
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        if (currentUser) {
-          await fetchUserRole(currentUser.id);
-        } else {
-          await syncSessionFromServer();
-        }
-      } catch (error) {
-        console.error('Error fetching session:', error);
-      } finally {
-        sessionChecked = true;
-        if (mounted) setLoading(false);
       }
+      if (mounted) setLoading(false);
     };
 
-    getSession();
+    bootstrap();
 
-    // Safety timeout: only trigger if session check hasn't completed
-    const timeoutId = setTimeout(() => {
-      if (mounted && !sessionChecked) {
-        console.warn('Auth session check timed out, forcing loading to false');
-        setUser(null);
-        setRole(null);
-        setLoading(false);
-      }
-    }, sessionTimeoutMs + 1000);
-
-    // 2. Listen for auth changes
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
@@ -166,10 +139,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [syncSessionFromServer]);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -231,13 +203,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      await supabase.auth.signOut({ scope: 'local' });
+      setUser(null);
+      setRole(null);
+      router.push('/');
+
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('로그아웃 타임아웃')), 5000)
       );
       await Promise.race([supabase.auth.signOut(), timeoutPromise]);
-      setUser(null);
-      setRole(null);
-      router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
       try {
