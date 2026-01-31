@@ -175,14 +175,12 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
 
   const signOut = async () => {
     try {
-      // 서버 쿠키 삭제
-      await fetch('/api/auth/logout', { method: 'POST' });
-      // 클라이언트 Supabase 로그아웃
       await supabase.auth.signOut();
+      // 서버 쿠키는 Supabase SSR 클라이언트가 자동으로 처리
+      // /api/auth/logout 호출 제거 - 이중 signOut 방지
     } catch (error) {
       console.error('Error signing out:', error);
     }
-    // router.push 제거 - onAuthStateChange가 SIGNED_OUT 이벤트로 UI 자동 업데이트
   };
 
   const user = session?.user ?? null;
