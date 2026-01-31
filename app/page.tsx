@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { FaFeatherAlt, FaPlus, FaRocket, FaListUl, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
