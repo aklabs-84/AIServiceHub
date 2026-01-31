@@ -88,32 +88,39 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     let mounted = true;
 
     const bootstrap = async () => {
-      // initialUser가 있으면 먼저 role만 가져오고 로딩 해제
-      if (initialUser) {
-        await fetchUserRole(initialUser.id);
-        if (mounted) setLoading(false);
-        // 백그라운드에서 세션 동기화
-        syncSessionFromServer();
-        return;
-      }
-
-      // initialUser 없으면 기존 로직
-      const synced = await syncSessionFromServer();
-      if (!mounted) return;
-      if (!synced) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!mounted) return;
-          const currentUser = session?.user ?? null;
-          setUser(currentUser);
-          if (currentUser) {
-            await fetchUserRole(currentUser.id);
+      try {
+        // initialUser가 있으면 먼저 role만 가져오고 로딩 해제
+        if (initialUser) {
+          try {
+            await fetchUserRole(initialUser.id);
+          } catch (e) {
+            console.error('Error fetching user role:', e);
           }
-        } catch (error) {
-          console.error('Error fetching session:', error);
+          // 백그라운드에서 세션 동기화 (await 하지 않음)
+          syncSessionFromServer();
+          return;
         }
+
+        // initialUser 없으면 기존 로직
+        const synced = await syncSessionFromServer();
+        if (!mounted) return;
+        if (!synced) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!mounted) return;
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            if (currentUser) {
+              await fetchUserRole(currentUser.id);
+            }
+          } catch (error) {
+            console.error('Error fetching session:', error);
+          }
+        }
+      } finally {
+        // 어떤 경우든 반드시 로딩 해제
+        if (mounted) setLoading(false);
       }
-      if (mounted) setLoading(false);
     };
 
     bootstrap();
