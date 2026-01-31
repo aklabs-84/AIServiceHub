@@ -176,6 +176,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
                 src={app.thumbnailUrl}
                 alt={app.name}
                 fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className="object-cover transition-transform duration-700 group-hover:scale-110"
                 style={thumbnailPosition}
                 onError={() => setImageError(true)}

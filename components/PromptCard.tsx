@@ -167,6 +167,7 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
               src={prompt.thumbnailUrl}
               alt={prompt.name}
               fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-700 group-hover:scale-110"
               style={{
                 objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
