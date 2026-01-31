@@ -175,6 +175,9 @@ export default function Header() {
               <MobileNavLink href="/guide" onClick={() => setMobileMenuOpen(false)}>Q&A</MobileNavLink>
               <MobileNavLink href="/request" onClick={() => setMobileMenuOpen(false)} highlight>제작 의뢰</MobileNavLink>
               <MobileNavLink href="/my" onClick={() => setMobileMenuOpen(false)}>마이페이지</MobileNavLink>
+              {user?.email === 'mosebb@gmail.com' && (
+                <MobileNavLink href="/admin" onClick={() => setMobileMenuOpen(false)}>관리자 설정</MobileNavLink>
+              )}
             </div>
 
             {!loading && !user && (
