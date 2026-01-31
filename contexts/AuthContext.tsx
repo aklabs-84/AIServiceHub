@@ -44,7 +44,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const router = useRouter();
   const [user, setUser] = useState<User | null>(initialUser);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
-  const [loading, setLoading] = useState(!initialUser);
+  const [loading, setLoading] = useState(true);
 
   const getRedirectTo = () => {
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
@@ -88,7 +88,16 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     let mounted = true;
 
     const bootstrap = async () => {
-      setLoading(true);
+      // initialUser가 있으면 먼저 role만 가져오고 로딩 해제
+      if (initialUser) {
+        await fetchUserRole(initialUser.id);
+        if (mounted) setLoading(false);
+        // 백그라운드에서 세션 동기화
+        syncSessionFromServer();
+        return;
+      }
+
+      // initialUser 없으면 기존 로직
       const synced = await syncSessionFromServer();
       if (!mounted) return;
       if (!synced) {
@@ -146,7 +155,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [syncSessionFromServer]);
+  }, [syncSessionFromServer, initialUser]);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -207,32 +216,22 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   };
 
   const signOut = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      await supabase.auth.signOut({ scope: 'local' });
-      setUser(null);
-      setRole(null);
-      router.push('/');
-      router.refresh();
+    // 먼저 로컬 상태 즉시 정리
+    setUser(null);
+    setRole(null);
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('로그아웃 타임아웃')), 5000)
-      );
-      await Promise.race([supabase.auth.signOut(), timeoutPromise]);
+    try {
+      // 서버 쿠키 삭제
+      await fetch('/api/auth/logout', { method: 'POST' });
+      // 클라이언트 Supabase 로그아웃
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (error) {
       console.error('Error signing out:', error);
-      try {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        await supabase.auth.signOut({ scope: 'local' });
-      } catch {
-        // ignore
-      }
-      // 타임아웃 또는 에러 시에도 로컬 상태 정리
-      setUser(null);
-      setRole(null);
-      router.push('/');
-      router.refresh();
     }
+
+    // 상태와 관계없이 홈으로 이동 및 새로고침
+    router.push('/');
+    router.refresh();
   };
 
   return (
