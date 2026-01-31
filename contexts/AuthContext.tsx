@@ -41,6 +41,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const getRedirectTo = () => {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    return `${base.replace(/\\/$/, '')}/auth/callback`;
+  };
+
   useEffect(() => {
     let mounted = true;
     let sessionChecked = false;
@@ -125,10 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const redirectTo = getRedirectTo();
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
+        skipBrowserRedirect: true,
       },
     });
 
@@ -136,13 +143,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error signing in with Google:', error);
       throw error;
     }
+    if (data?.url) {
+      window.location.assign(data.url);
+      return;
+    }
+    throw new Error('OAuth redirect URL is missing.');
   };
 
   const signInWithKakao = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const redirectTo = getRedirectTo();
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
+        skipBrowserRedirect: true,
       },
     });
 
@@ -150,6 +164,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error signing in with Kakao:', error);
       throw error;
     }
+    if (data?.url) {
+      window.location.assign(data.url);
+      return;
+    }
+    throw new Error('OAuth redirect URL is missing.');
   };
 
   const signOut = async () => {
