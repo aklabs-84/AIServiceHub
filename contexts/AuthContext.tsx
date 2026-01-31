@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -46,6 +46,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return `${base.replace(/\/$/, '')}/auth/callback`;
   };
 
+  const syncSessionFromServer = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/session', { cache: 'no-store' });
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (!data?.session) return false;
+
+      const { access_token, refresh_token, user: serverUser } = data.session;
+      if (!access_token || !refresh_token) return false;
+      const { data: { session } } = await supabase.auth.setSession({ access_token, refresh_token });
+      const activeUser = session?.user ?? serverUser ?? null;
+      setUser(activeUser);
+      if (activeUser) {
+        await fetchUserRole(activeUser.id);
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to sync auth session from server:', error);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     let sessionChecked = false;
@@ -56,9 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mounted) return;
 
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchUserRole(session.user.id);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          await fetchUserRole(currentUser.id);
+        } else {
+          await syncSessionFromServer();
         }
       } catch (error) {
         console.error('Error fetching session:', error);
@@ -78,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(null);
         setLoading(false);
       }
-    }, 3000);
+    }, 6000);
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -98,6 +123,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setRole(null);
+          if (event === 'SIGNED_OUT') {
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error('Error handling auth change:', error);

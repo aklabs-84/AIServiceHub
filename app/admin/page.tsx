@@ -7,6 +7,7 @@ import {
   getAllUsersServer,
   getCategoriesByTypeServer,
 } from '@/lib/dbServer';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,19 +17,7 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return (
-      <AdminClient
-        initialUserId={null}
-        initialIsAdmin={false}
-        initialApps={[]}
-        initialPrompts={[]}
-        initialComments={[]}
-        initialUsers={[]}
-        initialAppCategories={[]}
-        initialPromptCategories={[]}
-        initialDataLoaded={true}
-      />
-    );
+    redirect('/');
   }
 
   const { data: profile } = await supabase
@@ -40,19 +29,7 @@ export default async function AdminPage() {
   const isAdmin = profile?.role === 'admin';
 
   if (!isAdmin) {
-    return (
-      <AdminClient
-        initialUserId={user.id}
-        initialIsAdmin={false}
-        initialApps={[]}
-        initialPrompts={[]}
-        initialComments={[]}
-        initialUsers={[]}
-        initialAppCategories={[]}
-        initialPromptCategories={[]}
-        initialDataLoaded={true}
-      />
-    );
+    redirect('/');
   }
 
   const [apps, prompts, comments, users, appCategories, promptCategories] = await Promise.all([
