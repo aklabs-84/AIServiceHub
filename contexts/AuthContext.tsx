@@ -55,19 +55,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data?.session) return false;
 
       const { access_token, refresh_token, user: serverUser } = data.session;
-      if (!access_token || !refresh_token) return false;
-      const { data: { session } } = await supabase.auth.setSession({ access_token, refresh_token });
-      const activeUser = session?.user ?? serverUser ?? null;
-      setUser(activeUser);
+      const activeUser = serverUser ?? null;
+      if (activeUser) {
+        setUser(activeUser);
+      }
+      if (access_token && refresh_token) {
+        const { data: { session } } = await supabase.auth.setSession({ access_token, refresh_token });
+        const mergedUser = session?.user ?? activeUser;
+        setUser(mergedUser);
+        if (mergedUser) {
+          await fetchUserRole(mergedUser.id);
+        }
+        router.refresh();
+        return true;
+      }
       if (activeUser) {
         await fetchUserRole(activeUser.id);
+        router.refresh();
       }
-      return true;
+      return !!activeUser;
     } catch (error) {
       console.error('Failed to sync auth session from server:', error);
       return false;
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let mounted = true;
@@ -136,10 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const displayName = user_metadata.full_name || user_metadata.name;
             await ensureUserProfile(id, email, displayName);
           }
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            router.refresh();
+          }
         } else {
           setRole(null);
           if (event === 'SIGNED_OUT') {
             setUser(null);
+            router.refresh();
           }
         }
       } catch (error) {
