@@ -1,9 +1,9 @@
 
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { ensureUserProfile } from '@/lib/db';
 
@@ -42,7 +42,7 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(initialUser);
+  const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,119 +50,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
     return `${base.replace(/\/$/, '')}/auth/callback`;
   };
-
-  const syncSessionFromServer = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/session', { cache: 'no-store' });
-      if (!response.ok) return false;
-      const data = await response.json();
-      if (!data?.session) return false;
-
-      const { access_token, refresh_token, user: serverUser } = data.session;
-      const activeUser = serverUser ?? null;
-      if (activeUser) {
-        setUser(activeUser);
-      }
-      if (access_token && refresh_token) {
-        const { data: { session } } = await supabase.auth.setSession({ access_token, refresh_token });
-        const mergedUser = session?.user ?? activeUser;
-        setUser(mergedUser);
-        if (mergedUser) {
-          await fetchUserRole(mergedUser.id);
-        }
-        router.refresh();
-        return true;
-      }
-      if (activeUser) {
-        await fetchUserRole(activeUser.id);
-        router.refresh();
-      }
-      return !!activeUser;
-    } catch (error) {
-      console.error('Failed to sync auth session from server:', error);
-      return false;
-    }
-  }, [router]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const bootstrap = async () => {
-      try {
-        // initialUser가 있으면 먼저 role만 가져오고 로딩 해제
-        if (initialUser) {
-          try {
-            await fetchUserRole(initialUser.id);
-          } catch (e) {
-            console.error('Error fetching user role:', e);
-          }
-          // 백그라운드에서 세션 동기화 (await 하지 않음)
-          syncSessionFromServer();
-          return;
-        }
-
-        // initialUser 없으면 기존 로직
-        const synced = await syncSessionFromServer();
-        if (!mounted) return;
-        if (!synced) {
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!mounted) return;
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            if (currentUser) {
-              await fetchUserRole(currentUser.id);
-            }
-          } catch (error) {
-            console.error('Error fetching session:', error);
-          }
-        }
-      } finally {
-        // 어떤 경우든 반드시 로딩 해제
-        if (mounted) setLoading(false);
-      }
-    };
-
-    bootstrap();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      try {
-        if (currentUser) {
-          await fetchUserRole(currentUser.id);
-
-          if (event === 'SIGNED_IN') {
-            const { id, email, user_metadata } = currentUser;
-            const displayName = user_metadata.full_name || user_metadata.name;
-            await ensureUserProfile(id, email, displayName);
-          }
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            router.refresh();
-          }
-        } else {
-          setRole(null);
-          if (event === 'SIGNED_OUT') {
-            setUser(null);
-            router.refresh();
-          }
-        }
-      } catch (error) {
-        console.error('Error handling auth change:', error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [syncSessionFromServer, initialUser]);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -172,13 +59,79 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         .eq('id', userId)
         .single();
 
-      if (data) {
+      if (error) {
+        console.warn('[Auth] Role fetch error:', error.message);
+        if (error.code === 'PGRST116') {
+          // Profile not found, create default
+          const { data: newData, error: insertError } = await supabase
+            .from('profiles')
+            .upsert({ id: userId, role: 'user' })
+            .select('role')
+            .single();
+
+          if (!insertError && newData) {
+            setRole(newData.role as 'user' | 'admin');
+          } else {
+            setRole('user');
+          }
+        } else {
+          setRole('user');
+        }
+      } else if (data) {
         setRole(data.role as 'user' | 'admin');
       }
-    } catch {
-      // 역할 가져오기 실패 시 무시 (기본값 사용)
+    } catch (e) {
+      console.error('[Auth] fetchUserRole exception:', e);
+      setRole('user');
     }
   };
+
+  // 초기 세션 로드 및 auth 변경 리스너
+  useEffect(() => {
+    // 1. 초기 세션 가져오기
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserRole(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // 2. Auth 변경 리스너
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+
+      if (session?.user) {
+        await fetchUserRole(session.user.id);
+
+        if (event === 'SIGNED_IN') {
+          const { id, email, user_metadata } = session.user;
+          const displayName = user_metadata.full_name || user_metadata.name;
+          await ensureUserProfile(id, email, displayName);
+          router.refresh();
+        }
+        if (event === 'TOKEN_REFRESHED') {
+          router.refresh();
+        }
+      } else {
+        setRole(null);
+        if (event === 'SIGNED_OUT') {
+          setLoading(false);
+          router.refresh();
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  // 로딩 상태 관리: session과 role이 모두 확정되면 로딩 해제
+  useEffect(() => {
+    if (session === null || (session && role)) {
+      setLoading(false);
+    }
+  }, [session, role]);
 
   const signInWithGoogle = async () => {
     const redirectTo = getRedirectTo();
@@ -223,23 +176,18 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   };
 
   const signOut = async () => {
-    // 먼저 로컬 상태 즉시 정리
-    setUser(null);
-    setRole(null);
-
     try {
       // 서버 쿠키 삭제
       await fetch('/api/auth/logout', { method: 'POST' });
       // 클라이언트 Supabase 로그아웃
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     }
-
-    // 상태와 관계없이 홈으로 이동 및 새로고침
     router.push('/');
-    router.refresh();
   };
+
+  const user = session?.user ?? null;
 
   return (
     <AuthContext.Provider value={{ user, role, isAdmin: role === 'admin', loading, signInWithGoogle, signInWithKakao, signOut }}>

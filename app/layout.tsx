@@ -6,7 +6,6 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OneTimeAccessProvider } from "@/contexts/OneTimeAccessContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import Header from "@/components/Header";
-import { createSupabaseServerClientReadOnly } from "@/lib/supabaseServer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,13 +49,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createSupabaseServerClientReadOnly();
-  const { data: { user } } = await supabase.auth.getUser();
 
   return (
     <html lang="ko" suppressHydrationWarning>
@@ -82,7 +79,7 @@ export default async function RootLayout({
         <ThemeProvider>
           <ToastProvider>
             <OneTimeAccessProvider>
-              <AuthProvider initialUser={user ?? null}>
+              <AuthProvider>
                 <Header />
                 <main className="min-h-screen">
                   {children}
