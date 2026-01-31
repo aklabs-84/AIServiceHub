@@ -22,3 +22,19 @@ export const createSupabaseServerClient = async () => {
     },
   });
 };
+
+// Read-only client for server components where cookies cannot be mutated (e.g., layout)
+export const createSupabaseServerClientReadOnly = async () => {
+  const cookieStore = await cookies();
+  return createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      get: (name) => cookieStore.get(name)?.value,
+      set: () => {
+        // no-op: avoid modifying cookies in layouts
+      },
+      remove: () => {
+        // no-op: avoid modifying cookies in layouts
+      },
+    },
+  });
+};

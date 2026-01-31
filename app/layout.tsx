@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OneTimeAccessProvider } from "@/contexts/OneTimeAccessContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import Header from "@/components/Header";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createSupabaseServerClientReadOnly } from "@/lib/supabaseServer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,7 +55,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClientReadOnly();
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
