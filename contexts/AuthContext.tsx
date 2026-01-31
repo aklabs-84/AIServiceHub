@@ -111,9 +111,8 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           await ensureUserProfile(id, email, displayName);
           router.refresh();
         }
-        if (event === 'TOKEN_REFRESHED') {
-          router.refresh();
-        }
+        // TOKEN_REFRESHED에서 router.refresh() 제거 - 무한 루프 방지
+        // 토큰 갱신은 Supabase가 자동 처리하므로 페이지 새로고침 불필요
       } else {
         setRole(null);
         setLoading(false);
