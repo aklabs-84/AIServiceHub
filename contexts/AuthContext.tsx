@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
+  const sessionTimeoutMs = 6000;
 
   const getRedirectTo = () => {
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
@@ -75,7 +76,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Get initial session with timeout safety
     const getSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), sessionTimeoutMs)
+        );
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          timeoutPromise,
+        ]);
+        if (!mounted) return;
+        if (sessionResult === null) {
+          console.warn('Auth session check timed out, attempting server sync');
+          await syncSessionFromServer();
+          return;
+        }
+
+        const { data: { session } } = sessionResult;
         if (!mounted) return;
 
         const currentUser = session?.user ?? null;
@@ -103,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(null);
         setLoading(false);
       }
-    }, 6000);
+    }, sessionTimeoutMs + 1000);
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -210,6 +225,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // ignore
+      }
       // 타임아웃 또는 에러 시에도 로컬 상태 정리
       setUser(null);
       setRole(null);
