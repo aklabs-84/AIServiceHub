@@ -577,7 +577,8 @@ function AdminPageContent({
     );
   }
 
-  if (!isAdmin) {
+  // 서버에서 이미 권한 검증 완료 - initialIsAdmin을 신뢰
+  if (!initialIsAdmin) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-red-50 text-red-500 mb-4">
