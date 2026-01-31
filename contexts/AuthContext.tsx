@@ -208,10 +208,12 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
 
   const signOut = async () => {
     try {
+      await fetch('/api/auth/logout', { method: 'POST' });
       await supabase.auth.signOut({ scope: 'local' });
       setUser(null);
       setRole(null);
       router.push('/');
+      router.refresh();
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('로그아웃 타임아웃')), 5000)
@@ -220,6 +222,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     } catch (error) {
       console.error('Error signing out:', error);
       try {
+        await fetch('/api/auth/logout', { method: 'POST' });
         await supabase.auth.signOut({ scope: 'local' });
       } catch {
         // ignore
@@ -228,6 +231,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       setUser(null);
       setRole(null);
       router.push('/');
+      router.refresh();
     }
   };
 
