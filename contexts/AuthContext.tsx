@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getRedirectTo = () => {
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    return `${base.replace(/\\/$/, '')}/auth/callback`;
+    return `${base.replace(/\/$/, '')}/auth/callback`;
   };
 
   useEffect(() => {
