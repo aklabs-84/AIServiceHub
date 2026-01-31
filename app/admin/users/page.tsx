@@ -1,6 +1,7 @@
 import AdminUsersClient from './AdminUsersClient';
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import { getAllUsersServer } from '@/lib/dbServer';
+import type { UserProfile } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -8,7 +9,7 @@ export const revalidate = 0;
 export default async function AdminUsersPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  let initialUsers = [];
+  let initialUsers: UserProfile[] = [];
   let initialIsAdmin = false;
 
   if (user?.id) {
