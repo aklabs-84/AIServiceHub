@@ -35,11 +35,16 @@ export const useAuth = () => {
   return context;
 };
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+type AuthProviderProps = {
+  children: React.ReactNode;
+  initialUser?: User | null;
+};
+
+export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(initialUser);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialUser);
 
   const getRedirectTo = () => {
     const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
