@@ -184,7 +184,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     } catch (error) {
       console.error('Error signing out:', error);
     }
-    router.push('/');
+    // router.push 제거 - onAuthStateChange가 SIGNED_OUT 이벤트로 UI 자동 업데이트
   };
 
   const user = session?.user ?? null;
