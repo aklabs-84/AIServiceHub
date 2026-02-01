@@ -7,14 +7,26 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { RiKakaoTalkFill } from 'react-icons/ri';
 import { FcGoogle } from 'react-icons/fc';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Header() {
+  const router = useRouter();
   const { user, loading, signInWithGoogle, signInWithKakao, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  /* 
+    Homepage specific: Force refresh to clear stale server cache on mount 
+    This fixes the issue where homepage stays in "logged in" state visuals after logout
+  */
+  useEffect(() => {
+    if (window.location.pathname === '/') {
+      router.refresh();
+    }
+  }, [router, user]); // Re-run when user state changes
 
+  return (
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-gray-950/70 border-b border-gray-200/50 dark:border-gray-800/50 transition-colors duration-300">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
