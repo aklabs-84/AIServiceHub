@@ -233,11 +233,16 @@ function AdminPageContent({
   useEffect(() => {
     if (loading) return;
     const currentUserId = user?.id ?? null;
-    // userId가 바뀐 경우에만 reload (다른 유저로 로그인한 경우)
-    // isAdmin 비교 제거: 서버에서 이미 권한 검증 완료, 클라이언트 role 비동기 로딩으로 인한 깜빡임 방지
+    // userId가 바뀐 경우 처리
     if (currentUserId !== initialUserId) {
-      setLoadingData(true);
-      window.location.reload();
+      if (!currentUserId) {
+        // 로그아웃 된 경우: 무한 리로드 방지를 위해 홈으로 이동 (리로드 X)
+        window.location.href = '/';
+      } else {
+        // 다른 계정으로 변경된 경우: 데이터 갱신을 위해 리로드
+        setLoadingData(true);
+        window.location.reload();
+      }
     }
   }, [loading, user?.id, initialUserId]);
 

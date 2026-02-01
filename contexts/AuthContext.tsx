@@ -131,12 +131,12 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   }, [session, role]);
 
   const signInWithGoogle = async () => {
-    const redirectTo = getRedirectTo();
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const currentPath = window.location.pathname + window.location.search;
+    const redirectTo = `${getRedirectTo()}?next=${encodeURIComponent(currentPath)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
-        skipBrowserRedirect: true,
       },
     });
 
@@ -144,20 +144,15 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       console.error('Error signing in with Google:', error);
       throw error;
     }
-    if (data?.url) {
-      window.location.assign(data.url);
-      return;
-    }
-    throw new Error('OAuth redirect URL is missing.');
   };
 
   const signInWithKakao = async () => {
-    const redirectTo = getRedirectTo();
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const currentPath = window.location.pathname + window.location.search;
+    const redirectTo = `${getRedirectTo()}?next=${encodeURIComponent(currentPath)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
         redirectTo,
-        skipBrowserRedirect: true,
       },
     });
 
@@ -165,11 +160,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       console.error('Error signing in with Kakao:', error);
       throw error;
     }
-    if (data?.url) {
-      window.location.assign(data.url);
-      return;
-    }
-    throw new Error('OAuth redirect URL is missing.');
   };
 
   const signOut = async () => {

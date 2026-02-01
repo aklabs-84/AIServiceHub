@@ -44,7 +44,7 @@ export default function AppDetailClient({
 
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin, signInWithGoogle } = useAuth();
+  const { user, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories } = useAppCategories();
@@ -217,7 +217,6 @@ export default function AppDetailClient({
       setDownloadingPath(null);
     }
   };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -385,7 +384,6 @@ export default function AppDetailClient({
                 {app.description || ''}
               </ReactMarkdown>
             </div>
-
             {/* 메타 정보 */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-4">
@@ -422,12 +420,20 @@ export default function AppDetailClient({
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     로그인 후 URL을 확인할 수 있습니다.
                   </p>
-                  <button
-                    onClick={signInWithGoogle}
-                    className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
-                  >
-                    Google 로그인
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={signInWithKakao}
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#FEE500] text-black text-sm font-semibold hover:bg-[#FDD835] transition"
+                    >
+                      Kakao 로그인
+                    </button>
+                    <button
+                      onClick={signInWithGoogle}
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
+                    >
+                      Google 로그인
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-3">
@@ -591,7 +597,6 @@ export default function AppDetailClient({
             </div>
           </div>
         </div>
-
         {/* 댓글 */}
         <div className="mt-12 bg-white dark:bg-gray-900 rounded-2xl shadow-md border border-gray-200 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -723,3 +728,4 @@ export default function AppDetailClient({
     </div>
   );
 }
+

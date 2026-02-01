@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { addComment, deleteComment, getComments, getPromptById, updateComment } from '@/lib/db';
+import { addComment, deleteComment, getComments, getPromptById, updateComment, likePrompt, unlikePrompt } from '@/lib/db';
 import { Prompt } from '@/types/prompt';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
-import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck } from 'react-icons/fa';
+import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -82,21 +82,28 @@ export default function PromptDetailClient({
 
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin, signInWithGoogle } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { user, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
+  const { showSuccess, showError, showWarning } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
-  const { categories: promptCategories } = usePromptCategories();
+  const { categories } = usePromptCategories();
   const [prompt, setPrompt] = useState<Prompt | null>(initialPrompt);
   const [loading, setLoading] = useState(!initialPrompt);
-  const [imageError, setImageError] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(initialPrompt?.likeCount ?? 0);
+  const [isLiking, setIsLiking] = useState(false);
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [commentPage, setCommentPage] = useState(1);
   const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+
+  const thumbnailPosition = prompt
+    ? { objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%` }
+    : undefined;
 
   const loadPrompt = useCallback(async () => {
     setLoading(true);
@@ -128,6 +135,13 @@ export default function PromptDetailClient({
       loadComments();
     }
   }, [loadPrompt, loadComments, initialPrompt, initialCommentsLoaded]);
+
+  useEffect(() => {
+    if (prompt) {
+      setIsLiked(user ? prompt.likes.includes(user.id) : false);
+      setLikeCount(prompt.likeCount);
+    }
+  }, [prompt, user]);
 
   useEffect(() => {
     const total = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
@@ -181,6 +195,67 @@ export default function PromptDetailClient({
     }
   };
 
+  const handleLike = async () => {
+    if (!user || !prompt || isLiking) return;
+
+    setIsLiking(true);
+    try {
+      if (isLiked) {
+        await unlikePrompt(prompt.id, user.id);
+        setIsLiked(false);
+        setLikeCount(prev => prev - 1);
+      } else {
+        await likePrompt(prompt.id, user.id);
+        setIsLiked(true);
+        setLikeCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!prompt || !user) return;
+
+    if (!confirm('정말 이 프롬프트를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deletePrompt(prompt.id);
+      showSuccess('프롬프트가 삭제되었습니다.');
+      const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
+      router.push(lastUrl || '/prompts');
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      showError('프롬프트 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
+    if (!user) {
+      showWarning('로그인 후 다운로드할 수 있습니다.');
+      return;
+    }
+    setDownloadingPath(storagePath);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
+      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
+    } catch (error) {
+      console.error('Failed to download attachment:', error);
+      showError('첨부 파일 다운로드 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPath(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -195,14 +270,14 @@ export default function PromptDetailClient({
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
           프롬프트를 찾을 수 없습니다
         </h1>
-        <Link href="/prompts" className="text-emerald-600 hover:underline">
-          프롬프트 목록으로 돌아가기
+        <Link href="/" className="text-emerald-600 hover:underline">
+          홈으로 돌아가기
         </Link>
       </div>
     );
   }
 
-  const categoryInfo = getPromptCategoryInfo(prompt.category, promptCategories);
+  const categoryInfo = getPromptCategoryInfo(prompt.category, categories);
   const CategoryIcon = categoryInfo.icon;
   const isOwner = user?.id === prompt.createdBy || isAdmin;
   const isPublic = prompt.isPublic ?? true;
@@ -232,115 +307,51 @@ export default function PromptDetailClient({
     return { label: '', url: entry };
   });
 
-  const totalCommentPages = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
-  const startIdx = (commentPage - 1) * COMMENTS_PER_PAGE;
-  const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
-
   const getLinkPreview = (url: string, label?: string) => {
-    const blogFallback = '/naver-blog.svg';
-    const etcFallback = '/blog-placeholder.svg';
-    const instagramFallback = '/instagram-icon.svg';
-    const youtubeFallback = '/youtube.svg';
+    const blogFallback = '/blog-placeholder.svg';
     const defaultFallback = '/globe.svg';
 
     const labelText = (label || '').trim();
     const isEtcLink = labelText === '링크';
 
-    const extractUrl = (raw: string) => {
-      const httpMatch = raw.match(/https?:\/\/[^\s]+/);
-      if (httpMatch) return httpMatch[0];
-      const afterColon = raw.split(':').slice(1).join(':').trim();
-      if (afterColon) return afterColon;
-      return raw.trim();
-    };
-
-    const normalizeUrl = (raw: string) => {
-      try {
-        return new URL(raw);
-      } catch {
-        return new URL(`https://${raw}`);
-      }
-    };
-
     try {
-      const parsed = normalizeUrl(extractUrl(url));
+      const parsed = new URL(url);
       const hostname = parsed.hostname.replace('www.', '');
       const host = hostname.toLowerCase();
       const isBlog = host.includes('blog.') || host.includes('naver.com') || host.includes('tistory') || host.includes('medium.com');
-      const isInstagram = host.includes('instagram.com');
-      const isYoutube = host.includes('youtube.com') || host.includes('youtu.be');
-
       const useBlogPlaceholder = isEtcLink || isBlog;
+      const fallback = useBlogPlaceholder ? blogFallback : defaultFallback;
 
-      const fallback = isInstagram
-        ? instagramFallback
-        : useBlogPlaceholder
-          ? isEtcLink ? etcFallback : blogFallback
-          : isYoutube
-            ? youtubeFallback
-            : defaultFallback;
-      const favicon = isInstagram || useBlogPlaceholder || isYoutube
-        ? fallback
+      let icon = 'default';
+      if (hostname.includes('instagram.com')) icon = 'instagram';
+      else if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) icon = 'youtube';
+      else if (isBlog) icon = isEtcLink ? 'blog-placeholder' : 'blog';
+
+      const favicon = useBlogPlaceholder
+        ? blogFallback
         : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
 
-      const icon = isInstagram
-        ? 'instagram'
-        : useBlogPlaceholder
-          ? isEtcLink
-            ? 'blog-placeholder'
-            : 'blog'
-          : isYoutube
-            ? 'youtube'
-            : undefined;
       return { hostname, favicon, fallback, icon };
     } catch {
-      const fallback = isEtcLink ? etcFallback : defaultFallback;
       return {
         hostname: url,
-        favicon: fallback,
-        fallback,
+        favicon: isEtcLink ? blogFallback : defaultFallback,
+        fallback: isEtcLink ? blogFallback : defaultFallback,
+        icon: 'default'
       };
     }
   };
 
-  const handleDelete = async () => {
-    if (!prompt || !isOwner) return;
-    if (!confirm('정말 이 프롬프트를 삭제하시겠습니까?')) return;
-    setDeleting(true);
-    try {
-      await deletePrompt(prompt.id);
-      showSuccess('프롬프트가 삭제되었습니다.');
-      const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
-      router.push(lastUrl || '/prompts');
-    } catch (error) {
-      console.error('Error deleting prompt:', error);
-      showError('삭제 중 오류가 발생했습니다.');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleDownloadAttachment = async (storagePath: string, filename: string, fallbackUrl?: string) => {
-    if (!user) return;
-    setDownloadingPath(storagePath);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const idToken = session?.access_token;
-      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
-    } catch (error) {
-      console.error('Error generating download link:', error);
-      showError('다운로드 링크 생성 중 오류가 발생했습니다.');
-    } finally {
-      setDownloadingPath(null);
-    }
-  };
+  // 상세 정보 표시
+  const totalCommentPages = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
+  const startIdx = (commentPage - 1) * COMMENTS_PER_PAGE;
+  const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
 
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-800">
-          <div className="relative w-full h-64 bg-gradient-to-br from-emerald-200 to-blue-200 dark:from-emerald-900/30 dark:to-blue-900/20">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-800">
+          <div className="relative w-full h-64 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/40 dark:to-teal-900/40">
             {prompt.thumbnailUrl && !imageError ? (
               <Image
                 src={prompt.thumbnailUrl}
@@ -348,81 +359,84 @@ export default function PromptDetailClient({
                 fill
                 sizes="100vw"
                 className="object-cover"
-                style={{
-                  objectPosition: `${prompt.thumbnailPositionX ?? 50}% ${prompt.thumbnailPositionY ?? 50}%`,
-                }}
+                style={thumbnailPosition}
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <CategoryIcon className="text-white text-7xl drop-shadow-lg" />
+              <div className={`w-full h-full flex items-center justify-center ${categoryInfo.color.replace('bg-', 'text-').replace('100', '500')}`}>
+                <CategoryIcon className="text-8xl opacity-50" />
               </div>
             )}
-            <div className="absolute top-4 right-4">
-              <span className="px-4 py-2 rounded-full bg-white/80 dark:bg-gray-900/80 text-gray-800 dark:text-gray-100 text-sm font-semibold shadow">
-                {categoryInfo.label}
-              </span>
-            </div>
           </div>
 
-          <div className="p-8 space-y-6">
+          <div className="p-8">
             <button
               onClick={() => {
                 const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
                 if (lastUrl) router.push(lastUrl);
                 else router.push('/prompts');
               }}
-              className="group inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
+              className="group mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95"
             >
               <FaChevronLeft className="group-hover:-translate-x-1 transition-transform" />
               <span>목록으로 돌아가기</span>
             </button>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center text-white">
-                    <FaFeatherAlt />
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      <FaUser className="text-emerald-500" />
-                      <span>{prompt.createdByName}</span>
-                    </div>
-                    <span className="text-gray-300 dark:text-gray-700">•</span>
-                    <div className="flex items-center space-x-2">
-                      <FaCalendar className="text-emerald-400" />
-                      <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR')}</span>
-                    </div>
-                  </div>
-                </div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-4">
-                  {prompt.name}
-                </h1>
-
-                {/* 태그 영역 */}
-                {prompt.tags && prompt.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {prompt.tags.map((tag) => (
-                      <Link
-                        key={tag}
-                        href={`/prompts?tag=${encodeURIComponent(tag)}`}
-                        className="text-sm px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all font-medium"
-                      >
-                        #{tag}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+                {prompt.name}
+              </h1>
+              <span className={`px-4 py-2 rounded-full text-white bg-emerald-500`}>
+                {categoryInfo.label}
+              </span>
             </div>
 
-            <div className="prose prose-emerald dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+            {/* 태그 영역 */}
+            {prompt.tags && prompt.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {prompt.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/prompts?tag=${encodeURIComponent(tag)}`}
+                    className="text-sm px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all font-medium"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <div className="prose prose-slate dark:prose-invert max-w-none text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {prompt.description}
+                {prompt.description || ''}
               </ReactMarkdown>
             </div>
+            {/* 메타 정보 */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                  <FaUser className="text-purple-500" />
+                  <span>{prompt.createdByName}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                  <FaCalendar className="text-emerald-500" />
+                  <span>{new Date(prompt.createdAt).toLocaleDateString('ko-KR')}</span>
+                </div>
+              </div>
+              <button
+                onClick={handleLike}
+                disabled={isLiking}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${isLiked
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  } ${isLiking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isLiked ? <FaHeart /> : <FaRegHeart />}
+                <span className="font-semibold">{likeCount}</span>
+              </button>
+            </div>
 
-            <div className="space-y-4">
+            {/* 프롬프트 내용 (잠금/해제) */}
+            <div className="mb-6 space-y-4">
               {user ? (
                 <>
                   <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
@@ -430,26 +444,24 @@ export default function PromptDetailClient({
                       <FaLink />
                       <span>프롬프트 본문</span>
                     </h2>
-                    <div className="relative group">
+                    <div className="prose prose-sm max-w-none text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800/50 font-mono whitespace-pre-wrap leading-relaxed relative overflow-hidden">
+                      {prompt.promptContent}
+                    </div>
+                    <div className="flex justify-end mt-2">
                       <button
-                        type="button"
                         onClick={async () => {
                           try {
                             await navigator.clipboard.writeText(prompt.promptContent);
-                            setCopiedBlock('prompt-content');
-                            setTimeout(() => setCopiedBlock((prev) => (prev === 'prompt-content' ? null : prev)), 1200);
-                          } catch (error) {
-                            console.error('Failed to copy prompt content:', error);
+                            showSuccess('프롬프트가 복사되었습니다.');
+                          } catch (err) {
+                            showError('복사에 실패했습니다.');
                           }
                         }}
-                        className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition text-xs font-semibold"
                       >
-                        {copiedBlock === 'prompt-content' ? <FaCheck /> : <FaCopy />}
-                        <span>{copiedBlock === 'prompt-content' ? '복사됨' : '복사'}</span>
+                        <FaCopy />
+                        <span>전체 복사</span>
                       </button>
-                      <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800 whitespace-pre-wrap">
-                        <code>{prompt.promptContent}</code>
-                      </pre>
                     </div>
                   </div>
 
@@ -489,85 +501,97 @@ export default function PromptDetailClient({
                   </div>
                 </>
               ) : (
-                <div className="p-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-                    <FaLock />
+                <div className="p-6 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-200 shrink-0">
+                    <FaLock className="text-2xl" />
                   </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">로그인 후 프롬프트 본문을 볼 수 있습니다</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">프롬프트 본문과 첨부 파일은 로그인 후 확인할 수 있습니다.</p>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
+                      로그인 후 전체 내용을 확인하세요
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      프롬프트 본문과 첨부 파일을 확인하려면 로그인이 필요합니다.
+                    </p>
                   </div>
-                  <button
-                    onClick={signInWithGoogle}
-                    className="px-5 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold shadow hover:opacity-90 transition"
-                  >
-                    Google 로그인
-                  </button>
+                  <div className="flex flex-col gap-2 min-w-[140px]">
+                    <button
+                      onClick={signInWithKakao}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-[#FEE500] text-black text-sm font-bold shadow hover:bg-[#FDD835] transition"
+                    >
+                      Kakao 로그인
+                    </button>
+                    <button
+                      onClick={signInWithGoogle}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 text-sm font-bold shadow hover:bg-gray-50 transition"
+                    >
+                      Google 로그인
+                    </button>
+                  </div>
                 </div>
               )}
+            </div>
 
-              <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center space-x-2">
-                  <FaExternalLinkAlt />
-                  <span>SNS / 채널</span>
-                </h2>
-                {parsedSns.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
-                ) : (
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    {parsedSns.map((item, idx) => {
-                      const preview = getLinkPreview(item.url, item.label);
-                      const renderIcon = () => {
-                        switch (preview.icon) {
-                          case 'instagram':
-                            return <Image src="/instagram-icon.svg" alt="Instagram" fill sizes="40px" className="object-contain" />;
-                          case 'blog-placeholder':
-                            return <Image src={preview.favicon} alt="Blog link" fill sizes="40px" className="object-contain" />;
-                          case 'blog':
-                            return <Image src="/naver-blog.svg" alt="Naver Blog" fill sizes="40px" className="object-contain" />;
-                          case 'youtube':
-                            return <Image src="/youtube.svg" alt="YouTube" fill sizes="40px" className="object-contain" />;
-                          default:
-                            return (
-                              <Image
-                                src={preview.favicon}
-                                alt={item.label || preview.hostname}
-                                fill
-                                sizes="40px"
-                                className="object-contain"
-                                onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  if (!target.src.includes(preview.fallback)) {
-                                    target.src = preview.fallback;
-                                  }
-                                }}
-                              />
-                            );
-                        }
-                      };
-                      return (
-                        <a
-                          key={idx}
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition"
-                        >
-                          <div className="relative h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                            {renderIcon()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                              {item.label || preview.hostname}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{preview.hostname}</p>
-                          </div>
-                        </a>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+            <div className="mb-6 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center space-x-2">
+                <FaExternalLinkAlt />
+                <span>SNS / 채널</span>
+              </h2>
+              {parsedSns.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">등록된 SNS 링크가 없습니다.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {parsedSns.map((item, idx) => {
+                    const preview = getLinkPreview(item.url, item.label);
+                    const renderIcon = () => {
+                      switch (preview.icon) {
+                        case 'instagram':
+                          return <Image src="/instagram-icon.svg" alt="Instagram" fill sizes="40px" className="object-contain" />;
+                        case 'blog-placeholder':
+                          return <Image src={preview.favicon} alt="Blog link" fill sizes="40px" className="object-contain" />;
+                        case 'blog':
+                          return <Image src="/naver-blog.svg" alt="Naver Blog" fill sizes="40px" className="object-contain" />;
+                        case 'youtube':
+                          return <Image src="/youtube.svg" alt="YouTube" fill sizes="40px" className="object-contain" />;
+                        default:
+                          return (
+                            <Image
+                              src={preview.favicon}
+                              alt={item.label || preview.hostname}
+                              fill
+                              sizes="40px"
+                              className="object-contain"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                if (!target.src.includes(preview.fallback)) {
+                                  target.src = preview.fallback;
+                                }
+                              }}
+                            />
+                          );
+                      }
+                    };
+                    return (
+                      <a
+                        key={idx}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:shadow-md transition"
+                      >
+                        <div className="relative h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                          {renderIcon()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                            {item.label || preview.hostname}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{preview.hostname}</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
@@ -593,7 +617,6 @@ export default function PromptDetailClient({
             </div>
           </div>
         </div>
-
         {/* 댓글 */}
         <div className="mt-12 bg-white dark:bg-gray-900 rounded-2xl shadow-md border border-gray-200 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -725,3 +748,4 @@ export default function PromptDetailClient({
     </div>
   );
 }
+
