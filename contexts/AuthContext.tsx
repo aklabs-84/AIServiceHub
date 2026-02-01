@@ -137,6 +137,9 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       provider: 'google',
       options: {
         redirectTo,
+        queryParams: {
+          prompt: 'select_account',
+        },
       },
     });
 
