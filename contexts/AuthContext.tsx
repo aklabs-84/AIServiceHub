@@ -168,6 +168,11 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       await supabase.auth.signOut();
       // 2. 서버 쿠키 삭제 (서버에서는 signOut 안 함, 쿠키만 삭제)
       await fetch('/api/auth/logout', { method: 'POST' });
+
+      // 3. 로컬 스토리지 강제 삭제 (Supabase 키 포함)
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+      }
     } catch (error) {
       console.error('Error signing out:', error);
     }
