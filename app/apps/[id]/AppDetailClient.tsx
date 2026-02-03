@@ -14,9 +14,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
+import { startTransition } from 'react';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { downloadAppAttachment } from '@/lib/storage';
+import { formatFileSize } from '@/lib/format';
 import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
@@ -502,7 +504,7 @@ export default function AppDetailClient({
                       <div className="min-w-0">
                         <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
+                          {formatFileSize(file.size)} · {file.contentType || '파일'}
                         </p>
                       </div>
                       <button

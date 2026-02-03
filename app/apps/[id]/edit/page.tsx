@@ -11,6 +11,7 @@ import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLi
 import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
+import { formatFileSize } from '@/lib/format';
 
 const detectUrls = (value: string) =>
   value
@@ -600,7 +601,7 @@ export default function EditAppPage() {
                     className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
                   >
                     <span className="truncate">
-                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                      {file.name} · {formatFileSize(file.size)}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -635,7 +636,7 @@ export default function EditAppPage() {
                     className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
                   >
                     <span className="truncate">
-                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                      {file.name} · {formatFileSize(file.size)}
                     </span>
                     <button
                       type="button"

@@ -19,6 +19,7 @@ import remarkGfm from 'remark-gfm';
 import { Comment } from '@/types/comment';
 import { downloadPromptAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
+import { formatFileSize } from '@/lib/format';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -138,6 +139,8 @@ export default function PromptDetailClient({
 
   useEffect(() => {
     if (prompt) {
+      console.log('[PromptDetail] Loaded prompt:', prompt);
+      console.log('[PromptDetail] Attachments:', prompt.attachments);
       setIsLiked(user ? prompt.likes.includes(user.id) : false);
       setLikeCount(prompt.likeCount);
     }
@@ -482,7 +485,7 @@ export default function PromptDetailClient({
                             <div className="min-w-0">
                               <p className="truncate text-gray-900 dark:text-gray-100">{file.name}</p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {(file.size / 1024 / 1024).toFixed(2)}MB · {file.contentType || '파일'}
+                                {formatFileSize(file.size)} · {file.contentType || '파일'}
                               </p>
                             </div>
                             <button

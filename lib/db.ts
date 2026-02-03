@@ -98,6 +98,12 @@ export async function createApp(input: CreateAppInput, userId: string): Promise<
     // SQL default is Now().
   };
 
+  console.log('[DB] creating app with payload:', {
+    name: payload.name,
+    attachmentsCount: payload.attachments?.length,
+    attachments: payload.attachments
+  });
+
   const { data, error } = await supabase
     .from('apps')
     .insert(payload)
@@ -119,7 +125,9 @@ export async function updateApp(input: UpdateAppInput): Promise<void> {
   if (data.category !== undefined) payload.category = data.category;
   if (data.isPublic !== undefined) payload.is_public = data.isPublic;
   if (data.thumbnailUrl !== undefined) payload.thumbnail_url = data.thumbnailUrl;
+  if (data.thumbnailUrl !== undefined) payload.thumbnail_url = data.thumbnailUrl;
   if (data.tags !== undefined) payload.tags = data.tags;
+  if (data.attachments !== undefined) payload.attachments = data.attachments;
 
   // Handle thumbnail pos update effectively
   if (data.thumbnailPositionX !== undefined || data.thumbnailPositionY !== undefined) {
@@ -285,6 +293,7 @@ export async function updatePrompt(input: UpdatePromptInput): Promise<void> {
   if (data.isPublic !== undefined) payload.is_public = data.isPublic;
   if (data.thumbnailUrl !== undefined) payload.thumbnail_url = data.thumbnailUrl;
   if (data.tags !== undefined) payload.tags = data.tags;
+  if (data.attachments !== undefined) payload.attachments = data.attachments;
 
   if (data.thumbnailPositionX !== undefined || data.thumbnailPositionY !== undefined) {
     payload.thumbnail_pos = { x: data.thumbnailPositionX, y: data.thumbnailPositionY };

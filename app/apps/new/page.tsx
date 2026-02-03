@@ -12,6 +12,7 @@ import { FaPaperclip, FaSave, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'r
 import { sendSlackNotification } from '@/lib/notifications';
 import { uploadAppAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
+import { formatFileSize } from '@/lib/format';
 
 const detectUrls = (value: string) =>
   value
@@ -215,6 +216,8 @@ export default function NewAppPage() {
         : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
+
+      console.log('[NewAppPage] Uploaded attachments:', uploadedAttachments);
 
       const appId = await createApp(
         {
@@ -462,7 +465,7 @@ export default function NewAppPage() {
                     className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
                   >
                     <span className="truncate">
-                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                      {file.name} · {formatFileSize(file.size)}
                     </span>
                     <button
                       type="button"

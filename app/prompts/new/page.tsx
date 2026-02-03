@@ -11,6 +11,7 @@ import { Prompt } from '@/types/prompt';
 import { sendSlackNotification } from '@/lib/notifications';
 import { uploadPromptAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
+import { formatFileSize } from '@/lib/format';
 
 const detectUrls = (value: string) =>
   value
@@ -199,75 +200,75 @@ export default function NewPromptPage() {
       }
     };
 
-  const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
-    const controller = new AbortController();
-    const abortId = setTimeout(() => controller.abort(), 10000); // 네트워크 중단 대비
+    const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
+      const controller = new AbortController();
+      const abortId = setTimeout(() => controller.abort(), 10000); // 네트워크 중단 대비
 
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        throw new Error('세션 확인 실패');
-      }
-      let uploadedAttachments: any[] = [];
-
-      if (attachments.length > 0) {
-        const idToken = session.access_token;
-
-        // 첨부파일 업로드 (병렬)
-        uploadedAttachments = await withTimeout(
-          Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken))),
-          20000,
-          '첨부 파일 업로드 시간이 초과되었습니다.'
-        );
-      }
-
-      const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
-
-      const slowNoticeId = setTimeout(() => {
-        showInfo('저장에 시간이 걸리고 있습니다. 잠시만 기다려 주세요.');
-      }, 8000);
-
-      let response: Response;
       try {
-        response = await withTimeout(
-          fetch('/api/prompts', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              name: formData.name,
-              description: formData.description,
-              promptContent: formData.promptContent,
-              snsUrls: buildSnsUrls(),
-              category: formData.category,
-              isPublic: formData.isPublic,
-              thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
-              thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
-              thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-              attachments: uploadedAttachments,
-              createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-              tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          throw new Error('세션 확인 실패');
+        }
+        let uploadedAttachments: any[] = [];
+
+        if (attachments.length > 0) {
+          const idToken = session.access_token;
+
+          // 첨부파일 업로드 (병렬)
+          uploadedAttachments = await withTimeout(
+            Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken))),
+            20000,
+            '첨부 파일 업로드 시간이 초과되었습니다.'
+          );
+        }
+
+        const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
+
+        const slowNoticeId = setTimeout(() => {
+          showInfo('저장에 시간이 걸리고 있습니다. 잠시만 기다려 주세요.');
+        }, 8000);
+
+        let response: Response;
+        try {
+          response = await withTimeout(
+            fetch('/api/prompts', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                name: formData.name,
+                description: formData.description,
+                promptContent: formData.promptContent,
+                snsUrls: buildSnsUrls(),
+                category: formData.category,
+                isPublic: formData.isPublic,
+                thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+                thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+                thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+                attachments: uploadedAttachments,
+                createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
+                tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+              }),
+              signal: controller.signal,
             }),
-            signal: controller.signal,
-          }),
-          30000,
-          '프롬프트 저장 시간이 초과되었습니다.'
-        );
-      } finally {
-        clearTimeout(slowNoticeId);
-      }
+            30000,
+            '프롬프트 저장 시간이 초과되었습니다.'
+          );
+        } finally {
+          clearTimeout(slowNoticeId);
+        }
 
-      if (!response.ok) {
-        const { error: message } = await response.json().catch(() => ({ error: null }));
-        throw new Error(message || '프롬프트 저장 중 오류가 발생했습니다.');
-      }
+        if (!response.ok) {
+          const { error: message } = await response.json().catch(() => ({ error: null }));
+          throw new Error(message || '프롬프트 저장 중 오류가 발생했습니다.');
+        }
 
-      const { id: promptId } = await response.json();
+        const { id: promptId } = await response.json();
 
-      clearTimeout(abortId);
-      return promptId;
+        clearTimeout(abortId);
+        return promptId;
 
       } catch (error: any) {
         clearTimeout(abortId);
@@ -444,7 +445,7 @@ export default function NewPromptPage() {
                     className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
                   >
                     <span className="truncate">
-                      {file.name} · {(file.size / 1024 / 1024).toFixed(2)}MB
+                      {file.name} · {formatFileSize(file.size)}
                     </span>
                     <button
                       type="button"

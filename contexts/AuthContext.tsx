@@ -47,7 +47,8 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const [loading, setLoading] = useState(true);
 
   const getRedirectTo = () => {
-    const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    // Prefer window.location.origin to support localhost and preview deployments automatically
+    const base = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
     return `${base.replace(/\/$/, '')}/auth/callback`;
   };
 

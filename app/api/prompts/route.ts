@@ -38,8 +38,11 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json()) as CreatePromptPayload;
     if (!body?.name || !body?.description || !body?.promptContent || !body?.category) {
+      console.log('[API] Missing required fields:', body);
       return NextResponse.json({ error: '필수 입력값이 누락되었습니다.' }, { status: 400 });
     }
+
+    console.log('[API] Received create prompt request body:', JSON.stringify(body, null, 2));
 
     const payload = {
       name: body.name,
@@ -58,6 +61,12 @@ export async function POST(req: NextRequest) {
       created_by: userData.user.id,
       created_by_name: body.createdByName,
     };
+
+    console.log('[API] Creating prompt with attributes:', {
+      name: body.name,
+      attachmentsCount: payload.attachments?.length,
+      attachments: payload.attachments
+    });
 
     const { data, error } = await supabaseAdmin
       .from('prompts')
