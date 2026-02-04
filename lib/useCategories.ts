@@ -114,7 +114,6 @@ export function useAppCategories() {
         console.error('Failed to load app categories:', error);
         if (active) {
           setCategories(defaultAppCategories);
-          setAppCategoryCache(defaultAppCategories);
         }
       } finally {
         appCategoryFetch = null;
@@ -166,7 +165,6 @@ export function usePromptCategories() {
         console.error('Failed to load prompt categories:', error);
         if (active) {
           setCategories(defaultPromptCategories);
-          setPromptCategoryCache(defaultPromptCategories);
         }
       } finally {
         promptCategoryFetch = null;
