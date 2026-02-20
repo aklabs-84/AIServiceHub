@@ -1,4 +1,4 @@
-import { AppCategory } from '@/types/app';
+import type { AppCategory } from '@/types/database';
 import { appCategoryDefaults, appIconOptions } from '@/lib/categoryOptions';
 
 export interface CategoryInfo {

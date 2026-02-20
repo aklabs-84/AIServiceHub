@@ -1,20 +1,20 @@
 import AdminUsersClient from './AdminUsersClient';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import { getAllUsersServer } from '@/lib/dbServer';
-import type { UserProfile } from '@/lib/db';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
+import type { UserProfile } from '@/types/database';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AdminUsersPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const client = await getServerClient();
+  const { data: { user } } = await client.auth.getUser();
   let initialUsers: UserProfile[] = [];
   let initialIsAdmin = false;
 
   if (user?.id) {
-    const { data: profile } = await supabase
+    const { data: profile } = await client
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -28,7 +28,7 @@ export default async function AdminUsersPage() {
 
   if (user?.id && initialIsAdmin) {
     try {
-      initialUsers = await getAllUsersServer();
+      initialUsers = await db.auth.getAllUsers(client);
     } catch (error) {
       console.error('Error loading users (server):', error);
     }

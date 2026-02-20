@@ -1,4 +1,4 @@
-import { PromptCategory } from '@/types/prompt';
+import type { PromptCategory } from '@/types/database';
 import { promptCategoryDefaults, promptIconOptions } from '@/lib/categoryOptions';
 
 export interface PromptCategoryInfo {

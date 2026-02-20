@@ -5,8 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
-import { AIApp, AppCategory } from '@/types/app';
-import { Prompt } from '@/types/prompt';
+import type { AIApp, AppCategory, Prompt } from '@/types/database';
 import {
   FaArrowLeft,
   FaCrown,
@@ -107,7 +106,7 @@ function MyPageContent({
         '앱 이름': app.name,
         '설명': app.description,
         '카테고리': categoryInfo.label,
-        '앱 URL': app.appUrl,
+        '앱 URL': app.appUrls?.[0]?.url || '',
         'SNS URL': app.snsUrls.join(' | '),
         '공개 여부': app.isPublic ? '공개' : '비공개',
         '작성자': app.createdByName,
@@ -116,7 +115,7 @@ function MyPageContent({
         '수정일': formatExportDate(app.updatedAt),
         '좋아요 수': app.likeCount,
         '썸네일 URL': app.thumbnailUrl || '',
-        '첨부파일': app.attachments.map((file) => `${file.name} (${file.downloadUrl || file.storagePath})`).join(' | ')
+        '첨부파일': app.attachments.map((file) => `${file.name} (${file.storagePath})`).join(' | ')
       };
     });
 
@@ -137,7 +136,7 @@ function MyPageContent({
         '수정일': formatExportDate(prompt.updatedAt),
         '좋아요 수': prompt.likeCount,
         '썸네일 URL': prompt.thumbnailUrl || '',
-        '첨부파일': prompt.attachments.map((file) => `${file.name} (${file.downloadUrl || file.storagePath})`).join(' | ')
+        '첨부파일': prompt.attachments.map((file) => `${file.name} (${file.storagePath})`).join(' | ')
       };
     });
 

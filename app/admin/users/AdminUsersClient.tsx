@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { updateUserRole, UserProfile } from '@/lib/db';
+import { db, getBrowserClient } from '@/lib/database';
+import type { UserProfile } from '@/types/database';
 import { useRouter } from 'next/navigation';
 import { FaUserShield, FaUser } from 'react-icons/fa';
 
@@ -43,12 +44,13 @@ export default function AdminUsersClient({
     setUsers(initialUsers);
   }, [initialUsers]);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  const handleRoleChange = async (userId: string, newRole: 'user' | 'admin') => {
     if (!confirm(`${newRole === 'admin' ? '관리자' : '사용자'} 권한을 부여하시겠습니까?`)) return;
 
     setUpdating(userId);
     try {
-      await updateUserRole(userId, newRole);
+      const supabase = getBrowserClient();
+      await db.auth.updateUserRole(supabase, userId, newRole);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as 'user' | 'admin' } : u));
     } catch (error) {
       console.error('Error updating role:', error);
@@ -120,7 +122,7 @@ export default function AdminUsersClient({
                   <td className="px-6 py-4">
                     <select
                       value={profile.role || 'user'}
-                      onChange={(e) => handleRoleChange(profile.id, e.target.value)}
+                      onChange={(e) => handleRoleChange(profile.id, e.target.value as 'user' | 'admin')}
                       disabled={updating === profile.id || profile.id === user?.id}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${profile.role === 'admin'
                           ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'

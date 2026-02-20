@@ -4,20 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { addComment, deleteComment, getComments, getPromptById, updateComment, likePrompt, unlikePrompt } from '@/lib/db';
-import { Prompt } from '@/types/prompt';
+import { db, getBrowserClient } from '@/lib/database';
+import type { Prompt } from '@/types/database';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash, FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck, FaHeart, FaRegHeart } from 'react-icons/fa';
-import { deletePrompt } from '@/lib/db';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Comment } from '@/types/comment';
-import { downloadPromptAttachment } from '@/lib/storage';
+import type { Comment } from '@/types/database';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -109,7 +106,8 @@ export default function PromptDetailClient({
   const loadPrompt = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getPromptById(params.id as string);
+      const supabase = getBrowserClient();
+      const data = await db.prompts.getById(supabase, params.id as string);
       setPrompt(data);
     } catch (error) {
       console.error('Error loading prompt:', error);
@@ -120,7 +118,8 @@ export default function PromptDetailClient({
 
   const loadComments = useCallback(async () => {
     try {
-      const data = await getComments(params.id as string, 'prompt');
+      const supabase = getBrowserClient();
+      const data = await db.comments.getByTarget(supabase, params.id as string, 'prompt');
       setComments(data);
       setCommentPage(1);
     } catch (error) {
@@ -155,7 +154,8 @@ export default function PromptDetailClient({
     if (!user || !prompt || !newComment.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await addComment(prompt.id, 'prompt', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
+      const supabase = getBrowserClient();
+      await db.comments.create(supabase, prompt.id, 'prompt', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
       setNewComment('');
       await loadComments();
     } catch (error) {
@@ -175,7 +175,8 @@ export default function PromptDetailClient({
     if (!editingId || !editingContent.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await updateComment(editingId, editingContent.trim());
+      const supabase = getBrowserClient();
+      await db.comments.update(supabase, editingId, editingContent.trim());
       setEditingId(null);
       setEditingContent('');
       await loadComments();
@@ -190,7 +191,8 @@ export default function PromptDetailClient({
   const handleDeleteComment = async (commentId: string) => {
     if (!confirm('댓글을 삭제하시겠습니까?')) return;
     try {
-      await deleteComment(commentId);
+      const supabase = getBrowserClient();
+      await db.comments.remove(supabase, commentId);
       await loadComments();
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -203,12 +205,13 @@ export default function PromptDetailClient({
 
     setIsLiking(true);
     try {
+      const supabase = getBrowserClient();
       if (isLiked) {
-        await unlikePrompt(prompt.id, user.id);
+        await db.prompts.unlike(supabase, prompt.id, user.id);
         setIsLiked(false);
         setLikeCount(prev => prev - 1);
       } else {
-        await likePrompt(prompt.id, user.id);
+        await db.prompts.like(supabase, prompt.id, user.id);
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -228,7 +231,8 @@ export default function PromptDetailClient({
 
     setDeleting(true);
     try {
-      await deletePrompt(prompt.id);
+      const supabase = getBrowserClient();
+      await db.prompts.remove(supabase, prompt.id);
       showSuccess('프롬프트가 삭제되었습니다.');
       const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
       router.push(lastUrl || '/prompts');
@@ -247,10 +251,11 @@ export default function PromptDetailClient({
     }
     setDownloadingPath(storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
+      await db.attachments.downloadFile(storagePath, filename, 'prompt', idToken, fallbackUrl);
     } catch (error) {
       console.error('Failed to download attachment:', error);
       showError('첨부 파일 다운로드 중 오류가 발생했습니다.');
@@ -490,7 +495,7 @@ export default function PromptDetailClient({
                             </div>
                             <button
                               type="button"
-                              onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                              onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
                               disabled={downloadingPath === file.storagePath}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
                             >

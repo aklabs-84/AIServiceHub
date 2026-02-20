@@ -4,13 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { createApp } from '@/lib/db';
-import { supabase } from '@/lib/supabase';
-import { AppCategory, AppUrlItem } from '@/types/app';
+import { db, getBrowserClient } from '@/lib/database';
+import type { AppUrlItem } from '@/types/database';
 import { useAppCategories } from '@/lib/useCategories';
 import { FaPaperclip, FaSave, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
 import { sendSlackNotification } from '@/lib/notifications';
-import { uploadAppAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -58,7 +56,7 @@ export default function NewAppPage() {
     name: string;
     description: string;
     appUrls: AppUrlItem[];
-    category: AppCategory;
+    category: string;
     isPublic: boolean;
     thumbnailUrl: string;
     thumbnailPositionX: number;
@@ -71,7 +69,7 @@ export default function NewAppPage() {
     name: '',
     description: '',
     appUrls: [{ url: '', isPublic: true, label: '' }],
-    category: 'chatbot' as AppCategory,
+    category: 'chatbot',
     isPublic: true,
     thumbnailUrl: '',
     thumbnailPositionX: 50,
@@ -119,7 +117,7 @@ export default function NewAppPage() {
   useEffect(() => {
     if (categories.length === 0) return;
     if (!categories.find((cat) => cat.value === formData.category)) {
-      setFormData((prev) => ({ ...prev, category: categories[0].value as AppCategory }));
+      setFormData((prev) => ({ ...prev, category: categories[0].value }));
     }
   }, [categories, formData.category]);
 
@@ -204,6 +202,7 @@ export default function NewAppPage() {
 
     setSubmitting(true);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
@@ -212,14 +211,12 @@ export default function NewAppPage() {
         return;
       }
       const uploadedAttachments = attachments.length
-        ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
+        ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
         : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
 
-      console.log('[NewAppPage] Uploaded attachments:', uploadedAttachments);
-
-      const appId = await createApp(
+      const appId = await db.apps.create(supabase,
         {
           name: formData.name,
           description: formData.description,
@@ -230,12 +227,20 @@ export default function NewAppPage() {
           thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
           thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
           thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-          attachments: uploadedAttachments,
           createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
           tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
         },
         user.id
       );
+
+      // Save uploaded attachments to the attachments table
+      if (uploadedAttachments.length > 0) {
+        await Promise.all(
+          uploadedAttachments.map((file) =>
+            db.attachments.create(supabase, appId, 'app', file, user.id)
+          )
+        );
+      }
 
       if (isMountedRef.current) {
         showSuccess('앱이 등록되었습니다!');
@@ -539,7 +544,7 @@ export default function NewAppPage() {
               id="category"
               required
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as AppCategory })}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {categories.map((cat) => (

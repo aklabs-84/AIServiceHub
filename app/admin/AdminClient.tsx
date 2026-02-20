@@ -4,12 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { supabase } from '@/lib/supabase';
-import { createCategory, deleteCategory, getAllApps, getAllComments, getAllPrompts, getAllUsers, getCategoriesByType, updateCategory, UserProfile } from '@/lib/db';
-import { AIApp } from '@/types/app';
-import { Prompt } from '@/types/prompt';
-import { Comment } from '@/types/comment';
-import { CategoryRecord } from '@/types/category';
+import { db, getBrowserClient } from '@/lib/database';
+import type { AIApp, Prompt, Comment, Category, UserProfile } from '@/types/database';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
 import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import Link from 'next/link';
@@ -41,8 +37,8 @@ type AdminClientProps = {
   initialPrompts: Prompt[];
   initialComments: Comment[];
   initialUsers: UserProfile[];
-  initialAppCategories: CategoryRecord[];
-  initialPromptCategories: CategoryRecord[];
+  initialAppCategories: Category[];
+  initialPromptCategories: Category[];
   initialDataLoaded: boolean;
 };
 
@@ -82,8 +78,8 @@ function AdminPageContent({
   const [pageApps, setPageApps] = useState(1);
   const [pagePrompts, setPagePrompts] = useState(1);
   const [pageUsers, setPageUsers] = useState(1);
-  const [appCategories, setAppCategories] = useState<CategoryRecord[]>(initialAppCategories);
-  const [promptCategories, setPromptCategories] = useState<CategoryRecord[]>(initialPromptCategories);
+  const [appCategories, setAppCategories] = useState<Category[]>(initialAppCategories);
+  const [promptCategories, setPromptCategories] = useState<Category[]>(initialPromptCategories);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
   const [categoryEdits, setCategoryEdits] = useState<Record<string, { label: string; color: string; icon: string }>>({});
@@ -123,11 +119,12 @@ function AdminPageContent({
     const fetchAll = async () => {
       setLoadingData(true);
       try {
+        const supabase = getBrowserClient();
         const [appsData, promptsData, commentsData, usersData] = await Promise.all([
-          getAllApps(),
-          getAllPrompts(),
-          getAllComments(),
-          getAllUsers(),
+          db.apps.getAll(supabase),
+          db.prompts.getAll(supabase),
+          db.comments.getAll(supabase),
+          db.auth.getAllUsers(supabase),
         ]);
         setApps(appsData);
         setPrompts(promptsData);
@@ -146,9 +143,10 @@ function AdminPageContent({
   const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
     try {
+      const supabase = getBrowserClient();
       const [appsData, promptsData] = await Promise.all([
-        getCategoriesByType('app'),
-        getCategoriesByType('prompt'),
+        db.categories.getByType(supabase, 'app'),
+        db.categories.getByType(supabase, 'prompt'),
       ]);
       setAppCategories(appsData);
       setPromptCategories(promptsData);
@@ -169,6 +167,7 @@ function AdminPageContent({
     if (!user || !isAdmin) return;
     setOneTimeError(null);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
       const response = await fetch('/api/one-time/credentials', {
@@ -201,7 +200,8 @@ function AdminPageContent({
       for (const value of sourceValues) {
         if (existingValues.has(value)) continue;
         const match = defaults.find((item) => item.value === value);
-        await createCategory({
+        const supabase = getBrowserClient();
+        await db.categories.create(supabase, {
           type,
           value,
           label: match?.label || value,
@@ -287,7 +287,8 @@ function AdminPageContent({
 
     setSavingCategory(true);
     try {
-      await createCategory({
+      const supabase = getBrowserClient();
+      await db.categories.create(supabase, {
         type,
         value: form.value.trim(),
         label: form.label.trim(),
@@ -314,6 +315,7 @@ function AdminPageContent({
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
       const response = await fetch('/api/one-time/credentials', {
@@ -350,6 +352,7 @@ function AdminPageContent({
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
       const response = await fetch(`/api/one-time/credentials/${id}`, {
@@ -374,6 +377,7 @@ function AdminPageContent({
     setOneTimeLoading(true);
     setOneTimeError(null);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
       const response = await fetch(`/api/one-time/credentials/${editingOneTime.id}`, {
@@ -404,10 +408,11 @@ function AdminPageContent({
     }
   };
 
-  const handleDeleteCategory = async (category: CategoryRecord) => {
+  const handleDeleteCategory = async (category: Category) => {
     if (!confirm(`'${category.label}' 카테고리를 삭제하시겠습니까?`)) return;
     try {
-      await deleteCategory(category.id);
+      const supabase = getBrowserClient();
+      await db.categories.remove(supabase, category.id);
       await loadCategories();
     } catch (error) {
       console.error('Failed to delete category:', error);
@@ -423,11 +428,12 @@ function AdminPageContent({
     setSavingCategory(true);
     let addedCount = 0;
     try {
+      const supabase = getBrowserClient();
       for (const item of defaults) {
         // 이미 존재하는 value는 건너뜀
         if (existingValues.has(item.value)) continue;
 
-        await createCategory({
+        await db.categories.create(supabase, {
           type,
           value: item.value,
           label: item.label,
@@ -450,7 +456,7 @@ function AdminPageContent({
     }
   };
 
-  const handleUpdateCategory = async (category: CategoryRecord) => {
+  const handleUpdateCategory = async (category: Category) => {
     const edit = categoryEdits[category.id];
     if (!edit) return;
     if (edit.label === category.label && edit.color === category.color && edit.icon === category.icon) {
@@ -458,7 +464,8 @@ function AdminPageContent({
     }
     setSavingCategory(true);
     try {
-      await updateCategory(category.id, edit);
+      const supabase = getBrowserClient();
+      await db.categories.update(supabase, category.id, edit);
       await loadCategories();
       showSuccess('카테고리가 수정되었습니다.');
     } catch (error) {
@@ -1081,7 +1088,7 @@ function CategoryManager({
   saving,
 }: {
   title: string;
-  items: CategoryRecord[];
+  items: Category[];
   form: { value: string; label: string; color: string; icon: string };
   setForm: React.Dispatch<React.SetStateAction<{ value: string; label: string; color: string; icon: string }>>;
   edits: Record<string, { label: string; color: string; icon: string }>;
@@ -1089,8 +1096,8 @@ function CategoryManager({
   iconOptions: Record<string, React.ComponentType<{ className?: string }>>;
   colorOptions: string[];
   onCreate: () => void;
-  onDelete: (category: CategoryRecord) => void;
-  onUpdate: (category: CategoryRecord) => void;
+  onDelete: (category: Category) => void;
+  onUpdate: (category: Category) => void;
   onSeed: () => void;
   onSeedFromData: () => void;
   saving: boolean;

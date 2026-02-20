@@ -1,10 +1,12 @@
 import ContentClient from './ContentClient';
-import { getAllAppsServer } from '@/lib/dbServer';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function ContentPage() {
-  const apps = await getAllAppsServer();
+  const client = await getServerClient();
+  const apps = await db.apps.getAll(client);
   return <ContentClient initialApps={apps} />;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { AIApp, AppCategory } from '@/types/app';
+import type { AIApp, AppCategory } from '@/types/database';
 import AppCard from '@/components/AppCard';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';

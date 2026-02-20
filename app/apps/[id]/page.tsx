@@ -1,5 +1,6 @@
 import AppDetailClient from './AppDetailClient';
-import { getAppByIdServer, getCommentsServer } from '@/lib/dbServer';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,10 @@ type PageProps = {
 
 export default async function AppDetailPage({ params }: PageProps) {
   const { id } = await params;
+  const client = await getServerClient();
   const [app, comments] = await Promise.all([
-    getAppByIdServer(id),
-    getCommentsServer(id, 'app'),
+    db.apps.getById(client, id),
+    db.comments.getByTarget(client, id, 'app'),
   ]);
 
   if (!app) {

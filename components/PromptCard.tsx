@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Prompt } from '@/types/prompt';
+import type { Prompt } from '@/types/database';
 import { PromptCategoryInfo, getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { likePrompt, unlikePrompt } from '@/lib/db';
+import { db, getBrowserClient } from '@/lib/database';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -129,12 +129,13 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
 
     setIsLiking(true);
     try {
+      const supabase = getBrowserClient();
       if (isLiked) {
-        await unlikePrompt(prompt.id, user.id);
+        await db.prompts.unlike(supabase, prompt.id, user.id);
         setIsLiked(false);
         setLikeCount((prev) => prev - 1);
       } else {
-        await likePrompt(prompt.id, user.id);
+        await db.prompts.like(supabase, prompt.id, user.id);
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
       }

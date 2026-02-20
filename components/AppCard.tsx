@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { AIApp } from '@/types/app';
+import type { AIApp } from '@/types/database';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useMemo, useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
-import { likeApp, unlikeApp } from '@/lib/db';
+import { db, getBrowserClient } from '@/lib/database';
 
 interface AppCardProps {
   app: AIApp;
@@ -147,12 +147,13 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
 
     setIsLiking(true);
     try {
+      const supabase = getBrowserClient();
       if (isLiked) {
-        await unlikeApp(app.id, user.id);
+        await db.apps.unlike(supabase, app.id, user.id);
         setIsLiked(false);
         setLikeCount(prev => prev - 1);
       } else {
-        await likeApp(app.id, user.id);
+        await db.apps.like(supabase, app.id, user.id);
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }

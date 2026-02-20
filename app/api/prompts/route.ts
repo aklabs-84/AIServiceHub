@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAdminClient } from '@/lib/database';
 
 type CreatePromptPayload = {
   name: string;
@@ -10,7 +10,6 @@ type CreatePromptPayload = {
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
-  attachments?: unknown[];
   createdByName: string;
   tags?: string[];
   snsUrls?: string[];
@@ -31,18 +30,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '인증 토큰이 없습니다.' }, { status: 401 });
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
+    const admin = getAdminClient();
+    const { data: userData, error: userError } = await admin.auth.getUser(accessToken);
     if (userError || !userData?.user) {
       return NextResponse.json({ error: '유효하지 않은 세션입니다.' }, { status: 401 });
     }
 
     const body = (await req.json()) as CreatePromptPayload;
     if (!body?.name || !body?.description || !body?.promptContent || !body?.category) {
-      console.log('[API] Missing required fields:', body);
       return NextResponse.json({ error: '필수 입력값이 누락되었습니다.' }, { status: 400 });
     }
-
-    console.log('[API] Received create prompt request body:', JSON.stringify(body, null, 2));
 
     const payload = {
       name: body.name,
@@ -56,19 +53,12 @@ export async function POST(req: NextRequest) {
         x: body.thumbnailPositionX ?? 50,
         y: body.thumbnailPositionY ?? 50,
       },
-      attachments: body.attachments ?? [],
       tags: body.tags ?? [],
       created_by: userData.user.id,
       created_by_name: body.createdByName,
     };
 
-    console.log('[API] Creating prompt with attributes:', {
-      name: body.name,
-      attachmentsCount: payload.attachments?.length,
-      attachments: payload.attachments
-    });
-
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await admin
       .from('prompts')
       .insert(payload)
       .select('id')

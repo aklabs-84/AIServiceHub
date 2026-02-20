@@ -1,7 +1,6 @@
-
 import { NextResponse } from 'next/server';
 import { createHash, randomBytes } from 'crypto';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAdminClient } from '@/lib/database';
 
 const hashValue = (value: string) =>
   createHash('sha256').update(value).digest('hex');
@@ -14,12 +13,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
-    const { data: credentials, error } = await supabaseAdmin
+    const admin = getAdminClient();
+    const { data: credentials, error } = await admin
       .from('one_time_access')
       .select('*')
       .eq('username', username)
       .limit(1)
-      .maybeSingle(); // or .single() if unique constraint exists
+      .maybeSingle();
 
     if (error) {
       console.error('DB error', error);
@@ -34,7 +34,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Credentials already used' }, { status: 410 });
     }
 
-    // Check password
     const isValid = credentials.username === username && credentials.password_hash === hashValue(password);
     if (!isValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -48,7 +47,7 @@ export async function POST(request: Request) {
     const sessionToken = randomBytes(16).toString('hex');
     const sessionExpiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
 
-    await supabaseAdmin
+    await admin
       .from('one_time_access')
       .update({
         used_at: new Date().toISOString(),

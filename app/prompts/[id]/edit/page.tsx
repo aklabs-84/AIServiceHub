@@ -4,13 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPromptById, updatePrompt } from '@/lib/db';
-import { supabase } from '@/lib/supabase';
-import { Prompt } from '@/types/prompt';
+import { db, getBrowserClient } from '@/lib/database';
+import type { Prompt, Attachment } from '@/types/database';
 import { usePromptCategories } from '@/lib/useCategories';
 import { FaSave, FaFeatherAlt, FaPaperclip, FaDownload } from 'react-icons/fa';
-import { PromptAttachment } from '@/types/prompt';
-import { uploadPromptAttachment, downloadPromptAttachment, deletePromptAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -49,7 +46,7 @@ export default function EditPromptPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
-  const [existingAttachments, setExistingAttachments] = useState<PromptAttachment[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
@@ -192,7 +189,8 @@ export default function EditPromptPage() {
   const loadPrompt = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getPromptById(params.id as string);
+      const supabase = getBrowserClient();
+      const data = await db.prompts.getById(supabase, params.id as string);
       setPrompt(data);
       if (data) {
         setFormData({
@@ -239,13 +237,14 @@ export default function EditPromptPage() {
         showError(attachmentError);
         return;
       }
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       const uploadedAttachments = attachments.length
-        ? await Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken)))
+        ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'prompt', idToken)))
         : [];
-      await updatePrompt({
+      await db.prompts.update(supabase, {
         id: prompt.id,
         name: formData.name,
         description: formData.description,
@@ -257,9 +256,17 @@ export default function EditPromptPage() {
         thumbnailPositionX: formData.thumbnailUrl.trim() ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: formData.thumbnailUrl.trim() ? formData.thumbnailPositionY : undefined,
         createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-        attachments: [...existingAttachments, ...uploadedAttachments],
         tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
+
+      // Save newly uploaded attachments to the attachments table
+      if (uploadedAttachments.length > 0 && user?.id) {
+        await Promise.all(
+          uploadedAttachments.map((file) =>
+            db.attachments.create(supabase, prompt.id, 'prompt', file, user.id)
+          )
+        );
+      }
       showSuccess('프롬프트가 수정되었습니다.');
       router.replace(`/prompts/${prompt.id}`);
     } catch (error) {
@@ -274,10 +281,11 @@ export default function EditPromptPage() {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await downloadPromptAttachment(storagePath, filename, idToken, fallbackUrl);
+      await db.attachments.downloadFile(storagePath, filename, 'prompt', idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
       showError('다운로드 링크 생성 중 오류가 발생했습니다.');
@@ -286,18 +294,22 @@ export default function EditPromptPage() {
     }
   };
 
-  const handleDeleteExistingAttachment = async (attachment: PromptAttachment) => {
+  const handleDeleteExistingAttachment = async (attachment: Attachment) => {
     if (!user || !prompt) return;
     if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
     setDeletingPath(attachment.storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await deletePromptAttachment(attachment.storagePath, idToken);
+      await db.attachments.deleteFile(attachment.storagePath, 'prompt', idToken);
+      // Also remove from attachments table if it has an id
+      if (attachment.id) {
+        await db.attachments.remove(supabase, attachment.id);
+      }
       const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
       setExistingAttachments(nextAttachments);
-      await updatePrompt({ id: prompt.id, attachments: nextAttachments });
     } catch (error) {
       console.error('Error deleting attachment:', error);
       showError('첨부 파일 삭제 중 오류가 발생했습니다.');
@@ -459,7 +471,7 @@ export default function EditPromptPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
                         disabled={downloadingPath === file.storagePath}
                         className="text-xs text-emerald-600 hover:text-emerald-700 disabled:opacity-60"
                       >

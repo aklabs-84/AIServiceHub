@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAppById, updateApp } from '@/lib/db';
-import { AIApp, AppAttachment, AppCategory, AppUrlItem } from '@/types/app';
+import { db, getBrowserClient } from '@/lib/database';
+import type { AIApp, Attachment, AppUrlItem } from '@/types/database';
 import { useAppCategories } from '@/lib/useCategories';
 import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
-import { uploadAppAttachment, downloadAppAttachment, deleteAppAttachment } from '@/lib/storage';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -48,7 +46,7 @@ export default function EditAppPage() {
   const [app, setApp] = useState<AIApp | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [existingAttachments, setExistingAttachments] = useState<AppAttachment[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
@@ -57,7 +55,7 @@ export default function EditAppPage() {
     name: string;
     description: string;
     appUrls: AppUrlItem[];
-    category: AppCategory;
+    category: string;
     isPublic: boolean;
     thumbnailUrl: string;
     thumbnailPositionX: number;
@@ -69,7 +67,7 @@ export default function EditAppPage() {
     name: '',
     description: '',
     appUrls: [{ url: '', isPublic: true, label: '' }],
-    category: 'chatbot' as AppCategory,
+    category: 'chatbot',
     isPublic: true,
     thumbnailUrl: '',
     thumbnailPositionX: 50,
@@ -114,7 +112,7 @@ export default function EditAppPage() {
   useEffect(() => {
     if (categories.length === 0) return;
     if (!categories.find((cat) => cat.value === formData.category)) {
-      setFormData((prev) => ({ ...prev, category: categories[0].value as AppCategory }));
+      setFormData((prev) => ({ ...prev, category: categories[0].value }));
     }
   }, [categories, formData.category]);
 
@@ -219,7 +217,8 @@ export default function EditAppPage() {
   const loadApp = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAppById(params.id as string);
+      const supabase = getBrowserClient();
+      const data = await db.apps.getById(supabase, params.id as string);
       if (data) {
         setApp(data);
         setFormData({
@@ -227,7 +226,7 @@ export default function EditAppPage() {
           description: data.description,
           appUrls: data.appUrls && data.appUrls.length > 0
             ? data.appUrls
-            : [{ url: data.appUrl, isPublic: true, label: '이동하기' }],
+            : [{ url: '', isPublic: true, label: '이동하기' }],
           category: data.category,
           isPublic: data.isPublic ?? true,
           thumbnailUrl: data.thumbnailUrl || '',
@@ -269,16 +268,17 @@ export default function EditAppPage() {
         showError(attachmentError);
         return;
       }
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
       const uploadedAttachments = attachments.length
-        ? await Promise.all(attachments.map((file) => uploadAppAttachment(file, idToken)))
+        ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
         : [];
       const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
       const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
 
-      await updateApp({
+      await db.apps.update(supabase, {
         id: app.id,
         name: formData.name,
         description: formData.description,
@@ -289,9 +289,17 @@ export default function EditAppPage() {
         thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
         thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-        attachments: [...existingAttachments, ...uploadedAttachments],
         tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
       });
+
+      // Save newly uploaded attachments to the attachments table
+      if (uploadedAttachments.length > 0 && user?.id) {
+        await Promise.all(
+          uploadedAttachments.map((file) =>
+            db.attachments.create(supabase, app.id, 'app', file, user.id)
+          )
+        );
+      }
 
       showSuccess('앱이 수정되었습니다!');
       router.replace(`/apps/${app.id}`);
@@ -307,10 +315,11 @@ export default function EditAppPage() {
     if (!user) return;
     setDownloadingPath(storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
+      await db.attachments.downloadFile(storagePath, filename, 'app', idToken, fallbackUrl);
     } catch (error) {
       console.error('Error generating download link:', error);
       showError('다운로드 링크 생성 중 오류가 발생했습니다.');
@@ -319,18 +328,21 @@ export default function EditAppPage() {
     }
   };
 
-  const handleDeleteExistingAttachment = async (attachment: AppAttachment) => {
+  const handleDeleteExistingAttachment = async (attachment: Attachment) => {
     if (!user || !app) return;
     if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
     setDeletingPath(attachment.storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await deleteAppAttachment(attachment.storagePath, idToken);
+      await db.attachments.deleteFile(attachment.storagePath, 'app', idToken);
+      if (attachment.id) {
+        await db.attachments.remove(supabase, attachment.id);
+      }
       const nextAttachments = existingAttachments.filter((item) => item.storagePath !== attachment.storagePath);
       setExistingAttachments(nextAttachments);
-      await updateApp({ id: app.id, attachments: nextAttachments });
     } catch (error) {
       console.error('Error deleting attachment:', error);
       showError('첨부 파일 삭제 중 오류가 발생했습니다.');
@@ -606,7 +618,7 @@ export default function EditAppPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
                         disabled={downloadingPath === file.storagePath}
                         className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-60"
                       >
@@ -663,7 +675,7 @@ export default function EditAppPage() {
               id="category"
               required
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as AppCategory })}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {categories.map((cat) => (

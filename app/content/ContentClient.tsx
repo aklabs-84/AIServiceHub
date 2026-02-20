@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FaSpinner, FaLink, FaUser, FaGlobe, FaInstagram, FaYoutube, FaTiktok, FaBlog, FaFilter } from 'react-icons/fa';
-import { AIApp, AppCategory } from '@/types/app';
+import type { AIApp, AppCategory } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { useAppCategories } from '@/lib/useCategories';
@@ -138,7 +138,7 @@ function ContentPageInner({ initialApps }: ContentClientProps) {
           appId: app.id,
           appName: app.name,
           createdByName: app.createdByName,
-          appUrl: app.appUrl,
+          appUrl: app.appUrls?.[0]?.url || '',
           category: app.category,
           thumbnailUrl,
           thumbnailPositionX: app.thumbnailPositionX,

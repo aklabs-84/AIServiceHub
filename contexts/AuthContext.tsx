@@ -1,11 +1,9 @@
-
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { ensureUserProfile } from '@/lib/db';
+import { getBrowserClient, db } from '@/lib/database';
 
 interface AuthContextType {
   user: User | null;
@@ -22,9 +20,9 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   isAdmin: false,
   loading: true,
-  signInWithGoogle: async () => { },
-  signInWithKakao: async () => { },
-  signOut: async () => { },
+  signInWithGoogle: async () => {},
+  signInWithKakao: async () => {},
+  signOut: async () => {},
 });
 
 export const useAuth = () => {
@@ -42,54 +40,29 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
   const router = useRouter();
+  const supabase = getBrowserClient();
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
 
   const getRedirectTo = () => {
-    // Prefer window.location.origin to support localhost and preview deployments automatically
-    const base = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
+    const base = typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_SITE_URL || '');
     return `${base.replace(/\/$/, '')}/auth/callback`;
   };
 
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.warn('[Auth] Role fetch error:', error.message);
-        if (error.code === 'PGRST116') {
-          // Profile not found, create default
-          const { data: newData, error: insertError } = await supabase
-            .from('profiles')
-            .upsert({ id: userId, role: 'user' })
-            .select('role')
-            .single();
-
-          if (!insertError && newData) {
-            setRole(newData.role as 'user' | 'admin');
-          } else {
-            setRole('user');
-          }
-        } else {
-          setRole('user');
-        }
-      } else if (data) {
-        setRole(data.role as 'user' | 'admin');
-      }
+      const userRole = await db.auth.getUserRole(supabase, userId);
+      setRole(userRole);
     } catch (e) {
       console.error('[Auth] fetchUserRole exception:', e);
       setRole('user');
     }
   };
 
-  // 초기 세션 로드 및 auth 변경 리스너
   useEffect(() => {
-    // 1. 초기 세션 가져오기
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -99,7 +72,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       }
     });
 
-    // 2. Auth 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
 
@@ -109,22 +81,19 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         if (event === 'SIGNED_IN') {
           const { id, email, user_metadata } = session.user;
           const displayName = user_metadata.full_name || user_metadata.name;
-          await ensureUserProfile(id, email, displayName);
+          const avatarUrl = user_metadata.avatar_url || user_metadata.picture;
+          await db.auth.ensureUserProfile(supabase, id, email, displayName, avatarUrl);
           router.refresh();
         }
-        // TOKEN_REFRESHED에서 router.refresh() 제거 - 무한 루프 방지
-        // 토큰 갱신은 Supabase가 자동 처리하므로 페이지 새로고침 불필요
       } else {
         setRole(null);
         setLoading(false);
-        // router.refresh() 제거 - React Context 상태 변경만으로 UI 자동 업데이트
       }
     });
 
     return () => subscription.unsubscribe();
   }, [router]);
 
-  // 로딩 상태 관리: session과 role이 모두 확정되면 로딩 해제
   useEffect(() => {
     if (session === null || (session && role)) {
       setLoading(false);
@@ -138,16 +107,10 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
       provider: 'google',
       options: {
         redirectTo,
-        queryParams: {
-          prompt: 'select_account',
-        },
+        queryParams: { prompt: 'select_account' },
       },
     });
-
-    if (error) {
-      console.error('Error signing in with Google:', error);
-      throw error;
-    }
+    if (error) throw error;
   };
 
   const signInWithKakao = async () => {
@@ -155,27 +118,26 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     const redirectTo = `${getRedirectTo()}?next=${encodeURIComponent(currentPath)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: {
-        redirectTo,
-      },
+      options: { redirectTo },
     });
-
-    if (error) {
-      console.error('Error signing in with Kakao:', error);
-      throw error;
-    }
+    if (error) throw error;
   };
 
   const signOut = async () => {
     try {
-      // 1. 클라이언트 signOut 먼저 (onAuthStateChange 트리거)
       await supabase.auth.signOut();
-      // 2. 서버 쿠키 삭제 (서버에서는 signOut 안 함, 쿠키만 삭제)
       await fetch('/api/auth/logout', { method: 'POST' });
 
-      // 3. 로컬 스토리지 강제 삭제 (Supabase 키 포함)
+      // Only clear Supabase-related keys, not all localStorage
       if (typeof window !== 'undefined') {
-        localStorage.clear();
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.startsWith('supabase'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
       }
     } catch (error) {
       console.error('Error signing out:', error);
@@ -185,7 +147,15 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const user = session?.user ?? null;
 
   return (
-    <AuthContext.Provider value={{ user, role, isAdmin: role === 'admin', loading, signInWithGoogle, signInWithKakao, signOut }}>
+    <AuthContext.Provider value={{
+      user,
+      role,
+      isAdmin: role === 'admin',
+      loading,
+      signInWithGoogle,
+      signInWithKakao,
+      signOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );

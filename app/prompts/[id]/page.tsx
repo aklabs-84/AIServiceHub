@@ -1,5 +1,6 @@
 import PromptDetailClient from './PromptDetailClient';
-import { getPromptByIdServer, getCommentsServer } from '@/lib/dbServer';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
 import { notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -16,9 +17,10 @@ export default async function PromptDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const client = await getServerClient();
   const [prompt, comments] = await Promise.all([
-    getPromptByIdServer(id),
-    getCommentsServer(id, 'prompt'),
+    db.prompts.getById(client, id),
+    db.comments.getByTarget(client, id, 'prompt'),
   ]);
 
   if (!prompt) {

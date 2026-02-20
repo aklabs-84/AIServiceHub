@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Prompt } from '@/types/prompt';
+import type { Prompt } from '@/types/database';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
 import { usePromptCategories } from '@/lib/useCategories';
 import PromptCard from '@/components/PromptCard';

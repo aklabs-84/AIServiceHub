@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AIApp } from '@/types/app';
+import type { AIApp } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import AppCard from '@/components/AppCard';
 import { FaHeart } from 'react-icons/fa';

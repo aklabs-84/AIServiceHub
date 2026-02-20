@@ -1,9 +1,6 @@
-
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-
-const ADMIN_EMAIL = 'mosebb@gmail.com';
+import { getAdminClient } from '@/lib/database';
 
 const hashValue = (value: string) =>
   createHash('sha256').update(value).digest('hex');
@@ -11,21 +8,19 @@ const hashValue = (value: string) =>
 async function requireAdmin(request: Request) {
   const authHeader = request.headers.get('authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!token) {
-    throw new Error('Unauthorized');
-  }
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+  if (!token) throw new Error('Unauthorized');
 
+  const admin = getAdminClient();
+  const { data: { user }, error } = await admin.auth.getUser(token);
   if (error || !user) throw new Error('Unauthorized');
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await admin
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single();
 
-  const isAdmin = profile?.role === 'admin' || user.email === ADMIN_EMAIL;
-  if (!isAdmin) {
+  if (profile?.role !== 'admin') {
     throw new Error('Forbidden');
   }
   return user;
@@ -34,17 +29,17 @@ async function requireAdmin(request: Request) {
 export async function GET(request: Request) {
   try {
     await requireAdmin(request);
-    const { data: items, error } = await supabaseAdmin
+    const admin = getAdminClient();
+    const { data: items, error } = await admin
       .from('one_time_access')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    const mappedItems = items.map((data: any) => ({
+    const mappedItems = (items || []).map((data: Record<string, unknown>) => ({
       id: data.id,
       username: data.username || null,
-      password: data.password || null,
       createdAt: data.created_at,
       usedAt: data.used_at,
       sessionExpiresAt: data.session_expires_at,
@@ -68,14 +63,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const admin = getAdminClient();
+    const { data, error } = await admin
       .from('one_time_access')
       .insert({
         username,
-        password,
         password_hash: hashValue(password),
         duration_hours: durationHours,
-        created_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -85,7 +79,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: data.id,
       username,
-      password,
       durationHours,
       createdAt: data.created_at,
     });

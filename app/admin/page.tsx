@@ -1,44 +1,36 @@
 import AdminClient from './AdminClient';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import {
-  getAllAppsServer,
-  getAllPromptsServer,
-  getAllCommentsServer,
-  getAllUsersServer,
-  getCategoriesByTypeServer,
-} from '@/lib/dbServer';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function AdminPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const client = await getServerClient();
+  const { data: { user } } = await client.auth.getUser();
 
   if (!user) {
     redirect('/');
   }
 
-  const { data: profile } = await supabase
+  const { data: profile } = await client
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single();
 
-  const isAdmin = profile?.role === 'admin';
-
-  if (!isAdmin) {
+  if (profile?.role !== 'admin') {
     redirect('/');
   }
 
   const [apps, prompts, comments, users, appCategories, promptCategories] = await Promise.all([
-    getAllAppsServer(),
-    getAllPromptsServer(),
-    getAllCommentsServer(),
-    getAllUsersServer(),
-    getCategoriesByTypeServer('app'),
-    getCategoriesByTypeServer('prompt'),
+    db.apps.getAll(client),
+    db.prompts.getAll(client),
+    db.comments.getAll(client),
+    db.auth.getAllUsers(client),
+    db.categories.getByType(client, 'app'),
+    db.categories.getByType(client, 'prompt'),
   ]);
 
   return (

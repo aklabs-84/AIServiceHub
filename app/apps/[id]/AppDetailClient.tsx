@@ -7,17 +7,15 @@ import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getAppById, deleteApp, likeApp, unlikeApp, addComment, getComments, updateComment, deleteComment } from '@/lib/db';
-import { AIApp } from '@/types/app';
-import { Comment } from '@/types/comment';
+import { db, getBrowserClient } from '@/lib/database';
+import type { AIApp } from '@/types/database';
+import type { Comment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { supabase } from '@/lib/supabase';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { startTransition } from 'react';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
-import { downloadAppAttachment } from '@/lib/storage';
 import { formatFileSize } from '@/lib/format';
 import { FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart, FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight, FaPaperclip, FaDownload, FaLock } from 'react-icons/fa';
 
@@ -72,7 +70,8 @@ export default function AppDetailClient({
   const loadApp = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAppById(params.id as string);
+      const supabase = getBrowserClient();
+      const data = await db.apps.getById(supabase, params.id as string);
       setApp(data);
     } catch (error) {
       console.error('Error loading app:', error);
@@ -83,7 +82,8 @@ export default function AppDetailClient({
 
   const loadComments = useCallback(async () => {
     try {
-      const data = await getComments(params.id as string, 'app');
+      const supabase = getBrowserClient();
+      const data = await db.comments.getByTarget(supabase, params.id as string, 'app');
       setComments(data);
       setCommentPage(1);
     } catch (error) {
@@ -116,7 +116,8 @@ export default function AppDetailClient({
     if (!user || !app || !newComment.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await addComment(app.id, 'app', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
+      const supabase = getBrowserClient();
+      await db.comments.create(supabase, app.id, 'app', newComment.trim(), user.id, (user.user_metadata?.full_name || user.user_metadata?.name) || '익명');
       setNewComment('');
       await loadComments();
     } catch (error) {
@@ -136,7 +137,8 @@ export default function AppDetailClient({
     if (!editingId || !editingContent.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await updateComment(editingId, editingContent.trim());
+      const supabase = getBrowserClient();
+      await db.comments.update(supabase, editingId, editingContent.trim());
       setEditingId(null);
       setEditingContent('');
       await loadComments();
@@ -151,7 +153,8 @@ export default function AppDetailClient({
   const handleDeleteComment = async (commentId: string) => {
     if (!confirm('댓글을 삭제하시겠습니까?')) return;
     try {
-      await deleteComment(commentId);
+      const supabase = getBrowserClient();
+      await db.comments.remove(supabase, commentId);
       await loadComments();
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -164,12 +167,13 @@ export default function AppDetailClient({
 
     setIsLiking(true);
     try {
+      const supabase = getBrowserClient();
       if (isLiked) {
-        await unlikeApp(app.id, user.id);
+        await db.apps.unlike(supabase, app.id, user.id);
         setIsLiked(false);
         setLikeCount(prev => prev - 1);
       } else {
-        await likeApp(app.id, user.id);
+        await db.apps.like(supabase, app.id, user.id);
         setIsLiked(true);
         setLikeCount(prev => prev + 1);
       }
@@ -189,7 +193,8 @@ export default function AppDetailClient({
 
     setDeleting(true);
     try {
-      await deleteApp(app.id);
+      const supabase = getBrowserClient();
+      await db.apps.remove(supabase, app.id);
       showSuccess('앱이 삭제되었습니다.');
       const lastUrl = sessionStorage.getItem('lastAppsListUrl');
       router.push(lastUrl || '/apps');
@@ -208,10 +213,11 @@ export default function AppDetailClient({
     }
     setDownloadingPath(storagePath);
     try {
+      const supabase = getBrowserClient();
       const { data: { session } } = await supabase.auth.getSession();
       const idToken = session?.access_token;
       if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      await downloadAppAttachment(storagePath, filename, idToken, fallbackUrl);
+      await db.attachments.downloadFile(storagePath, filename, 'app', idToken, fallbackUrl);
     } catch (error) {
       console.error('Failed to download attachment:', error);
       showError('첨부 파일 다운로드 중 오류가 발생했습니다.');
@@ -509,7 +515,7 @@ export default function AppDetailClient({
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleDownloadAttachment(file.storagePath, file.name, file.downloadUrl)}
+                        onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
                         disabled={downloadingPath === file.storagePath}
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition disabled:opacity-60"
                       >

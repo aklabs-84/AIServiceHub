@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { AIApp } from '@/types/app';
+import type { AIApp } from '@/types/database';
 import AppCard from '@/components/AppCard';
 import Link from 'next/link';
 import { FaPlus } from 'react-icons/fa';

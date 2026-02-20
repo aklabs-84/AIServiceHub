@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getCategoriesByType } from '@/lib/db';
-import { CategoryRecord } from '@/types/category';
+import { db, getBrowserClient } from '@/lib/database';
+import type { Category } from '@/types/database';
 import { CategoryInfo } from '@/lib/categories';
 import { PromptCategoryInfo } from '@/lib/promptCategories';
 import {
@@ -10,7 +10,7 @@ import {
   promptIconOptions,
 } from '@/lib/categoryOptions';
 
-const buildAppCategoryInfo = (category: CategoryRecord): CategoryInfo => {
+const buildAppCategoryInfo = (category: Category): CategoryInfo => {
   const iconKey = category.icon as keyof typeof appIconOptions;
   return {
     value: category.value,
@@ -20,7 +20,7 @@ const buildAppCategoryInfo = (category: CategoryRecord): CategoryInfo => {
   };
 };
 
-const buildPromptCategoryInfo = (category: CategoryRecord): PromptCategoryInfo => {
+const buildPromptCategoryInfo = (category: Category): PromptCategoryInfo => {
   const iconKey = category.icon as keyof typeof promptIconOptions;
   return {
     value: category.value,
@@ -30,31 +30,33 @@ const buildPromptCategoryInfo = (category: CategoryRecord): PromptCategoryInfo =
   };
 };
 
-const defaultAppCategories = appCategoryDefaults.map((item) => buildAppCategoryInfo({
+const defaultAppCategories = appCategoryDefaults.map((item, idx) => buildAppCategoryInfo({
   id: item.value,
   type: 'app',
   value: item.value,
   label: item.label,
   color: item.color,
   icon: item.icon,
+  sortOrder: idx,
 }));
 
-const defaultPromptCategories = promptCategoryDefaults.map((item) => buildPromptCategoryInfo({
+const defaultPromptCategories = promptCategoryDefaults.map((item, idx) => buildPromptCategoryInfo({
   id: item.value,
   type: 'prompt',
   value: item.value,
   label: item.label,
   color: item.color,
   icon: item.icon,
+  sortOrder: idx,
 }));
 
 const CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let appCategoryCache: { data: CategoryInfo[]; expiresAt: number } | null = null;
-let appCategoryFetch: Promise<CategoryRecord[] | null> | null = null;
+let appCategoryFetch: Promise<Category[] | null> | null = null;
 
 let promptCategoryCache: { data: PromptCategoryInfo[]; expiresAt: number } | null = null;
-let promptCategoryFetch: Promise<CategoryRecord[] | null> | null = null;
+let promptCategoryFetch: Promise<Category[] | null> | null = null;
 
 const getCachedAppCategories = () => {
   if (appCategoryCache && appCategoryCache.expiresAt > Date.now()) {
@@ -97,7 +99,8 @@ export function useAppCategories() {
       setLoading(true);
       try {
         if (!appCategoryFetch) {
-          appCategoryFetch = getCategoriesByType('app');
+          const supabase = getBrowserClient();
+          appCategoryFetch = db.categories.getByType(supabase, 'app');
         }
         const data = await appCategoryFetch;
         if (!active) return;
@@ -148,7 +151,8 @@ export function usePromptCategories() {
       setLoading(true);
       try {
         if (!promptCategoryFetch) {
-          promptCategoryFetch = getCategoriesByType('prompt');
+          const supabase = getBrowserClient();
+          promptCategoryFetch = db.categories.getByType(supabase, 'prompt');
         }
         const data = await promptCategoryFetch;
         if (!active) return;

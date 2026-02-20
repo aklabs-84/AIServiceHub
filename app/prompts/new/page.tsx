@@ -4,12 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { getBrowserClient, db } from '@/lib/database';
 import { usePromptCategories } from '@/lib/useCategories';
 import { FaFeatherAlt, FaPaperclip, FaSave } from 'react-icons/fa';
-import { Prompt } from '@/types/prompt';
+import type { Prompt } from '@/types/database';
 import { sendSlackNotification } from '@/lib/notifications';
-import { uploadPromptAttachment } from '@/lib/storage';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -205,6 +204,7 @@ export default function NewPromptPage() {
       const abortId = setTimeout(() => controller.abort(), 10000); // 네트워크 중단 대비
 
       try {
+        const supabase = getBrowserClient();
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
           throw new Error('세션 확인 실패');
@@ -216,7 +216,7 @@ export default function NewPromptPage() {
 
           // 첨부파일 업로드 (병렬)
           uploadedAttachments = await withTimeout(
-            Promise.all(attachments.map((file) => uploadPromptAttachment(file, idToken))),
+            Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'prompt', idToken))),
             20000,
             '첨부 파일 업로드 시간이 초과되었습니다.'
           );
@@ -247,7 +247,6 @@ export default function NewPromptPage() {
                 thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
                 thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
                 thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-                attachments: uploadedAttachments,
                 createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
                 tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
               }),
@@ -266,6 +265,15 @@ export default function NewPromptPage() {
         }
 
         const { id: promptId } = await response.json();
+
+        // Save uploaded attachments to the attachments table
+        if (uploadedAttachments.length > 0) {
+          await Promise.all(
+            uploadedAttachments.map((file) =>
+              db.attachments.create(supabase, promptId, 'prompt', file, user.id)
+            )
+          );
+        }
 
         clearTimeout(abortId);
         return promptId;

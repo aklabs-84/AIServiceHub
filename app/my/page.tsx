@@ -1,18 +1,13 @@
 import MyPageClient from './MyPageClient';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import {
-  getAppsByUserServer,
-  getLikedAppsByUserServer,
-  getLikedPromptsByUserServer,
-  getPromptsByUserServer,
-} from '@/lib/dbServer';
+import { getServerClient } from '@/lib/database/server';
+import { db } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function MyPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const client = await getServerClient();
+  const { data: { user } } = await client.auth.getUser();
 
   if (!user) {
     return (
@@ -27,10 +22,10 @@ export default async function MyPage() {
   }
 
   const [myApps, myPrompts, likedApps, likedPrompts] = await Promise.all([
-    getAppsByUserServer(user.id),
-    getPromptsByUserServer(user.id),
-    getLikedAppsByUserServer(user.id),
-    getLikedPromptsByUserServer(user.id),
+    db.apps.getByUser(client, user.id),
+    db.prompts.getByUser(client, user.id),
+    db.apps.getLikedByUser(client, user.id),
+    db.prompts.getLikedByUser(client, user.id),
   ]);
 
   return (

@@ -1,6 +1,5 @@
-
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getAdminClient } from '@/lib/database';
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +9,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ active: false });
     }
 
-    const { data, error } = await supabaseAdmin
+    const admin = getAdminClient();
+    const { data, error } = await admin
       .from('one_time_access')
       .select('session_expires_at')
       .eq('session_token', token)
