@@ -191,6 +191,7 @@ export default function AppDetailClient({
       const supabase = getBrowserClient();
       await db.apps.remove(supabase, app.id);
       showSuccess('앱이 삭제되었습니다.');
+      router.refresh();
       const lastUrl = sessionStorage.getItem('lastAppsListUrl');
       router.push(lastUrl || '/apps');
     } catch (error) {
@@ -415,11 +416,10 @@ export default function AppDetailClient({
                   <button
                     onClick={handleLike}
                     disabled={!user || isLiking}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all ${
-                      isLiked
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all ${isLiked
                         ? 'bg-red-500 text-white hover:bg-red-600 shadow-md'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20'
-                    } ${isLiking ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      } ${isLiking ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {isLiked ? <FaHeart /> : <FaRegHeart />}
                     <span>{likeCount}</span>

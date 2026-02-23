@@ -234,6 +234,7 @@ export default function PromptDetailClient({
       const supabase = getBrowserClient();
       await db.prompts.remove(supabase, prompt.id);
       showSuccess('프롬프트가 삭제되었습니다.');
+      router.refresh();
       const lastUrl = sessionStorage.getItem('lastPromptsListUrl');
       router.push(lastUrl || '/prompts');
     } catch (error) {

@@ -275,9 +275,9 @@ export default function EditCollectionPage() {
           />
         </div>
 
-        {/* 에디토리얼 본문 */}
+        {/* 본문 내용 */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">에디토리얼 본문</label>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">본문 내용</label>
           <textarea
             rows={12}
             value={formData.editorialContent}
@@ -307,11 +307,10 @@ export default function EditCollectionPage() {
               return (
                 <label
                   key={app.id}
-                  className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition ${
-                    selected
+                  className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition ${selected
                       ? 'bg-blue-50 dark:bg-blue-900/20'
                       : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -364,22 +363,20 @@ export default function EditCollectionPage() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isPublished: true })}
-              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${
-                formData.isPublished
+              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${formData.isPublished
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+                }`}
             >
               공개
             </button>
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isPublished: false })}
-              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${
-                !formData.isPublished
+              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${!formData.isPublished
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+                }`}
             >
               비공개
             </button>

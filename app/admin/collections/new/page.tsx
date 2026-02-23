@@ -135,7 +135,18 @@ export default function NewCollectionPage() {
         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">새 컬렉션 등록</span>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-8">새 컬렉션 등록</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">새 컬렉션 등록</h1>
+        {formData.slug && (
+          <Link
+            href={`/apps/collections/${formData.slug}`}
+            target="_blank"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            미리보기 →
+          </Link>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8">
 
@@ -231,16 +242,16 @@ export default function NewCollectionPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">상세 페이지 좌측 대형 이미지입니다.</p>
         </div>
 
-        {/* 에디토리얼 본문 */}
+        {/* 본문 내용 */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
-            에디토리얼 본문
+            본문 내용
           </label>
           <textarea
             rows={10}
             value={formData.editorialContent}
             onChange={(e) => setFormData({ ...formData, editorialContent: e.target.value })}
-            placeholder="상세 페이지에 표시될 에디토리얼 내용을 입력하세요. 줄바꿈은 그대로 반영됩니다."
+            placeholder="상세 페이지에 표시될 본문 내용을 마크다운(Markdown) 형식으로 입력하세요. 줄바꿈 및 스타일이 그대로 반영됩니다."
             className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
           />
         </div>
@@ -271,11 +282,10 @@ export default function NewCollectionPage() {
                 return (
                   <label
                     key={app.id}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition ${
-                      selected
-                        ? 'bg-blue-50 dark:bg-blue-900/20'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition ${selected
+                      ? 'bg-blue-50 dark:bg-blue-900/20'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -338,22 +348,20 @@ export default function NewCollectionPage() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isPublished: true })}
-              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${
-                formData.isPublished
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${formData.isPublished
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
             >
               공개
             </button>
             <button
               type="button"
               onClick={() => setFormData({ ...formData, isPublished: false })}
-              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${
-                !formData.isPublished
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+              className={`px-5 py-2 rounded-lg border text-sm font-semibold transition ${!formData.isPublished
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
             >
               비공개
             </button>

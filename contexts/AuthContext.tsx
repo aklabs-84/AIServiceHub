@@ -20,9 +20,9 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   isAdmin: false,
   loading: true,
-  signInWithGoogle: async () => {},
-  signInWithKakao: async () => {},
-  signOut: async () => {},
+  signInWithGoogle: async () => { },
+  signInWithKakao: async () => { },
+  signOut: async () => { },
 });
 
 export const useAuth = () => {
@@ -138,6 +138,9 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           }
         }
         keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+        // Next.js 라우터 캐시 및 이전 상태를 완전히 초기화하기 위해 강제 리로드와 함께 메인으로 이동
+        window.location.href = '/';
       }
     } catch (error) {
       console.error('Error signing out:', error);

@@ -8,6 +8,7 @@
 ## 1. 현재 상태 분석
 
 ### 현재 구조
+
 - **레이아웃**: 단순 카드 그리드 (12개/페이지) + 리스트 뷰 전환
 - **앱 카드**: 썸네일 + 카테고리 + 태그 + 좋아요 + SNS 링크
 - **PWA 지원**: `site.webmanifest` 기본 파일만 있음 (서비스워커 없음)
@@ -15,6 +16,7 @@
 - **앱 상세 페이지**: 기본 정보 + 링크 + 첨부파일 + 댓글
 
 ### 문제점
+
 - 웹앱을 "발견"하는 경험이 부족함 (단순 목록)
 - 앱을 실제로 설치하거나 사용하는 진입점이 불명확
 - 모바일에서 바로가기 설치 안내 없음
@@ -25,6 +27,7 @@
 ## 2. 목표 및 요구사항
 
 ### 핵심 목표
+
 1. **앱스토어 같은 탐색 경험** - 앱을 발견하고 설치하는 느낌
 2. **직접 실행** - 앱 링크로 바로 이동
 3. **PWA 설치** - 데스크탑 브라우저에서 앱처럼 설치
@@ -58,6 +61,7 @@
 ```
 
 **앱 카드 (앱스토어 스타일)**
+
 ```
 ┌────────────────────┐
 │   [아이콘/썸네일]   │  ← 정사각형 (iOS 앱아이콘 비율)
@@ -108,6 +112,7 @@
 브라우저의 `beforeinstallprompt` 이벤트를 활용해 설치 버튼 제공.
 
 **구현 방법:**
+
 ```typescript
 // hooks/usePWAInstall.ts
 export function usePWAInstall() {
@@ -138,13 +143,14 @@ export function usePWAInstall() {
 ```
 
 **지원 브라우저:**
-| 브라우저 | 지원 |
-|--------|------|
+
+| 브라우저                  | 지원                  |
+| ------------------------- | --------------------- |
 | Chrome (데스크탑/Android) | ✅ 자동 설치 프롬프트 |
-| Edge (데스크탑) | ✅ 자동 설치 프롬프트 |
-| Safari (iOS) | ⚠️ 수동 안내 필요 |
-| Safari (macOS) | ⚠️ 수동 안내 필요 |
-| Firefox | ❌ 미지원 |
+| Edge (데스크탑)           | ✅ 자동 설치 프롬프트 |
+| Safari (iOS)              | ⚠️ 수동 안내 필요   |
+| Safari (macOS)            | ⚠️ 수동 안내 필요   |
+| Firefox                   | ❌ 미지원             |
 
 ### 4-2. site.webmanifest 보강
 
@@ -259,41 +265,44 @@ iOS Safari는 `beforeinstallprompt`를 지원하지 않으므로 수동 안내 �
 
 ### 신규 컴포넌트
 
-| 컴포넌트 | 역할 |
-|---------|------|
-| `PWAInstallButton.tsx` | 브라우저 감지 후 설치 버튼 or 안내 표시 |
-| `MobileInstallGuide.tsx` | iOS/Android별 설치 가이드 모달 |
-| `FeaturedAppsSection.tsx` | 추천 앱 배너 슬라이더 |
-| `AppStoreCard.tsx` | 앱스토어 스타일 앱 카드 (기존 AppCard 대체/보완) |
-| `HorizontalScrollSection.tsx` | 가로 스크롤 섹션 (인기, 최신 등) |
-| `AppIconGrid.tsx` | 소형 아이콘 그리드 (카테고리별) |
+| 컴포넌트                        | 역할                                             |
+| ------------------------------- | ------------------------------------------------ |
+| `PWAInstallButton.tsx`        | 브라우저 감지 후 설치 버튼 or 안내 표시          |
+| `MobileInstallGuide.tsx`      | iOS/Android별 설치 가이드 모달                   |
+| `FeaturedAppsSection.tsx`     | 추천 앱 배너 슬라이더                            |
+| `AppStoreCard.tsx`            | 앱스토어 스타일 앱 카드 (기존 AppCard 대체/보완) |
+| `HorizontalScrollSection.tsx` | 가로 스크롤 섹션 (인기, 최신 등)                 |
+| `AppIconGrid.tsx`             | 소형 아이콘 그리드 (카테고리별)                  |
 
 ### 수정할 기존 파일
 
-| 파일 | 변경 내용 |
-|------|----------|
-| `app/apps/AppsClient.tsx` | 앱스토어 레이아웃으로 전면 개편 |
-| `app/apps/[id]/page.tsx` | 상세 페이지 앱스토어 스타일 |
-| `components/AppCard.tsx` | 새 스타일 카드로 업데이트 |
-| `public/favicon_io/site.webmanifest` | PWA 메타데이터 보강 |
-| `app/layout.tsx` | SW 등록 스크립트 추가 (선택) |
+| 파일                                   | 변경 내용                       |
+| -------------------------------------- | ------------------------------- |
+| `app/apps/AppsClient.tsx`            | 앱스토어 레이아웃으로 전면 개편 |
+| `app/apps/[id]/page.tsx`             | 상세 페이지 앱스토어 스타일     |
+| `components/AppCard.tsx`             | 새 스타일 카드로 업데이트       |
+| `public/favicon_io/site.webmanifest` | PWA 메타데이터 보강             |
+| `app/layout.tsx`                     | SW 등록 스크립트 추가 (선택)    |
 
 ---
 
 ## 7. 구현 우선순위 (단계별)
 
 ### Phase 1 - 앱스토어 UI (필수, 1주)
-- [ ] 앱 카드 디자인 변경 (정사각형 아이콘, 앱스토어 스타일)
-- [ ] 앱 갤러리 레이아웃 개편 (가로 스크롤 섹션, 카테고리 탭)
-- [ ] 앱 상세 페이지 리디자인 (스크린샷, 설치 버튼 영역)
+
+- [X] 앱 카드 디자인 변경 (정사각형 아이콘, 앱스토어 스타일)
+- [X] 앱 갤러리 레이아웃 개편 (가로 스크롤 섹션, 카테고리 탭)
+- [X] 앱 상세 페이지 리디자인 (스크린샷, 설치 버튼 영역)
 
 ### Phase 2 - 설치 기능 (필수, 3일)
-- [ ] `usePWAInstall` 훅 구현
-- [ ] `PWAInstallButton` 컴포넌트
-- [ ] `site.webmanifest` 보강
-- [ ] 플랫폼별 설치 안내 모달
+
+- [X] `usePWAInstall` 훅 구현
+- [X] `PWAInstallButton` 컴포넌트
+- [X] `site.webmanifest` 보강
+- [X] 플랫폼별 설치 안내 모달
 
 ### Phase 3 - PWA 완성 (권장, 3일)
+
 - [ ] 서비스 워커 등록
 - [ ] 오프라인 페이지
 - [ ] 푸시 알림 (선택)
@@ -304,17 +313,20 @@ iOS Safari는 `beforeinstallprompt`를 지원하지 않으므로 수동 안내 �
 ## 8. 기술적 고려사항
 
 ### PWA 설치 가능 조건
+
 1. HTTPS 서비스 (배포 환경 ✅)
 2. `site.webmanifest` 유효한 파일 ✅ (보강 필요)
 3. 서비스 워커 등록 (현재 없음 → 추가 필요)
 4. 아이콘 192x192, 512x512 ✅
 
 ### 개별 웹앱 설치 한계
+
 - 외부 URL의 웹앱은 **우리가 직접 PWA로 만들 수 없음**
 - 대신: 해당 URL을 브라우저 바로가기로 추가하는 **안내 제공**
 - 또는: `Add to Home Screen` Web API로 바로가기 추가 유도
 
 ### 모바일 UX
+
 - **iOS**: `beforeinstallprompt` 미지원 → 공유 버튼 안내 필수
 - **Android Chrome**: 자동 프롬프트 or 수동 트리거 모두 가능
 - **Samsung Internet**: 별도 감지 필요
@@ -323,12 +335,12 @@ iOS Safari는 `beforeinstallprompt`를 지원하지 않으므로 수동 안내 �
 
 ## 9. 디자인 레퍼런스
 
-| 참고 사이트 | 참고 요소 |
-|-----------|---------|
-| Apple App Store | 앱 아이콘 스타일, 상세 페이지 레이아웃, 스크린샷 슬라이더 |
-| Google Play Store | 카테고리 탭, 색상 추출 배경, 평점 UI |
-| Product Hunt | 카드 스타일, 투표 버튼, 태그 |
-| Gumroad | 설치/구매 CTA 버튼 레이아웃 |
+| 참고 사이트       | 참고 요소                                                 |
+| ----------------- | --------------------------------------------------------- |
+| Apple App Store   | 앱 아이콘 스타일, 상세 페이지 레이아웃, 스크린샷 슬라이더 |
+| Google Play Store | 카테고리 탭, 색상 추출 배경, 평점 UI                      |
+| Product Hunt      | 카드 스타일, 투표 버튼, 태그                              |
+| Gumroad           | 설치/구매 CTA 버튼 레이아웃                               |
 
 ---
 

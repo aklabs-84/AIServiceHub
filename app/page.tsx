@@ -16,7 +16,7 @@ export default function Home() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* === 히어로 섹션 === */}
-        <div className="relative pt-20 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+        <div className="relative pt-20 pb-16 md:pt-32 md:pb-24">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* 텍스트 영역 */}
             <div className="relative z-20 space-y-8 text-center lg:text-left">
