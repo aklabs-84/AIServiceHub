@@ -39,7 +39,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 export default function EditAppPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { categories } = useAppCategories();
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -246,8 +246,8 @@ export default function EditAppPage() {
   }, [params.id]);
 
   useEffect(() => {
-    loadApp();
-  }, [loadApp]);
+    if (!authLoading) loadApp();
+  }, [loadApp, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -379,7 +379,7 @@ export default function EditAppPage() {
     setIsDragging(false);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -397,7 +397,7 @@ export default function EditAppPage() {
     );
   }
 
-  if (!user || user.id !== app.createdBy) {
+  if (!user || (user.id !== app.createdBy && !isAdmin)) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">

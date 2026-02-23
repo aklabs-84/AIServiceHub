@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import type { AIApp } from '@/types/database';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { db, getBrowserClient } from '@/lib/database';
@@ -16,135 +15,39 @@ interface AppCardProps {
   categoryInfo?: CategoryInfo;
 }
 
+const getCategoryBg = (category: string) => {
+  switch (category) {
+    case 'chatbot': return 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600';
+    case 'content-generation': return 'bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600';
+    case 'data-analysis': return 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600';
+    case 'image-generation': return 'bg-gradient-to-br from-pink-400 via-pink-500 to-pink-600';
+    case 'code-assistant': return 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500';
+    case 'translation': return 'bg-gradient-to-br from-indigo-400 via-indigo-500 to-indigo-600';
+    case 'education': return 'bg-gradient-to-br from-red-400 via-red-500 to-red-600';
+    case 'game': return 'bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600';
+    case 'productivity': return 'bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600';
+    default: return 'bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-700 dark:to-gray-800';
+  }
+};
+
 export default function AppCard({ app, onLikeChange, categoryInfo: providedCategoryInfo }: AppCardProps) {
   const categoryInfo = providedCategoryInfo || getCategoryInfo(app.category);
   const CategoryIcon = categoryInfo.icon;
-  const router = useRouter();
-
-  const handleTagClick = (tag: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    router.push(`/apps?tag=${encodeURIComponent(tag)}`);
-  };
   const [imageError, setImageError] = useState(false);
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(user ? app.likes.includes(user.id) : false);
   const [likeCount, setLikeCount] = useState(app.likeCount);
   const [isLiking, setIsLiking] = useState(false);
+
   const thumbnailPosition = app.thumbnailUrl
     ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
     : undefined;
-  const categoryBackground = (() => {
-    switch (app.category) {
-      case 'chatbot':
-        return 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600';
-      case 'content-generation':
-        return 'bg-gradient-to-br from-purple-400 via-purple-500 to-purple-600';
-      case 'data-analysis':
-        return 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600';
-      case 'image-generation':
-        return 'bg-gradient-to-br from-pink-400 via-pink-500 to-pink-600';
-      case 'code-assistant':
-        return 'bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500';
-      case 'translation':
-        return 'bg-gradient-to-br from-indigo-400 via-indigo-500 to-indigo-600';
-      case 'education':
-        return 'bg-gradient-to-br from-red-400 via-red-500 to-red-600';
-      case 'game':
-        return 'bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600';
-      case 'productivity':
-        return 'bg-gradient-to-br from-teal-400 via-teal-500 to-teal-600';
-      case 'other':
-      default:
-        return 'bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 dark:from-gray-700 dark:via-gray-800 dark:to-gray-900';
-    }
-  })();
-
-  const snsPreview = useMemo(() => app.snsUrls.slice(0, 3), [app.snsUrls]);
-  const plainDescription = useMemo(() => {
-    const raw = app.description || '';
-    return raw
-      .replace(/```[\s\S]*?```/g, ' ')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/!\[.*?\]\(.*?\)/g, ' ')
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-      .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-      .replace(/^\s{0,3}[-*+]\s+/gm, '')
-      .replace(/^\s{0,3}\d+\.\s+/gm, '')
-      .replace(/[*_~]+/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }, [app.description]);
-  const getLinkPreview = (url: string) => {
-    const blogFallback = '/naver-blog.svg';
-    const instagramFallback = '/instagram-icon.svg';
-    const youtubeFallback = '/youtube.svg';
-    const defaultFallback = '/globe.svg';
-
-    const extractUrl = (raw: string) => {
-      const httpMatch = raw.match(/https?:\/\/[^\s]+/);
-      if (httpMatch) return httpMatch[0];
-      const afterColon = raw.split(':').slice(1).join(':').trim();
-      if (afterColon) return afterColon;
-      return raw.trim();
-    };
-
-    const normalizeUrl = (raw: string) => {
-      try {
-        return new URL(raw);
-      } catch {
-        return new URL(`https://${raw}`);
-      }
-    };
-
-    try {
-      const parsed = normalizeUrl(extractUrl(url));
-      const hostname = parsed.hostname.replace('www.', '');
-      const host = hostname.toLowerCase();
-      const isBlog = host.includes('blog.') || host.includes('naver.com') || host.includes('tistory') || host.includes('medium.com');
-      const isInstagram = host.includes('instagram.com');
-      const isYoutube = host.includes('youtube.com') || host.includes('youtu.be');
-      const isTiktok = host.includes('tiktok.com');
-      const isTwitter = host.includes('twitter.com') || host === 'x.com';
-      const isNotion = host.includes('notion.site') || host.includes('notion.so');
-      const isGoogleForm = host.includes('forms.gle') || host.includes('docs.google.com');
-
-      let icon: 'instagram' | 'youtube' | 'tiktok' | 'twitter' | 'notion' | 'form' | 'blog' | undefined;
-      if (isInstagram) icon = 'instagram';
-      else if (isYoutube) icon = 'youtube';
-      else if (isTiktok) icon = 'tiktok';
-      else if (isTwitter) icon = 'twitter';
-      else if (isNotion) icon = 'notion';
-      else if (isGoogleForm) icon = 'form';
-      else if (isBlog) icon = 'blog';
-
-      const fallback = icon === 'instagram'
-        ? instagramFallback
-        : icon === 'youtube'
-          ? youtubeFallback
-          : icon === 'blog'
-            ? blogFallback
-            : defaultFallback;
-      const favicon = icon
-        ? fallback
-        : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
-
-      return { hostname, favicon, fallback, icon };
-    } catch {
-      return {
-        hostname: url,
-        favicon: defaultFallback,
-        fallback: defaultFallback,
-      };
-    }
-  };
+  const bgClass = getCategoryBg(app.category);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!user || isLiking) return;
-
     setIsLiking(true);
     try {
       const supabase = getBrowserClient();
@@ -166,118 +69,53 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
   };
 
   return (
-    <Link href={`/apps/${app.id}`} className="group h-full">
-      <div className="relative h-full flex flex-col bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/10 group-hover:-translate-y-2 group-hover:scale-[1.02]">
-
-        {/* 썸네일 영역 */}
-        <div className="relative aspect-video overflow-hidden">
-          {app.thumbnailUrl && !imageError ? (
-            <>
-              <Image
-                src={app.thumbnailUrl}
-                alt={app.name}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-700 group-hover:scale-110"
-                style={thumbnailPosition}
-                onError={() => setImageError(true)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </>
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${categoryBackground} relative overflow-hidden`}>
-              <CategoryIcon className="text-white/20 text-8xl absolute -right-4 -bottom-4 rotate-12" />
-              <CategoryIcon className="text-white text-6xl drop-shadow-2xl relative z-10 transition-transform duration-500 group-hover:scale-110" />
-            </div>
-          )}
-
-          {/* 카테고리 배지 */}
-          <div className="absolute top-4 left-4 z-20">
-            <div className={`px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/90 dark:bg-gray-950/80 border border-white/20 dark:border-gray-800/50 shadow-sm flex items-center space-x-1.5`}>
-              <CategoryIcon className={`text-sm ${categoryInfo.color.replace('bg-', 'text-')}`} />
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">
-                {categoryInfo.label}
-              </span>
-            </div>
+    <Link href={`/apps/${app.id}`} className="group flex flex-col gap-2 p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200 cursor-pointer">
+      {/* Square App Icon */}
+      <div className="relative w-full aspect-square rounded-[22%] overflow-hidden shadow-sm group-hover:shadow-lg transition-shadow duration-300">
+        {app.thumbnailUrl && !imageError ? (
+          <Image
+            src={app.thumbnailUrl}
+            alt={app.name}
+            fill
+            sizes="(max-width: 640px) 30vw, (max-width: 1024px) 20vw, 14vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            style={thumbnailPosition}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className={`w-full h-full flex items-center justify-center ${bgClass} relative overflow-hidden`}>
+            <CategoryIcon className="text-white/15 text-7xl absolute -right-2 -bottom-2 rotate-12" />
+            <CategoryIcon className="text-white text-4xl relative z-10" />
           </div>
+        )}
+      </div>
+
+      {/* App Info */}
+      <div className="px-0.5 space-y-1.5">
+        <div>
+          <h3 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight">
+            {app.name}
+          </h3>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+            {categoryInfo.label}
+          </p>
         </div>
 
-        {/* 카드 상세 */}
-        <div className="p-6 flex-1 flex flex-col">
-          <div className="mb-4">
-            <h3 className="text-lg font-black tracking-tight text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {app.name}
-            </h3>
-
-            {/* 태그 */}
-            {app.tags && app.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {app.tags.slice(0, 3).map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={(e) => handleTagClick(tag, e)}
-                    className="text-[10px] font-bold px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
-                  >
-                    #{tag}
-                  </button>
-                ))}
-                {app.tags.length > 3 && (
-                  <span className="text-[10px] font-bold text-gray-400 px-1 py-1">+{app.tags.length - 3}</span>
-                )}
-              </div>
-            )}
-
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed h-11">
-              {plainDescription}
-            </p>
-          </div>
-
-          <div className="mt-auto pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-[10px] font-bold border border-indigo-100 dark:border-indigo-900/50">
-                {app.createdByName?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
-                {app.createdByName}
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              {/* SNS 링크 (최대 2개 미리보기) */}
-              <div className="flex -space-x-1.5">
-                {snsPreview.slice(0, 2).map((url, idx) => {
-                  const preview = getLinkPreview(url);
-                  return (
-                    <div key={idx} className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center overflow-hidden">
-                      <Image
-                        src={preview.favicon}
-                        alt="SNS"
-                        width={14}
-                        height={14}
-                        className="object-contain"
-                        onError={(e) => (e.currentTarget.src = '/globe.svg')}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              <button
-                onClick={handleLike}
-                disabled={!user || isLiking}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition-all ${isLiked
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
-                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500'
-                  }`}
-              >
-                {isLiked ? <FaHeart className="text-xs" /> : <FaRegHeart className="text-xs" />}
-                <span className="text-xs font-black">{likeCount}</span>
-              </button>
-            </div>
-          </div>
+        {/* Like + Open */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleLike}
+            disabled={!user || isLiking}
+            className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-300 dark:text-gray-600 hover:text-red-400'}`}
+          >
+            {isLiked ? <FaHeart className="text-[10px]" /> : <FaRegHeart className="text-[10px]" />}
+            <span className="text-[10px] font-bold">{likeCount}</span>
+          </button>
+          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+            열기
+          </span>
         </div>
       </div>
     </Link>
-
   );
 }
