@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import type { AIApp, AppCategory } from '@/types/database';
+import type { AIApp, AppCategory, Collection } from '@/types/database';
 import AppCard from '@/components/AppCard';
+import Image from 'next/image';
+import Link from 'next/link';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { FaArrowUp, FaFire, FaHome, FaPlus, FaRegClock, FaRocket, FaSearch, FaTimes } from 'react-icons/fa';
-import Link from 'next/link';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
@@ -17,9 +18,10 @@ import PushNotificationToggle from '@/components/PushNotificationToggle';
 
 type AppsClientProps = {
   initialApps: AIApp[];
+  initialCollections?: Collection[];
 };
 
-export default function AppsClient({ initialApps }: AppsClientProps) {
+export default function AppsClient({ initialApps, initialCollections = [] }: AppsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -317,6 +319,34 @@ export default function AppsClient({ initialApps }: AppsClientProps) {
       {/* Main content */}
       <div className="container mx-auto px-4 sm:px-6 py-6 max-w-screen-xl">
 
+        {/* 히어로 배너 */}
+        {!isFiltered && (
+          <section className="relative mb-8 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-7 sm:p-10">
+            {/* 배경 장식 */}
+            <div className="absolute top-[-30%] right-[-5%] w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute bottom-[-30%] right-[15%] w-48 h-48 bg-purple-400/20 rounded-full blur-xl pointer-events-none" />
+
+            <div className="relative z-10">
+              <p className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-2">
+                바이브코딩 · AI LABS
+              </p>
+              <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight mb-2">
+                AI로 만든 앱이 모이는 곳
+              </h1>
+              <p className="text-white/70 text-sm leading-relaxed max-w-sm mb-5">
+                팀원들이 만든 AI 앱을 탐색하고 실행하고, 나만의 앱을 등록해보세요.
+              </p>
+              <Link
+                href="/apps/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-gray-900 text-sm font-bold hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                <FaPlus className="text-xs" />
+                내 앱 등록하기
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* Active filter chips */}
         {isFiltered && (
           <div className="flex items-center flex-wrap gap-2 mb-5">
@@ -352,6 +382,65 @@ export default function AppsClient({ initialApps }: AppsClientProps) {
               전체 초기화
             </button>
           </div>
+        )}
+
+        {/* 에디토리얼 컬렉션 섹션 - Google Play 스타일 */}
+        {!isFiltered && initialCollections.length > 0 && (
+          <section className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-gray-900 dark:text-white">기획 컬렉션</h2>
+              <Link
+                href="/apps/collections"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                전체 보기 →
+              </Link>
+            </div>
+            <div
+              className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {initialCollections.map((col) => (
+                <Link
+                  key={col.id}
+                  href={`/apps/collections/${col.slug}`}
+                  className="group flex-none relative w-72 sm:w-80 h-52 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+                >
+                  {/* 히어로 이미지 배경 */}
+                  {col.heroImageUrl || col.cardImageUrl ? (
+                    <Image
+                      src={col.heroImageUrl || col.cardImageUrl!}
+                      alt={col.title}
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 288px, 320px"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800" />
+                  )}
+
+                  {/* 어두운 오버레이 */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                  {/* 텍스트 */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    {col.subtitle && (
+                      <p className="text-white/70 text-xs font-semibold mb-1 truncate">{col.subtitle}</p>
+                    )}
+                    <h3 className="text-white font-black text-base leading-tight line-clamp-2">
+                      {col.title}
+                    </h3>
+                    {col.description && (
+                      <p className="text-white/60 text-xs mt-1 line-clamp-1">{col.description}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+
+
+            </div>
+          </section>
         )}
 
         {/* No-filter sections: Popular + Latest */}

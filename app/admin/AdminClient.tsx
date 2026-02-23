@@ -5,9 +5,9 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { db, getBrowserClient } from '@/lib/database';
-import type { AIApp, Prompt, Comment, Category, UserProfile } from '@/types/database';
+import type { AIApp, Prompt, Comment, Category, UserProfile, Collection } from '@/types/database';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
-import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit, FaLayerGroup } from 'react-icons/fa';
 import Link from 'next/link';
 
 interface CreatorStat {
@@ -18,7 +18,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections';
 
 interface OneTimeInfo {
   id: string;
@@ -78,6 +78,8 @@ function AdminPageContent({
   const [pageApps, setPageApps] = useState(1);
   const [pagePrompts, setPagePrompts] = useState(1);
   const [pageUsers, setPageUsers] = useState(1);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [loadingCollections, setLoadingCollections] = useState(false);
   const [appCategories, setAppCategories] = useState<Category[]>(initialAppCategories);
   const [promptCategories, setPromptCategories] = useState<Category[]>(initialPromptCategories);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -139,6 +141,34 @@ function AdminPageContent({
     };
     fetchAll();
   }, [user, isAdmin, initialDataLoaded, showError]);
+
+  const loadCollections = useCallback(async () => {
+    if (!user || !isAdmin) return;
+    setLoadingCollections(true);
+    try {
+      const supabase = getBrowserClient();
+      const data = await db.collections.getAll(supabase);
+      setCollections(data);
+    } catch (error) {
+      console.error('Failed to load collections:', error);
+      showError('컬렉션을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoadingCollections(false);
+    }
+  }, [user, isAdmin, showError]);
+
+  const handleDeleteCollection = async (id: string, title: string) => {
+    if (!confirm(`'${title}' 컬렉션을 삭제하시겠습니까?`)) return;
+    try {
+      const supabase = getBrowserClient();
+      await db.collections.remove(supabase, id);
+      setCollections((prev) => prev.filter((c) => c.id !== id));
+      showSuccess('컬렉션이 삭제되었습니다.');
+    } catch (error) {
+      console.error('Failed to delete collection:', error);
+      showError('컬렉션 삭제 중 오류가 발생했습니다.');
+    }
+  };
 
   const loadCategories = useCallback(async () => {
     setLoadingCategories(true);
@@ -229,6 +259,12 @@ function AdminPageContent({
     if (initialDataLoaded && appCategories.length > 0 && promptCategories.length > 0) return;
     loadCategories();
   }, [user, isAdmin, loadCategories, initialDataLoaded, appCategories.length, promptCategories.length]);
+
+  useEffect(() => {
+    if (activeTab === 'collections' && collections.length === 0 && !loadingCollections) {
+      loadCollections();
+    }
+  }, [activeTab, collections.length, loadingCollections, loadCollections]);
 
   useEffect(() => {
     if (loading) return;
@@ -599,7 +635,7 @@ function AdminPageContent({
         <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">접근 권한이 없습니다</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">관리자 전용 페이지입니다.</p>
         <button
-          onClick={signOut}
+          onClick={async () => { await signOut(); window.location.href = '/'; }}
           className="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-100 px-5 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition"
         >
           다른 계정으로 로그인
@@ -623,7 +659,7 @@ function AdminPageContent({
             유저 권한 관리
           </Link>
           <button
-            onClick={signOut}
+            onClick={async () => { await signOut(); window.location.href = '/'; }}
             className="text-sm px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
           >
             로그아웃
@@ -841,18 +877,19 @@ function AdminPageContent({
       ) : (
         <div className="space-y-8">
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-2">
               {[
                 { key: 'creators', label: '작성자 활동' },
                 { key: 'apps', label: '최신 앱' },
                 { key: 'prompts', label: '최신 프롬프트' },
                 { key: 'users', label: '신규 가입자' },
                 { key: 'categories', label: '카테고리 관리' },
+                { key: 'collections', label: '기획 컬렉션' },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as TabKey)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${activeTab === tab.key
+                  className={`flex-none px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${activeTab === tab.key
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
@@ -949,6 +986,89 @@ function AdminPageContent({
                   }))}
                 />
                 <Pager page={pageUsers} totalPages={totalPagesUsers} onPageChange={setPageUsers} />
+              </div>
+            )}
+
+            {activeTab === 'collections' && (
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                    기획 컬렉션 ({collections.length}개)
+                  </h3>
+                  <Link
+                    href="/admin/collections/new"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
+                  >
+                    <FaPlus className="text-xs" />
+                    새 컬렉션
+                  </Link>
+                </div>
+                {loadingCollections ? (
+                  <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">불러오는 중...</div>
+                ) : collections.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    등록된 컬렉션이 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {collections.map((col) => (
+                      <div
+                        key={col.id}
+                        className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50"
+                      >
+                        {col.cardImageUrl && (
+                          <div className="w-14 h-14 rounded-xl overflow-hidden flex-none bg-gray-200 dark:bg-gray-700">
+                            <img
+                              src={col.cardImageUrl}
+                              alt={col.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        {!col.cardImageUrl && (
+                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-none">
+                            <FaLayerGroup className="text-white text-xl" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          {col.subtitle && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{col.subtitle}</div>
+                          )}
+                          <div className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{col.title}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              col.isPublished
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {col.isPublished ? '공개' : '비공개'}
+                            </span>
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                              앱 {col.appIds.length}개 · 순서 {col.sortOrder}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-none">
+                          <Link
+                            href={`/admin/collections/${col.id}/edit`}
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                          >
+                            <FaEdit className="text-[10px]" />
+                            수정
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCollection(col.id, col.title)}
+                            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                          >
+                            <FaTrash className="text-[10px]" />
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

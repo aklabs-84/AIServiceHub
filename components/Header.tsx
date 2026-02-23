@@ -125,6 +125,7 @@ export default function Header() {
                           onClick={async () => {
                             setProfileMenuOpen(false);
                             await signOut();
+                            window.location.href = '/';
                           }}
                           className="w-full flex items-center px-3 py-2 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
                         >

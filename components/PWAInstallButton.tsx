@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FaDownload, FaMobileAlt, FaCheckCircle } from 'react-icons/fa'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { isMobile, supportsNativeInstallPrompt } from '@/utils/platform'
@@ -24,6 +24,11 @@ export default function PWAInstallButton({
 }: PWAInstallButtonProps) {
   const { install, isInstalled, canInstall } = usePWAInstall()
   const [showGuide, setShowGuide] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted) return null
 
   const mobile = isMobile()
   const isAppShortcutMode = !!appUrl

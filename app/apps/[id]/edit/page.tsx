@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db, getBrowserClient } from '@/lib/database';
 import type { AIApp, Attachment, AppUrlItem } from '@/types/database';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink } from 'react-icons/fa';
+import { FaSave, FaPaperclip, FaDownload, FaPlus, FaTrash, FaGlobe, FaLock, FaLink, FaGripVertical } from 'react-icons/fa';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 
@@ -187,6 +187,17 @@ export default function EditAppPage() {
     }));
   };
 
+  const urlDragIndexRef = useRef<number | null>(null);
+  const moveUrlField = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setFormData((prev) => {
+      const next = [...prev.appUrls];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return { ...prev, appUrls: next };
+    });
+  };
+
   const hydrateSnsForm = (snsUrls: string[]) => {
     const next = { blog: '', instagram: '', tiktok: '', youtube: '', etc: [] as string[] };
     snsUrls.forEach((entry) => {
@@ -302,6 +313,7 @@ export default function EditAppPage() {
       }
 
       showSuccess('앱이 수정되었습니다!');
+      router.refresh();
       router.replace(`/apps/${app.id}`);
     } catch (error) {
       console.error('Error updating app:', error);
@@ -516,73 +528,106 @@ export default function EditAppPage() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {formData.appUrls.map((urlItem, index) => (
-                <div key={index} className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <FaLink className="text-sm" />
-                      </div>
-                      <input
-                        type="url"
-                        required={index === 0}
-                        value={urlItem.url}
-                        onChange={(e) => updateUrlField(index, { url: e.target.value })}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        placeholder="https://aistudio.google.com/..."
-                      />
-                    </div>
-                    {formData.appUrls.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeUrlField(index)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="삭제"
-                      >
-                        <FaTrash className="text-sm" />
-                      </button>
-                    )}
+                <div
+                  key={index}
+                  draggable
+                  onDragStart={() => { urlDragIndexRef.current = index; }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (urlDragIndexRef.current !== null) {
+                      moveUrlField(urlDragIndexRef.current, index);
+                      urlDragIndexRef.current = null;
+                    }
+                  }}
+                  className={`flex gap-2 p-4 rounded-xl border bg-gray-50/50 dark:bg-gray-950/50 space-y-3 transition-colors ${
+                    index === 0
+                      ? 'border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-900/10'
+                      : 'border-gray-200 dark:border-gray-800'
+                  }`}
+                >
+                  {/* 드래그 핸들 */}
+                  <div className="flex flex-col items-center justify-start pt-2.5 cursor-grab active:cursor-grabbing text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors">
+                    <FaGripVertical />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={urlItem.label}
-                        onChange={(e) => updateUrlField(index, { label: e.target.value })}
-                        className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-950 text-xs text-gray-600 dark:text-gray-400 focus:ring-1 focus:ring-blue-500"
-                        placeholder="URL 라벨 (예: 메인 앱, 관리자 페이지 등)"
-                      />
+                  <div className="flex-1 space-y-3">
+                    {/* 첫 번째 배지 */}
+                    {index === 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">
+                          1순위 · 웹앱 열기 버튼에 사용됨
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <FaLink className="text-sm" />
+                        </div>
+                        <input
+                          type="url"
+                          required={index === 0}
+                          value={urlItem.url}
+                          onChange={(e) => updateUrlField(index, { url: e.target.value })}
+                          className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          placeholder="https://aistudio.google.com/..."
+                        />
+                      </div>
+                      {formData.appUrls.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeUrlField(index)}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          title="삭제"
+                        >
+                          <FaTrash className="text-sm" />
+                        </button>
+                      )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => updateUrlField(index, { isPublic: !urlItem.isPublic })}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border transition-all text-[11px] font-bold ${urlItem.isPublic
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
-                        : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
-                        }`}
-                    >
-                      {urlItem.isPublic ? (
-                        <>
-                          <FaGlobe className="text-[10px]" />
-                          <span>전체 공개</span>
-                        </>
-                      ) : (
-                        <>
-                          <FaLock className="text-[10px]" />
-                          <span>작성자만 공개</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={urlItem.label}
+                          onChange={(e) => updateUrlField(index, { label: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-950 text-xs text-gray-600 dark:text-gray-400 focus:ring-1 focus:ring-blue-500"
+                          placeholder="URL 라벨 (예: 메인 앱, 관리자 페이지 등)"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => updateUrlField(index, { isPublic: !urlItem.isPublic })}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border transition-all text-[11px] font-bold ${urlItem.isPublic
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
+                          : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800'
+                          }`}
+                      >
+                        {urlItem.isPublic ? (
+                          <>
+                            <FaGlobe className="text-[10px]" />
+                            <span>전체 공개</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaLock className="text-[10px]" />
+                            <span>작성자만 공개</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pl-1">
-              • Google AI Studio에서 공유한 앱 URL을 입력하세요.<br />
+              • 드래그해서 URL 순서를 변경하세요. 첫 번째 URL이 &apos;웹앱 열기&apos; 버튼에 사용됩니다.<br />
               • 비공개로 설정된 URL은 본인과 관리자만 볼 수 있습니다.
             </p>
           </div>

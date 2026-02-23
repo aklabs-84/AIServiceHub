@@ -257,3 +257,56 @@ export type CategoryType = 'app' | 'prompt';
 // Legacy aliases for backward compatibility during migration
 export type AppCategory = string;
 export type PromptCategory = string;
+
+// --- Editorial Collections ---
+
+export interface CollectionRow {
+  id: string;
+  slug: string;
+  subtitle: string | null;
+  title: string;
+  description: string | null;
+  card_image_url: string | null;
+  hero_image_url: string | null;
+  editorial_content: string | null;
+  app_ids: string[];
+  is_published: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Collection {
+  id: string;
+  slug: string;
+  subtitle: string;
+  title: string;
+  description: string;
+  cardImageUrl?: string;
+  heroImageUrl?: string;
+  editorialContent: string;
+  appIds: string[];
+  isPublished: boolean;
+  sortOrder: number;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateCollectionInput {
+  slug: string;
+  subtitle?: string;
+  title: string;
+  description?: string;
+  cardImageUrl?: string;
+  heroImageUrl?: string;
+  editorialContent?: string;
+  appIds?: string[];
+  isPublished?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateCollectionInput extends Partial<CreateCollectionInput> {
+  id: string;
+}

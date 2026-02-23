@@ -93,7 +93,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
       {/* App Info */}
       <div className="px-0.5 space-y-1.5">
         <div>
-          <h3 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight">
+          <h3 className="text-xs font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight min-h-[1.875rem]">
             {app.name}
           </h3>
           <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">

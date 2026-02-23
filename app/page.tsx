@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaFeatherAlt, FaPlus, FaRocket, FaListUl, FaLock } from 'react-icons/fa';
+import { FaFeatherAlt, FaPlus, FaRocket, FaListUl, FaLock, FaMobileAlt, FaMousePointer, FaDownload } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 
 export const dynamic = 'force-dynamic';
@@ -142,6 +142,55 @@ export default function Home() {
           </div>
         </div>
 
+        {/* === 앱 사용 가이드 섹션 === */}
+        <div className="py-20 md:py-24 relative">
+          <div className="text-center space-y-4 mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-[10px] sm:text-xs font-bold text-indigo-600 dark:text-indigo-300 uppercase tracking-widest border border-indigo-100 dark:border-indigo-800">
+              How to use
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+              앱 사용, 이렇게 시작하세요
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto leading-relaxed">
+              클릭 한 번으로 AI 앱을 실행하고, 홈 화면에 추가해 언제든 바로 사용하세요.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+            <InstallStepCard
+              step="01"
+              icon={<FaListUl />}
+              title="앱 탐색"
+              description="앱스토어에서 원하는 AI 앱을 찾아보세요. 카테고리, 태그, 검색으로 빠르게 찾을 수 있어요."
+              color="blue"
+            />
+            <InstallStepCard
+              step="02"
+              icon={<FaMousePointer />}
+              title="바로 실행"
+              description="앱 카드를 클릭한 뒤 '열기' 버튼을 누르면 AI 앱이 브라우저에서 즉시 실행됩니다."
+              color="indigo"
+            />
+            <InstallStepCard
+              step="03"
+              icon={<FaMobileAlt />}
+              title="홈 화면에 설치"
+              description="'홈화면 추가' 또는 '앱 설치' 버튼으로 아이콘을 바탕화면에 추가하면 앱처럼 빠르게 접근할 수 있어요."
+              color="purple"
+            />
+          </div>
+
+          <div className="mt-10 text-center">
+            <Link
+              href="/apps"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold hover:scale-105 active:scale-95 transition-all shadow-xl shadow-gray-200 dark:shadow-none"
+            >
+              <FaRocket className="text-sm" />
+              앱 둘러보기
+            </Link>
+          </div>
+        </div>
+
         {/* === CTA 섹션들 (Grid Layout) === */}
         <div className="py-20 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10">
 
@@ -204,6 +253,40 @@ function FeatureCard({ icon, title, description, bgColor, borderColor }: any) {
       <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
         {description}
       </p>
+    </div>
+  )
+}
+
+function InstallStepCard({ step, icon, title, description, color }: any) {
+  const colors: any = {
+    blue: {
+      bg: 'bg-blue-50/60 dark:bg-blue-900/10',
+      border: 'border-blue-100/60 dark:border-blue-800/50',
+      badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300',
+      icon: 'text-blue-500',
+    },
+    indigo: {
+      bg: 'bg-indigo-50/60 dark:bg-indigo-900/10',
+      border: 'border-indigo-100/60 dark:border-indigo-800/50',
+      badge: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300',
+      icon: 'text-indigo-500',
+    },
+    purple: {
+      bg: 'bg-purple-50/60 dark:bg-purple-900/10',
+      border: 'border-purple-100/60 dark:border-purple-800/50',
+      badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300',
+      icon: 'text-purple-500',
+    },
+  }
+  const c = colors[color]
+  return (
+    <div className={`group p-8 rounded-[2rem] border ${c.border} ${c.bg} backdrop-blur-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500`}>
+      <div className="flex items-center gap-3 mb-6">
+        <span className={`px-2.5 py-1 rounded-full text-xs font-black ${c.badge}`}>{step}</span>
+        <div className={`text-xl ${c.icon} group-hover:scale-110 transition-transform`}>{icon}</div>
+      </div>
+      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
+      <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">{description}</p>
     </div>
   )
 }

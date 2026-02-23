@@ -7,7 +7,10 @@ export const revalidate = 0;
 
 export default async function AppsPage() {
   const client = await getServerClient();
-  const apps = await db.apps.getAll(client);
+  const [apps, collections] = await Promise.all([
+    db.apps.getAll(client),
+    db.collections.getPublished(client).catch(() => []),
+  ]);
 
-  return <AppsClient initialApps={apps} />;
+  return <AppsClient initialApps={apps} initialCollections={collections} />;
 }

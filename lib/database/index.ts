@@ -19,6 +19,7 @@ import * as categories from './categories';
 import * as attachments from './attachments';
 import * as auth from './auth';
 import * as oneTimeAccess from './one-time-access';
+import * as collections from './collections';
 
 export const db = {
   apps,
@@ -28,6 +29,7 @@ export const db = {
   attachments,
   auth,
   oneTimeAccess,
+  collections,
 };
 
 // Re-export types for convenience
@@ -38,11 +40,14 @@ export type {
   Attachment,
   Category,
   UserProfile,
+  Collection,
   CreateAppInput,
   UpdateAppInput,
   CreatePromptInput,
   UpdatePromptInput,
   CreateCategoryInput,
+  CreateCollectionInput,
+  UpdateCollectionInput,
   CommentTargetType,
   CategoryType,
   AppUrlItem,
