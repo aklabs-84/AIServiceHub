@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { getServerClient } from '@/lib/database/server'
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
-
 export async function POST(req: NextRequest) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
   try {
     const supabase = await getServerClient()
     const { data: { user } } = await supabase.auth.getUser()
