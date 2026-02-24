@@ -20,6 +20,7 @@ import * as attachments from './attachments';
 import * as auth from './auth';
 import * as oneTimeAccess from './one-time-access';
 import * as collections from './collections';
+import * as posts from './posts';
 
 export const db = {
   apps,
@@ -30,12 +31,14 @@ export const db = {
   auth,
   oneTimeAccess,
   collections,
+  posts,
 };
 
 // Re-export types for convenience
 export type {
   AIApp,
   Prompt,
+  Post,
   Comment,
   Attachment,
   Category,
@@ -48,6 +51,7 @@ export type {
   CreateCategoryInput,
   CreateCollectionInput,
   UpdateCollectionInput,
+  CreatePostInput,
   CommentTargetType,
   CategoryType,
   AppUrlItem,

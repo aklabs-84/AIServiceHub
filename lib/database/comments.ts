@@ -9,6 +9,7 @@ function mapCommentFromDB(data: CommentRow): Comment {
     content: data.content,
     createdBy: data.created_by || '',
     createdByName: data.created_by_name || 'Anonymous',
+    createdByAvatarUrl: data.created_by_avatar_url || undefined,
     createdAt: new Date(data.created_at),
   };
 }
@@ -45,7 +46,8 @@ export async function create(
   targetType: CommentTargetType,
   content: string,
   userId: string,
-  userName: string
+  userName: string,
+  avatarUrl?: string
 ): Promise<string> {
   const { data, error } = await client
     .from('comments')
@@ -55,6 +57,7 @@ export async function create(
       content,
       created_by: userId,
       created_by_name: userName,
+      created_by_avatar_url: avatarUrl || null,
     })
     .select('id')
     .single();

@@ -396,7 +396,7 @@ function MyPageContent({
                     <p className="text-gray-500 dark:text-gray-400">등록한 앱이 없습니다.</p>
                   </div>
                 ) : viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
                     {myApps.map((app) => (
                       <AppCard key={app.id} app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
                     ))}
@@ -412,14 +412,14 @@ function MyPageContent({
                           href={`/apps/${app.id}`}
                           className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition"
                         >
-                          <div>
+                          <div className="min-w-0 flex-1 mr-4">
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{categoryInfo.label}</p>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{app.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{app.name}</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{app.description}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <CategoryIcon className="text-lg text-blue-500" />
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white ${appBadgeTone(app.category)}`}>
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white whitespace-nowrap ${appBadgeTone(app.category)}`}>
                               {categoryInfo.label}
                             </span>
                           </div>
@@ -467,7 +467,7 @@ function MyPageContent({
                     <p className="text-gray-500 dark:text-gray-400">등록한 프롬프트가 없습니다.</p>
                   </div>
                 ) : viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
                     {myPrompts.map((prompt) => (
                       <PromptCard key={prompt.id} prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                     ))}
@@ -483,14 +483,14 @@ function MyPageContent({
                           href={`/prompts/${prompt.id}`}
                           className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition"
                         >
-                          <div>
+                          <div className="min-w-0 flex-1 mr-4">
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{categoryInfo.label}</p>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{prompt.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{prompt.name}</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{prompt.description}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <CategoryIcon className="text-lg text-emerald-500" />
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white ${promptBadgeTone(prompt.category)}`}>
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white whitespace-nowrap ${promptBadgeTone(prompt.category)}`}>
                               {categoryInfo.label}
                             </span>
                           </div>
@@ -515,7 +515,7 @@ function MyPageContent({
                     <p className="text-gray-500 dark:text-gray-400">좋아요한 앱이 없습니다.</p>
                   </div>
                 ) : viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
                     {likedApps.map((app) => (
                       <AppCard key={app.id} app={app} categoryInfo={getCategoryInfo(app.category, appCategories)} />
                     ))}
@@ -531,14 +531,14 @@ function MyPageContent({
                           href={`/apps/${app.id}`}
                           className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition"
                         >
-                          <div>
+                          <div className="min-w-0 flex-1 mr-4">
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{categoryInfo.label}</p>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{app.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{app.name}</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{app.description}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <CategoryIcon className="text-lg text-rose-500" />
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white ${appBadgeTone(app.category)}`}>
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white whitespace-nowrap ${appBadgeTone(app.category)}`}>
                               {categoryInfo.label}
                             </span>
                           </div>
@@ -563,7 +563,7 @@ function MyPageContent({
                     <p className="text-gray-500 dark:text-gray-400">좋아요한 프롬프트가 없습니다.</p>
                   </div>
                 ) : viewMode === 'card' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
                     {likedPrompts.map((prompt) => (
                       <PromptCard key={prompt.id} prompt={prompt} categoryInfo={getPromptCategoryInfo(prompt.category, promptCategories)} />
                     ))}
@@ -579,14 +579,14 @@ function MyPageContent({
                           href={`/prompts/${prompt.id}`}
                           className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:shadow-md transition"
                         >
-                          <div>
+                          <div className="min-w-0 flex-1 mr-4">
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{categoryInfo.label}</p>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{prompt.name}</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">{prompt.name}</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{prompt.description}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <CategoryIcon className="text-lg text-orange-500" />
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white ${promptBadgeTone(prompt.category)}`}>
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r text-white whitespace-nowrap ${promptBadgeTone(prompt.category)}`}>
                               {categoryInfo.label}
                             </span>
                           </div>

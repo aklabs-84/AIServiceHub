@@ -69,7 +69,7 @@ export interface PromptRow {
 export interface AttachmentRow {
   id: string;
   target_id: string;
-  target_type: 'app' | 'prompt';
+  target_type: 'app' | 'prompt' | 'post';
   name: string;
   size: number;
   content_type: string;
@@ -81,10 +81,11 @@ export interface AttachmentRow {
 export interface CommentRow {
   id: string;
   target_id: string;
-  target_type: 'app' | 'prompt';
+  target_type: 'app' | 'prompt' | 'post';
   content: string;
   created_by: string | null;
   created_by_name: string | null;
+  created_by_avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -167,7 +168,7 @@ export interface Prompt {
 export interface Attachment {
   id: string;
   targetId: string;
-  targetType: 'app' | 'prompt';
+  targetType: 'app' | 'prompt' | 'post';
   name: string;
   size: number;
   contentType: string;
@@ -179,10 +180,11 @@ export interface Attachment {
 export interface Comment {
   id: string;
   targetId: string;
-  targetType: 'app' | 'prompt';
+  targetType: 'app' | 'prompt' | 'post';
   content: string;
   createdBy: string;
   createdByName: string;
+  createdByAvatarUrl?: string;
   createdAt: Date;
 }
 
@@ -251,8 +253,51 @@ export interface CreateCategoryInput {
   icon: string;
 }
 
-export type CommentTargetType = 'app' | 'prompt';
+export type CommentTargetType = 'app' | 'prompt' | 'post';
 export type CategoryType = 'app' | 'prompt';
+
+// --- Community Posts ---
+
+export type PostTopic = 'showcase' | 'idea' | 'tip' | 'question' | 'chat';
+
+export interface PostRow {
+  id: string;
+  author_id: string | null;
+  author_name: string | null;
+  author_avatar_url: string | null;
+  content: string;
+  images: string[];
+  topic: PostTopic;
+  like_count: number;
+  comment_count: number;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  post_likes?: { user_id: string }[];
+}
+
+export interface Post {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  content: string;
+  images: string[];
+  topic: PostTopic;
+  likes: string[];
+  likeCount: number;
+  commentCount: number;
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreatePostInput {
+  content: string;
+  images?: string[];
+  topic?: PostTopic;
+  isPublic?: boolean;
+}
 
 // Legacy aliases for backward compatibility during migration
 export type AppCategory = string;
