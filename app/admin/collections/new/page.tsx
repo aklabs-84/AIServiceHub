@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db, getBrowserClient } from '@/lib/database';
 import type { AIApp } from '@/types/database';
-import { FaSave, FaArrowLeft, FaSearch } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaSearch, FaUpload, FaTimes } from 'react-icons/fa';
 import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface CollectionFormData {
   slug: string;
@@ -29,6 +30,10 @@ export default function NewCollectionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [apps, setApps] = useState<AIApp[]>([]);
   const [appSearch, setAppSearch] = useState('');
+  const [uploadingCard, setUploadingCard] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const cardFileRef = useRef<HTMLInputElement>(null);
+  const heroFileRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<CollectionFormData>({
     slug: '',
     subtitle: '',
@@ -67,6 +72,35 @@ export default function NewCollectionPage() {
         ? prev.appIds.filter((id) => id !== appId)
         : [...prev.appIds, appId],
     }));
+  };
+
+  const handleImageUpload = async (
+    file: File,
+    field: 'cardImageUrl' | 'heroImageUrl',
+    setUploading: (v: boolean) => void
+  ) => {
+    setUploading(true);
+    try {
+      const supabase = getBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { showError('로그인이 필요합니다.'); return; }
+
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/collections/upload-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const json = await res.json();
+      if (!res.ok) { showError(json.error || '업로드 실패'); return; }
+      setFormData((prev) => ({ ...prev, [field]: json.url }));
+    } catch {
+      showError('업로드 중 오류가 발생했습니다.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,34 +246,102 @@ export default function NewCollectionPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">앱 목록 페이지 카드에 표시됩니다.</p>
         </div>
 
-        {/* 카드 이미지 URL */}
+        {/* 카드 이미지 */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
-            카드 이미지 URL
+            카드 이미지
           </label>
           <input
-            type="url"
-            value={formData.cardImageUrl}
-            onChange={(e) => setFormData({ ...formData, cardImageUrl: e.target.value })}
-            placeholder="https://example.com/card-image.jpg"
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            ref={cardFileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageUpload(file, 'cardImageUrl', setUploadingCard);
+              e.target.value = '';
+            }}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">목록 카드 우측에 원형으로 표시됩니다.</p>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => cardFileRef.current?.click()}
+              disabled={uploadingCard}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition flex-none"
+            >
+              <FaUpload className="text-xs" />
+              {uploadingCard ? '업로드 중...' : '파일 선택'}
+            </button>
+            <input
+              type="url"
+              value={formData.cardImageUrl}
+              onChange={(e) => setFormData({ ...formData, cardImageUrl: e.target.value })}
+              placeholder="또는 이미지 URL 직접 입력"
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {formData.cardImageUrl && (
+              <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex-none">
+                <Image src={formData.cardImageUrl} alt="카드 미리보기" fill className="object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, cardImageUrl: '' }))}
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 hover:opacity-100 transition text-[10px]"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">JPG·PNG·WEBP, 5MB 이하. 목록 카드에 표시됩니다.</p>
         </div>
 
-        {/* 히어로 이미지 URL */}
+        {/* 히어로 이미지 */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
-            히어로 이미지 URL
+            히어로 이미지
           </label>
           <input
-            type="url"
-            value={formData.heroImageUrl}
-            onChange={(e) => setFormData({ ...formData, heroImageUrl: e.target.value })}
-            placeholder="https://example.com/hero-image.jpg"
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            ref={heroFileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageUpload(file, 'heroImageUrl', setUploadingHero);
+              e.target.value = '';
+            }}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">상세 페이지 좌측 대형 이미지입니다.</p>
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => heroFileRef.current?.click()}
+              disabled={uploadingHero}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition flex-none"
+            >
+              <FaUpload className="text-xs" />
+              {uploadingHero ? '업로드 중...' : '파일 선택'}
+            </button>
+            <input
+              type="url"
+              value={formData.heroImageUrl}
+              onChange={(e) => setFormData({ ...formData, heroImageUrl: e.target.value })}
+              placeholder="또는 이미지 URL 직접 입력"
+              className="flex-1 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {formData.heroImageUrl && (
+              <div className="relative w-10 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex-none">
+                <Image src={formData.heroImageUrl} alt="히어로 미리보기" fill className="object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, heroImageUrl: '' }))}
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 hover:opacity-100 transition text-[10px]"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">JPG·PNG·WEBP, 5MB 이하. 상세 페이지 좌측 대형 이미지입니다.</p>
         </div>
 
         {/* 본문 내용 */}

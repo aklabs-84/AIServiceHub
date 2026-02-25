@@ -43,6 +43,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
+  const isFirstMount = useRef(true);
 
   useEffect(() => { setApps(initialApps); }, [initialApps]);
   useEffect(() => { setSearchInput(searchTerm); }, [searchTerm]);
@@ -156,6 +157,12 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   }, [totalPages, currentPage]);
 
   useLayoutEffect(() => {
+    // 초기 마운트 시에는 무조건 최상단으로 이동 (Next.js 스크롤 복원 방지)
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      window.scrollTo({ top: 0 });
+      return;
+    }
     const node = listTopRef.current;
     if (!node) return;
     const active = document.activeElement;
@@ -184,7 +191,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
         <div className="container mx-auto px-4 sm:px-6">
 
           {/* Top row: breadcrumb + search + register */}
-          <div className="flex items-center gap-3 py-3">
+          <div className="flex items-center gap-3 py-4">
             <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mr-1">
               <Link href="/" className="hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
                 <FaHome className="text-xs" />
@@ -242,7 +249,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
           </div>
 
           {/* Mobile search */}
-          <div className="block sm:hidden pb-2">
+          <div className="block sm:hidden pb-3">
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
               <input
@@ -281,12 +288,12 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
 
           {/* Category tabs */}
           <div
-            className="flex gap-1.5 overflow-x-auto pb-2"
+            className="flex gap-2 overflow-x-auto pt-1 pb-3"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as CSSProperties}
           >
             <button
               onClick={() => onCategoryChange('all')}
-              className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex-none px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
                 selectedCategory === 'all'
                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -301,13 +308,13 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
                 <button
                   key={category.value}
                   onClick={() => onCategoryChange(category.value)}
-                  className={`flex-none flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`flex-none flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
                     isActive
                       ? `${category.color} text-white shadow-sm`
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <Icon className="text-[10px]" />
+                  <Icon className="text-xs" />
                   {category.label}
                 </button>
               );
@@ -404,21 +411,10 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
                 <Link
                   key={col.id}
                   href={`/apps/collections/${col.slug}`}
-                  className="group flex-none relative w-72 sm:w-80 h-52 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+                  className="group flex-none relative w-72 sm:w-80 h-52 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800"
                 >
                   {/* 히어로 이미지 배경 */}
-                  {col.heroImageUrl || col.cardImageUrl ? (
-                    <Image
-                      src={col.heroImageUrl || col.cardImageUrl!}
-                      alt={col.title}
-                      fill
-                      unoptimized
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      sizes="(max-width: 640px) 288px, 320px"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800" />
-                  )}
+                  <CollectionCardImage col={col} />
 
                   {/* 어두운 오버레이 */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -601,5 +597,30 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
 
       <Footer />
     </div>
+  );
+}
+
+function resolveImageUrl(url: string): string {
+  if (url.includes('drive.google.com/thumbnail') && !url.includes('sz=')) {
+    return url + '&sz=w1600';
+  }
+  return url;
+}
+
+function CollectionCardImage({ col }: { col: Collection }) {
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = col.heroImageUrl || col.cardImageUrl;
+
+  if (!imageUrl || imgError) return null;
+
+  return (
+    <Image
+      src={resolveImageUrl(imageUrl)}
+      alt={col.title}
+      fill
+      className="object-cover transition-transform duration-500 group-hover:scale-105"
+      sizes="(max-width: 640px) 288px, 320px"
+      onError={() => setImgError(true)}
+    />
   );
 }

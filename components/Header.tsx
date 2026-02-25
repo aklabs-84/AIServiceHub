@@ -9,6 +9,7 @@ import { RiKakaoTalkFill } from 'react-icons/ri';
 import { FcGoogle } from 'react-icons/fc';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import PWAInstallButton from '@/components/PWAInstallButton';
 
 export default function Header() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   /* 
     Homepage specific: Force refresh to clear stale server cache on mount 
     This fixes the issue where homepage stays in "logged in" state visuals after logout
@@ -60,6 +62,8 @@ export default function Header() {
               제작 의뢰
             </Link>
 
+            <PWAInstallButton variant="ghost" size="sm" />
+
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 mx-2" />
 
             {/* 다크모드 토글 */}
@@ -82,7 +86,7 @@ export default function Header() {
                     onClick={() => setProfileMenuOpen((prev) => !prev)}
                     className="flex items-center space-x-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
                   >
-                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                    {(user.user_metadata?.avatar_url || user.user_metadata?.picture) && !avatarError ? (
                       <Image
                         src={user.user_metadata.avatar_url || user.user_metadata.picture}
                         alt={user.user_metadata.full_name || user.user_metadata.name || '사용자'}
@@ -90,6 +94,8 @@ export default function Header() {
                         height={32}
                         className="w-8 h-8 rounded-full shadow-sm"
                         unoptimized
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarError(true)}
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
@@ -207,10 +213,12 @@ export default function Header() {
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-blue-500 overflow-hidden shadow-inner flex items-center justify-center text-white font-bold">
-                    {user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                    {(user.user_metadata?.avatar_url || user.user_metadata?.picture) && !avatarError ? (
                       <Image
                         src={user.user_metadata.avatar_url || user.user_metadata.picture}
                         alt="Profile" width={40} height={40} unoptimized
+                        referrerPolicy="no-referrer"
+                        onError={() => setAvatarError(true)}
                       />
                     ) : user.email?.[0].toUpperCase()}
                   </div>

@@ -17,6 +17,13 @@ interface Props {
   featuredApps: AIApp[];
 }
 
+function resolveImageUrl(url: string): string {
+  if (url.includes('drive.google.com/thumbnail') && !url.includes('sz=')) {
+    return url + '&sz=w1600';
+  }
+  return url;
+}
+
 export default function CollectionDetailClient({ collection, featuredApps }: Props) {
   const { categories } = useAppCategories();
   const { isAdmin } = useAuth();
@@ -114,13 +121,13 @@ export default function CollectionDetailClient({ collection, featuredApps }: Pro
           <div className="lg:col-span-2 lg:sticky lg:top-20 lg:self-start">
 
             {/* 히어로 이미지 */}
-            <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 mb-6 shadow-2xl">
+            <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 mb-6 shadow-2xl">
               {collection.heroImageUrl ? (
                 <Image
-                  src={collection.heroImageUrl}
+                  src={resolveImageUrl(collection.heroImageUrl)}
                   alt={collection.title}
                   fill
-                  unoptimized
+                  priority
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 40vw"
                 />

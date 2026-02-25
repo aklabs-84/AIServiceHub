@@ -276,7 +276,7 @@ function MyPageContent({
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xl">
                 {user.user_metadata?.avatar_url ? (
-                  <Image src={user.user_metadata.avatar_url} alt="프로필" width={56} height={56} className="rounded-full" />
+                  <Image src={user.user_metadata.avatar_url} alt="프로필" width={56} height={56} className="rounded-full" unoptimized referrerPolicy="no-referrer" />
                 ) : (
                   <FaUser />
                 )}

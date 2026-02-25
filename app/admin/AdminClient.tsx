@@ -877,7 +877,7 @@ function AdminPageContent({
       ) : (
         <div className="space-y-8">
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-2">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex overflow-x-auto items-center gap-2" style={{ scrollbarWidth: 'none' }}>
               {[
                 { key: 'creators', label: '작성자 활동' },
                 { key: 'apps', label: '최신 앱' },
