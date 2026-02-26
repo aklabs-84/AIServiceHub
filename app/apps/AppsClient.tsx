@@ -601,6 +601,11 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
 }
 
 function resolveImageUrl(url: string): string {
+  // drive.google.com/file/d/{id}/view 또는 /d/{id}/view → thumbnail URL로 변환
+  const fileMatch = url.match(/drive\.google\.com\/(?:file\/)?d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch && !url.includes('thumbnail')) {
+    return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w1600`;
+  }
   if (url.includes('drive.google.com/thumbnail') && !url.includes('sz=')) {
     return url + '&sz=w1600';
   }

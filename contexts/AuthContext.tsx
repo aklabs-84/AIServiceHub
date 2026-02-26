@@ -44,6 +44,8 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<'user' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
+  // getSession() 완료 전에 session 초기값 null이 loading=false를 트리거하는 레이스 방지
+  const [sessionFetched, setSessionFetched] = useState(false);
 
   const getRedirectTo = () => {
     const base = typeof window !== 'undefined'
@@ -64,6 +66,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setSessionFetched(true);
       setSession(session);
       if (session?.user) {
         fetchUserRole(session.user.id);
@@ -95,10 +98,11 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   }, [router]);
 
   useEffect(() => {
+    if (!sessionFetched) return; // getSession() 완료 전에는 loading 변경 금지
     if (session === null || (session && role)) {
       setLoading(false);
     }
-  }, [session, role]);
+  }, [sessionFetched, session, role]);
 
   const signInWithGoogle = async () => {
     const currentPath = window.location.pathname + window.location.search;

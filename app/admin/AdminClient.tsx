@@ -55,6 +55,13 @@ export default function AdminClient(props: AdminClientProps) {
   return <AdminPage {...props} />;
 }
 
+function resolveGDriveUrl(url: string, sz = 'w220'): string {
+  const m = url.match(/drive\.google\.com\/(?:file\/)?d\/([a-zA-Z0-9_-]+)/);
+  if (m && !url.includes('thumbnail')) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=${sz}`;
+  if (url.includes('drive.google.com/thumbnail') && !url.includes('sz=')) return url + `&sz=${sz}`;
+  return url;
+}
+
 function AdminPageContent({
   initialUserId,
   initialIsAdmin,
@@ -80,6 +87,7 @@ function AdminPageContent({
   const [pageUsers, setPageUsers] = useState(1);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingCollections, setLoadingCollections] = useState(false);
+  const [collectionsLoaded, setCollectionsLoaded] = useState(false);
   const [appCategories, setAppCategories] = useState<Category[]>(initialAppCategories);
   const [promptCategories, setPromptCategories] = useState<Category[]>(initialPromptCategories);
   const [loadingCategories, setLoadingCategories] = useState(false);
@@ -149,6 +157,7 @@ function AdminPageContent({
       const supabase = getBrowserClient();
       const data = await db.collections.getAll(supabase);
       setCollections(data);
+      setCollectionsLoaded(true);
     } catch (error) {
       console.error('Failed to load collections:', error);
       showError('컬렉션을 불러오는 중 오류가 발생했습니다.');
@@ -260,11 +269,16 @@ function AdminPageContent({
     loadCategories();
   }, [user, isAdmin, loadCategories, initialDataLoaded, appCategories.length, promptCategories.length]);
 
+  // Next.js Router Cache가 loadingCollections:true 상태를 복원할 수 있으므로 마운트 시 초기화
   useEffect(() => {
-    if (activeTab === 'collections' && collections.length === 0 && !loadingCollections) {
+    setLoadingCollections(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab === 'collections' && !collectionsLoaded && !loadingCollections) {
       loadCollections();
     }
-  }, [activeTab, collections.length, loadingCollections, loadCollections]);
+  }, [activeTab, collectionsLoaded, loadingCollections, loadCollections]);
 
   useEffect(() => {
     if (loading) return;
@@ -1019,7 +1033,7 @@ function AdminPageContent({
                         {col.cardImageUrl && (
                           <div className="w-14 h-14 rounded-xl overflow-hidden flex-none bg-gray-200 dark:bg-gray-700">
                             <img
-                              src={col.cardImageUrl}
+                              src={resolveGDriveUrl(col.cardImageUrl!)}
                               alt={col.title}
                               className="w-full h-full object-cover"
                             />
