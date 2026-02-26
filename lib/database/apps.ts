@@ -180,10 +180,17 @@ export async function update(client: SupabaseClient, input: UpdateAppInput): Pro
   if (fields.snsUrls !== undefined) payload.sns_urls = fields.snsUrls;
   if (fields.category !== undefined) payload.category = fields.category;
   if (fields.isPublic !== undefined) payload.is_public = fields.isPublic;
-  if (fields.thumbnailUrl !== undefined) payload.thumbnail_url = fields.thumbnailUrl;
+  if (fields.thumbnailUrl !== undefined) {
+    payload.thumbnail_url = fields.thumbnailUrl;
+    if (fields.thumbnailUrl === null) {
+      payload.thumbnail_pos = null;
+    }
+  }
   if (fields.tags !== undefined) payload.tags = fields.tags;
   if (fields.thumbnailPositionX !== undefined || fields.thumbnailPositionY !== undefined) {
-    payload.thumbnail_pos = { x: fields.thumbnailPositionX, y: fields.thumbnailPositionY };
+    if (fields.thumbnailPositionX !== null && fields.thumbnailPositionY !== null) {
+      payload.thumbnail_pos = { x: fields.thumbnailPositionX, y: fields.thumbnailPositionY };
+    }
   }
 
   const { error } = await client.from('apps').update(payload).eq('id', id);

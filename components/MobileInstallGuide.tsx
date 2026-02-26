@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { FaTimes, FaShareSquare, FaPlus } from 'react-icons/fa'
 import { getPlatform, getBrowser, supportsNativeInstallPrompt } from '@/utils/platform'
 
@@ -12,6 +14,11 @@ interface MobileInstallGuideProps {
 export default function MobileInstallGuide({ appName, appUrl, onClose }: MobileInstallGuideProps) {
   const platform = getPlatform()
   const browser = getBrowser()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const isAppShortcut = !!appUrl
   const targetName = appName || 'AI LABS'
@@ -22,7 +29,7 @@ export default function MobileInstallGuide({ appName, appUrl, onClose }: MobileI
   // 데스크톱 Chrome/Edge에서 beforeinstallprompt가 없는 경우 (시크릿 모드 등)
   const isDesktopNoPrompt = !isSafariIOS && !isAndroidChrome && supportsNativeInstallPrompt() && !isAppShortcut
 
-  return (
+  const content = (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
@@ -179,4 +186,7 @@ export default function MobileInstallGuide({ appName, appUrl, onClose }: MobileI
       </div>
     </div>
   )
+
+  if (!mounted) return null
+  return createPortal(content, document.body)
 }

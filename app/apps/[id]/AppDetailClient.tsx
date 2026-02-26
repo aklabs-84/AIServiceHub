@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,22 +8,45 @@ import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { db, getBrowserClient } from '@/lib/database';
-import type { AIApp } from '@/types/database';
-import type { Comment } from '@/types/database';
+import type { AIApp, Comment, Attachment, AppUrlItem } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
-import { formatFileSize } from '@/lib/format';
+import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
-  FaPaperclip, FaDownload, FaLock,
+  FaPaperclip, FaDownload, FaLock, FaSave, FaPlus, FaGlobe, FaGripVertical, FaLink
 } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
+const MAX_ATTACHMENT_SIZE_MB = 10;
+const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/xml',
+  'text/xml',
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'application/json',
+  'text/json',
+  'image/png',
+  'image/jpeg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+const detectUrls = (value: string) =>
+  value
+    .split(/[\n,]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
 
 type AppDetailClientProps = {
   initialApp: AIApp | null;
@@ -44,6 +67,12 @@ export default function AppDetailClient({
     ul: (props) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     ol: (props) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
     li: (props) => <li className="leading-relaxed" {...props} />,
+    img: ({ src, alt, ...props }) => {
+      if (!src) return null;
+      const imageUrl = typeof src === 'string' ? getProxiedImageUrl(src) : '';
+      if (!imageUrl) return null;
+      return <img src={imageUrl} alt={alt} className="rounded-lg max-w-full h-auto mb-4" {...props} />;
+    },
   };
 
   const params = useParams();
@@ -66,6 +95,48 @@ export default function AppDetailClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+
+  // --- Inline Edit States ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    appUrls: AppUrlItem[];
+    category: string;
+    isPublic: boolean;
+    thumbnailUrl: string;
+    thumbnailPositionX: number;
+    thumbnailPositionY: number;
+    tags: string[];
+  } | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const [snsForm, setSnsForm] = useState({
+    blog: '', instagram: '', tiktok: '', youtube: '', etc: '',
+  });
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [existingAttachments, setExistingAttachments] = useState<Attachment[]>([]);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const urlDragIndexRef = useRef<number | null>(null);
+
+  const previewUrl = useMemo(() => {
+    if (!formData?.thumbnailUrl) return '';
+    const raw = formData.thumbnailUrl.trim();
+    if (!raw) return '';
+    const driveMatch = raw.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+    if (driveMatch?.[1]) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+    const driveIdParam = raw.match(/[?&]id=([^&]+)/i);
+    if (raw.includes('drive.google.com') && driveIdParam?.[1]) return `https://drive.google.com/uc?export=view&id=${driveIdParam[1]}`;
+    return raw;
+  }, [formData?.thumbnailUrl]);
+
+  const previewImageSrc = useMemo(() => {
+    return getProxiedImageUrl(previewUrl);
+  }, [previewUrl]);
+  // --- End of Edit States ---
 
   const thumbnailPosition = app
     ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
@@ -183,6 +254,221 @@ export default function AppDetailClient({
     }
   };
 
+  const toggleEdit = () => {
+    if (!isEditing && app) {
+      setFormData({
+        name: app.name,
+        description: app.description,
+        appUrls: app.appUrls && app.appUrls.length > 0
+          ? app.appUrls
+          : [{ url: '', isPublic: true, label: '이동하기' }],
+        category: app.category,
+        isPublic: app.isPublic ?? true,
+        thumbnailUrl: app.thumbnailUrl || '',
+        thumbnailPositionX: typeof app.thumbnailPositionX === 'number' ? app.thumbnailPositionX : 50,
+        thumbnailPositionY: typeof app.thumbnailPositionY === 'number' ? app.thumbnailPositionY : 50,
+        tags: app.tags || [],
+      });
+      setTagInput(app.tags?.join(', ') || '');
+      hydrateSnsForm(app.snsUrls || []);
+      setExistingAttachments(app.attachments || []);
+      setAttachments([]);
+      setAttachmentError(null);
+    }
+    setIsEditing(!isEditing);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const hydrateSnsForm = (snsUrls: string[]) => {
+    const next = { blog: '', instagram: '', tiktok: '', youtube: '', etc: [] as string[] };
+    snsUrls.forEach((entry) => {
+      const parts = entry.split(':');
+      const label = parts.shift()?.trim().toLowerCase() || '';
+      const url = parts.join(':').trim();
+      if (label.includes('blog') || label.includes('네이버')) next.blog = url || entry;
+      else if (label.includes('insta') || label.includes('인스타')) next.instagram = url || entry;
+      else if (label.includes('tik') || label.includes('틱톡')) next.tiktok = url || entry;
+      else if (label.includes('you') || label.includes('유튜')) next.youtube = url || entry;
+      else next.etc.push(entry);
+    });
+    setSnsForm({
+      blog: next.blog,
+      instagram: next.instagram,
+      tiktok: next.tiktok,
+      youtube: next.youtube,
+      etc: next.etc.join('\n'),
+    });
+  };
+
+  const buildSnsUrls = () => {
+    const urls: string[] = [];
+    const push = (label: string, url: string) => {
+      const trimmed = url.trim();
+      if (trimmed) urls.push(`${label}: ${trimmed}`);
+    };
+    push('네이버 블로그', snsForm.blog);
+    push('인스타그램', snsForm.instagram);
+    push('틱톡', snsForm.tiktok);
+    push('유튜브', snsForm.youtube);
+    detectUrls(snsForm.etc).forEach((entry) => {
+      urls.push(entry.includes(':') ? entry : `링크: ${entry}`);
+    });
+    return urls;
+  };
+
+  const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachmentError(null);
+    const next = files.filter((file) => {
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        setAttachmentError(`파일 크기는 ${MAX_ATTACHMENT_SIZE_MB}MB 이하만 가능합니다.`);
+        return false;
+      }
+      if (file.type && !ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+        setAttachmentError('허용되지 않는 파일 형식입니다.');
+        return false;
+      }
+      return true;
+    });
+    if (next.length) setAttachments((prev) => [...prev, ...next]);
+    event.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addUrlField = () => {
+    if (!formData) return;
+    setFormData({
+      ...formData,
+      appUrls: [...formData.appUrls, { url: '', isPublic: true, label: '' }],
+    });
+  };
+
+  const removeUrlField = (index: number) => {
+    if (!formData || formData.appUrls.length <= 1) return;
+    setFormData({
+      ...formData,
+      appUrls: formData.appUrls.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateUrlField = (index: number, updates: Partial<AppUrlItem>) => {
+    if (!formData) return;
+    setFormData({
+      ...formData,
+      appUrls: formData.appUrls.map((item, i) => (i === index ? { ...item, ...updates } : item)),
+    });
+  };
+
+  const moveUrlField = (fromIndex: number, toIndex: number) => {
+    if (!formData || fromIndex === toIndex) return;
+    const next = [...formData.appUrls];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    setFormData({ ...formData, appUrls: next });
+  };
+
+  const updateThumbnailPosition = (clientX: number, clientY: number) => {
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!rect || !formData) return;
+    const nextX = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    const nextY = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    setFormData({
+      ...formData,
+      thumbnailPositionX: Math.round(nextX),
+      thumbnailPositionY: Math.round(nextY),
+    });
+  };
+
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!previewUrl) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    updateThumbnailPosition(event.clientX, event.clientY);
+  };
+
+  const handlePreviewPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    updateThumbnailPosition(event.clientX, event.clientY);
+  };
+
+  const handlePreviewPointerUp = () => setIsDragging(false);
+
+  const handleDeleteExistingAttachment = async (attachment: Attachment) => {
+    if (!user || !app) return;
+    if (!confirm('첨부 파일을 삭제하시겠습니까?')) return;
+    setDeletingPath(attachment.storagePath);
+    try {
+      const supabase = getBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
+      await db.attachments.deleteFile(attachment.storagePath, 'app', idToken);
+      if (attachment.id) await db.attachments.remove(supabase, attachment.id);
+      setExistingAttachments((prev) => prev.filter((item) => item.storagePath !== attachment.storagePath));
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      showError('첨부 파일 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingPath(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !app || !formData) return;
+    if (!isAdmin && user.id !== app.createdBy) {
+      showWarning('권한이 없습니다.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const supabase = getBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const idToken = session?.access_token;
+      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
+
+      const uploadedAttachments = attachments.length
+        ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
+        : [];
+
+      const hasThumbnail = !!formData.thumbnailUrl?.trim();
+      const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
+
+      await db.apps.update(supabase, {
+        id: app.id,
+        name: formData.name,
+        description: formData.description,
+        appUrls: validAppUrls,
+        snsUrls: buildSnsUrls(),
+        category: formData.category,
+        isPublic: formData.isPublic,
+        thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+        thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+        thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+        tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+      });
+
+      if (uploadedAttachments.length > 0) {
+        await Promise.all(
+          uploadedAttachments.map((file) => db.attachments.create(supabase, app.id, 'app', file, user.id))
+        );
+      }
+
+      showSuccess('앱이 수정되었습니다!');
+      // 인라인 수정을 마친 후 전체 새로고침하여 캐시 문제 해결
+      window.location.href = `/apps/${app.id}?updated=${Date.now()}`;
+    } catch (error) {
+      console.error('Error updating app:', error);
+      showError('앱 수정 중 오류가 발생했습니다.');
+      setSubmitting(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!app || !user) return;
     if (!confirm('정말 이 앱을 삭제하시겠습니까?')) return;
@@ -240,11 +526,20 @@ export default function AppDetailClient({
     } catch { return '웹사이트'; }
   };
 
-  const getLinkPreview = (url: string, label?: string) => {
+  const getLinkPreview = (input: string) => {
+    let label = '';
+    let url = input.trim();
+    if (input.includes(':')) {
+      const parts = input.split(':');
+      label = parts.shift()?.trim() || '';
+      url = parts.join(':').trim();
+    }
+
     const blogFallback = '/blog-placeholder.svg';
     const defaultFallback = '/globe.svg';
-    const labelText = (label || '').trim();
-    const isEtcLink = labelText === '링크';
+    const labelText = label.toLowerCase();
+    const isEtcLink = labelText === '링크' || !label;
+
     try {
       const parsed = new URL(url);
       const hostname = parsed.hostname.replace('www.', '');
@@ -253,10 +548,19 @@ export default function AppDetailClient({
       const useBlogPlaceholder = isEtcLink || isBlog;
       const favicon = useBlogPlaceholder ? blogFallback : `https://www.google.com/s2/favicons?sz=128&domain=${parsed.hostname}`;
       const fallback = useBlogPlaceholder ? blogFallback : defaultFallback;
-      return { hostname, favicon, fallback };
+      return { label, url, hostname, favicon, fallback };
     } catch {
-      return { hostname: url, favicon: isEtcLink ? blogFallback : defaultFallback, fallback: isEtcLink ? blogFallback : defaultFallback };
+      return { label, url, hostname: url, favicon: isEtcLink ? blogFallback : defaultFallback, fallback: isEtcLink ? blogFallback : defaultFallback };
     }
+  };
+
+  const LinkIcon = ({ label }: { label: string }) => {
+    const l = label.toLowerCase();
+    if (l.includes('blog') || l.includes('블로그')) return <FaGlobe />;
+    if (l.includes('insta') || l.includes('인스타')) return <FaLink />;
+    if (l.includes('tik') || l.includes('틱톡')) return <FaLink />;
+    if (l.includes('you') || l.includes('유튜')) return <FaExternalLinkAlt />;
+    return <FaLink />;
   };
 
   if (loading) {
@@ -309,328 +613,482 @@ export default function AppDetailClient({
   const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="container mx-auto px-4 sm:px-6 py-6 max-w-3xl">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+      {/* Top Navigation */}
+      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button
+            onClick={isEditing ? toggleEdit : goBack}
+            className="flex items-center gap-2 text-gray-700 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold group"
+          >
+            <FaChevronLeft className="text-sm group-hover:-translate-x-0.5 transition-transform" />
+            <span>{isEditing ? '수정 취소' : '바이브코딩'}</span>
+          </button>
+          <div className="flex items-center gap-3">
+            {isOwner && !isEditing && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all border border-red-100 dark:border-red-900/30"
+                title="삭제하기"
+              >
+                <FaTrash className="text-sm" />
+              </button>
+            )}
+            {isOwner && isEditing && (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50"
+              >
+                <FaSave className="text-sm" />
+                <span>{submitting ? '저장 중...' : '저장하기'}</span>
+              </button>
+            )}
+            {!isEditing && <PWAInstallButton />}
+          </div>
+        </div>
+      </div>
 
-        {/* Back button */}
-        <button
-          onClick={goBack}
-          className="group mb-5 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-        >
-          <FaChevronLeft className="text-xs group-hover:-translate-x-0.5 transition-transform" />
-          바이브코딩
-        </button>
-
-        {/* App Header Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden mb-4">
-
-          {/* Icon + Info */}
-          <div className="p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row gap-5">
-
-              {/* Square App Icon */}
-              <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-none rounded-[22%] overflow-hidden shadow-lg">
-                {app.thumbnailUrl && !imageError ? (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {isEditing && formData ? (
+          /* --- EDIT FORM --- */
+          <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Thumbnail Header */}
+            <div className="relative group rounded-3xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
+              <div
+                ref={previewRef}
+                onPointerDown={handlePreviewPointerDown}
+                onPointerMove={handlePreviewPointerMove}
+                onPointerUp={handlePreviewPointerUp}
+                onPointerLeave={handlePreviewPointerUp}
+                className={`relative w-full aspect-[21/9] sm:aspect-[24/9] bg-gray-100 dark:bg-gray-900 ${previewUrl ? 'cursor-move' : ''} touch-none select-none`}
+              >
+                {previewUrl && !previewError ? (
                   <Image
-                    src={app.thumbnailUrl}
-                    alt={app.name}
+                    src={previewImageSrc}
+                    alt="Thumbnail preview"
                     fill
-                    sizes="112px"
-                    className="object-cover"
-                    style={thumbnailPosition}
-                    onError={() => setImageError(true)}
+                    className="object-cover transition-opacity duration-300"
+                    style={{ objectPosition: `${formData.thumbnailPositionX}% ${formData.thumbnailPositionY}%` }}
+                    onError={() => setPreviewError(true)}
+                    unoptimized
                   />
                 ) : (
-                  <div className={`w-full h-full flex items-center justify-center ${categoryInfo.color} relative overflow-hidden`}>
-                    <CategoryIcon className="text-white/15 text-5xl absolute -right-1 -bottom-1 rotate-12" />
-                    <CategoryIcon className="text-white text-3xl relative z-10" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 gap-3">
+                    <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+                      <FaPlus className="text-xl opacity-50" />
+                    </div>
+                    <span className="text-sm font-medium">배경 이미지 URL을 입력하고 위치를 조정하세요</span>
+                  </div>
+                )}
+                {/* Visual Guide Overlay */}
+                {previewUrl && !previewError && (
+                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/10 flex items-center justify-center">
+                    <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-white text-xs font-medium flex items-center gap-2">
+                      <FaGripVertical /> 드래그하여 배경 위치 조정
+                    </div>
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* App Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold text-white ${categoryInfo.color}`}>
-                    {categoryInfo.label}
-                  </span>
-                  {!isPublic && (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      비공개
-                    </span>
-                  )}
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight">
-                  {app.name}
-                </h1>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  <span className="flex items-center gap-1.5">
-                    <FaUser className="text-purple-400" />
-                    {app.createdByName}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <FaCalendar className="text-blue-400" />
-                    {new Date(app.createdAt).toLocaleDateString('ko-KR')}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Primary: open app */}
-                  {!user ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={signInWithKakao}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[#FEE500] text-black text-sm font-bold hover:bg-[#FDD835] transition shadow-sm"
-                      >
-                        Kakao 로그인
-                      </button>
-                      <button
-                        onClick={signInWithGoogle}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition shadow-sm"
-                      >
-                        Google 로그인
-                      </button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                {/* Basic Info */}
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                      <FaGlobe className="text-lg" />
                     </div>
-                  ) : primaryUrl ? (
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={primaryUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-blue-500/30 text-sm"
-                      >
-                        <FaExternalLinkAlt className="text-xs" />
-                        웹앱 열기
-                      </a>
-                      <PWAInstallButton
-                        appUrl={primaryUrl}
-                        appName={app.name}
-                        variant="secondary"
-                        size="md"
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">기본 정보</h2>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">서비스 명칭</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        placeholder="이름을 입력하세요"
                       />
                     </div>
-                  ) : null}
 
-                  {/* Like */}
-                  <button
-                    onClick={handleLike}
-                    disabled={!user || isLiking}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all ${isLiked
-                        ? 'bg-red-500 text-white hover:bg-red-600 shadow-md'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      } ${isLiking ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    {isLiked ? <FaHeart /> : <FaRegHeart />}
-                    <span>{likeCount}</span>
-                  </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">카테고리</label>
+                        <select
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        >
+                          {categories.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">공개 여부</label>
+                        <select
+                          value={formData.isPublic ? 'true' : 'false'}
+                          onChange={(e) => setFormData({ ...formData, isPublic: e.target.value === 'true' })}
+                          className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        >
+                          <option value="true">공개</option>
+                          <option value="false">비공개</option>
+                        </select>
+                      </div>
+                    </div>
 
-                  {/* Owner actions */}
-                  {isOwner && (
-                    <>
-                      <Link
-                        href={`/apps/${app.id}/edit`}
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">배경 이미지 URL</label>
+                      <input
+                        type="url"
+                        value={formData.thumbnailUrl}
+                        onChange={(e) => {
+                          setFormData({ ...formData, thumbnailUrl: e.target.value });
+                          setPreviewError(false);
+                        }}
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        placeholder="https://..."
+                      />
+                      <p className="mt-2 text-xs text-gray-500">Google Drive, URL 이미지를 지원합니다.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">태그</label>
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        placeholder="쉼표로 구분 예: AI, 챗봇, 업무효율"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <div className="flex items-center justify-between font-bold">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                        <FaLink className="text-lg" />
+                      </div>
+                      <h2 className="text-xl">실행 및 상세 정보</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addUrlField}
+                      className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30"
+                    >
+                      <FaPlus />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {formData.appUrls.map((item, index) => (
+                      <div
+                        key={index}
+                        draggable
+                        onDragStart={() => (urlDragIndexRef.current = index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (urlDragIndexRef.current !== null) {
+                            moveUrlField(urlDragIndexRef.current, index);
+                            urlDragIndexRef.current = null;
+                          }
+                        }}
+                        className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
                       >
-                        <FaEdit className="text-xs" />
-                        수정
-                      </Link>
-                      <button
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
-                      >
-                        <FaTrash className="text-xs" />
-                        {deleting ? '삭제 중...' : '삭제'}
-                      </button>
-                    </>
-                  )}
+                        <div className="flex flex-col sm:flex-row gap-4 items-center">
+                          <div className="flex-1 space-y-3 w-full">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={item.label}
+                                onChange={(e) => updateUrlField(index, { label: e.target.value })}
+                                placeholder="라벨 (예: 실행)"
+                                className="w-1/3 px-3 py-2 rounded-lg border dark:bg-gray-800 dark:border-gray-700 text-sm"
+                              />
+                              <input
+                                type="url"
+                                value={item.url}
+                                onChange={(e) => updateUrlField(index, { url: e.target.value })}
+                                placeholder="https://..."
+                                className="flex-1 px-3 py-2 rounded-lg border dark:bg-gray-800 dark:border-gray-700 text-sm"
+                              />
+                            </div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.isPublic}
+                                onChange={(e) => updateUrlField(index, { isPublic: e.target.checked })}
+                              />
+                              <span className="text-xs">전체 공개</span>
+                            </label>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="cursor-grab p-2 text-gray-400"><FaGripVertical /></div>
+                            <button type="button" onClick={() => removeUrlField(index)} className="p-2 text-red-400"><FaTrash /></button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                      <FaCommentDots className="text-lg" />
+                    </div>
+                    <h2 className="text-xl font-bold">앱 소개</h2>
+                  </div>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={10}
+                    className="w-full px-4 py-4 rounded-2xl border dark:bg-gray-900 dark:border-gray-700 text-sm"
+                    placeholder="Markdown 지원"
+                  />
+                </section>
+              </div>
+
+              <div className="space-y-8">
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <h3 className="font-bold">SNS 연동</h3>
+                  <div className="space-y-4">
+                    {['blog', 'instagram', 'tiktok', 'youtube'].map(f => (
+                      <input key={f} type="text" value={(snsForm as any)[f]} onChange={e => setSnsForm({ ...snsForm, [f]: e.target.value })} placeholder={f} className="w-full px-3 py-2 rounded-xl border dark:bg-gray-900 dark:border-gray-700 text-xs" />
+                    ))}
+                  </div>
+                </section>
+
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
+                  <h3 className="font-bold flex items-center gap-2"><FaPaperclip /> 첨부 파일</h3>
+                  <div className="space-y-2">
+                    {existingAttachments.map(f => (
+                      <div key={f.id} className="flex items-center justify-between text-xs p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        <span className="truncate">{f.name}</span>
+                        <button type="button" onClick={() => handleDeleteExistingAttachment(f)} className="text-red-400"><FaTrash /></button>
+                      </div>
+                    ))}
+                    {attachments.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
+                        <span className="truncate">{f.name}</span>
+                        <button type="button" onClick={() => removeAttachment(i)} className="text-red-400"><FaTrash /></button>
+                      </div>
+                    ))}
+                    <input type="file" multiple onChange={handleAttachmentChange} className="hidden" id="file-up" />
+                    <label htmlFor="file-up" className="block text-center p-4 border-2 border-dashed rounded-xl cursor-pointer text-xs font-bold text-gray-400">파일 추가</label>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button type="button" onClick={toggleEdit} className="px-8 py-3 rounded-xl bg-white dark:bg-gray-800 border font-bold">취소</button>
+              <button type="submit" disabled={submitting} className="px-12 py-3 rounded-xl bg-blue-600 text-white font-bold disabled:opacity-50">저장</button>
+            </div>
+          </form>
+        ) : (
+          /* --- DETAIL VIEW --- */
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Hero Header Area */}
+            <div className="relative group rounded-[2.5rem] overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl">
+              <div className="relative w-full aspect-[21/9] sm:aspect-[24/9] overflow-hidden">
+                {!!(app.thumbnailUrl && typeof app.thumbnailUrl === 'string' && app.thumbnailUrl.trim() !== '') && !imageError ? (
+                  <Image
+                    src={getProxiedImageUrl(app.thumbnailUrl)}
+                    alt={app.name}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    style={thumbnailPosition}
+                    priority
+                    onError={() => setImageError(true)}
+                    unoptimized
+                  />
+                ) : (
+                  <div className={`absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center`}>
+                    <CategoryIcon className="text-8xl opacity-10" />
+                  </div>
+                )}
+                {/* Overlay Gradients */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                {/* Content Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 pointer-events-none">
+                  <div className="max-w-3xl space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold flex items-center gap-2">
+                        <CategoryIcon className="text-sm" /> {categoryInfo.label}
+                      </div>
+                      {!app.isPublic && (
+                        <div className="px-3 py-1 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 text-red-400 text-xs font-bold flex items-center gap-2">
+                          <FaLock /> 비공개
+                        </div>
+                      )}
+                    </div>
+                    <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-lg">
+                      {app.name}
+                    </h1>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Screenshot / thumbnail preview (if exists) */}
-          {app.thumbnailUrl && !imageError && (
-            <div className="relative w-full aspect-[16/9] border-t border-gray-100 dark:border-gray-800">
-              <Image
-                src={app.thumbnailUrl}
-                alt={`${app.name} 스크린샷`}
-                fill
-                sizes="(max-width: 768px) 100vw, 768px"
-                className="object-cover"
-                style={thumbnailPosition}
-              />
-            </div>
-          )}
-        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b dark:border-gray-700">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                        <FaUser className="text-xl" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">조성자</div>
+                        <div className="text-gray-900 dark:text-white font-black">{app.createdByName}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isOwner && (
+                        <button onClick={toggleEdit} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 shadow-sm">
+                          <FaEdit className="text-blue-500" /> 수정하기
+                        </button>
+                      )}
+                      <button
+                        onClick={handleLike}
+                        disabled={isLiking || !user}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-sm ${isLiked ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border border-red-100 dark:border-red-900/30' : 'bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}`}
+                      >
+                        {isLiked ? <FaHeart className="text-red-500 animate-pulse" /> : <FaRegHeart />} {likeCount}
+                      </button>
+                    </div>
+                  </div>
 
-        {/* Description */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 sm:p-8 mb-4">
-          <div className="prose prose-sm sm:prose prose-slate dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {app.description || ''}
-            </ReactMarkdown>
-          </div>
-        </div>
-
-        {/* Tags */}
-        {app.tags && app.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4 px-1">
-            {app.tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`/apps?tag=${encodeURIComponent(tag)}`}
-                className="px-3 py-1.5 rounded-full text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition-all font-medium"
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {/* Launch URLs */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 mb-4">
-          <h2 className="text-sm font-black text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <FaExternalLinkAlt className="text-blue-500 text-xs" />
-            실행
-          </h2>
-          {!user ? (
-            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">로그인 후 URL을 확인할 수 있습니다.</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={signInWithKakao}
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[#FEE500] text-black text-sm font-semibold hover:bg-[#FDD835] transition"
-                >
-                  Kakao 로그인
-                </button>
-                <button
-                  onClick={signInWithGoogle}
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
-                >
-                  Google 로그인
-                </button>
-              </div>
-            </div>
-          ) : publicUrls.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">표시할 수 있는 URL이 없습니다.</p>
-          ) : (
-            <div className="space-y-3">
-              {publicUrls.map((urlItem, idx) => {
-                const isDefaultLabel = urlItem.label === '이동하기' || (urlItem.label || '').startsWith('링크 ');
-                const displayLabel = (!urlItem.label || isDefaultLabel) ? getDomainLabel(urlItem.url) : urlItem.label;
-                return (
-                  <div
-                    key={idx}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{displayLabel}</span>
-                        {!urlItem.isPublic && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                            <FaLock className="text-[9px]" /> 나만 보기
-                          </span>
+                  <div className="mt-10 space-y-10">
+                    {app.description && (
+                      <div className="prose dark:prose-invert max-w-none">
+                        <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                          {app.description}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                    {app.tags && app.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {app.tags.map((t, i) => <span key={i} className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-xs font-bold">#{t}</span>)}
+                      </div>
+                    )}
+                    {app.appUrls && app.appUrls.length > 0 && (
+                      <div className="pt-8 border-t dark:border-gray-800">
+                        {user ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {app.appUrls.map((u, i) => (
+                              <Link key={i} href={u.url} target="_blank" className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border flex justify-between items-center group">
+                                <div>
+                                  <div className="text-[10px] text-gray-400 font-bold uppercase">{getDomainLabel(u.url)}</div>
+                                  <div className="font-bold dark:text-white">{u.label || '바로가기'}</div>
+                                </div>
+                                <FaChevronRight className="group-hover:translate-x-1 transition-transform" />
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-8 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-dashed border-blue-200 dark:border-blue-800 text-center space-y-4">
+                            <FaLock className="mx-auto text-3xl text-blue-400 opacity-50" />
+                            <div><div className="font-bold text-blue-900 dark:text-blue-100">로그인이 필요한 콘텐츠입니다</div><div className="text-sm text-blue-600 dark:text-blue-400 mt-1">로그인 후 앱 실행 링크를 확인하실 수 있습니다.</div></div>
+                            <div className="flex justify-center gap-2">
+                              <button onClick={signInWithKakao} className="px-5 py-2.5 rounded-xl bg-[#FEE500] text-black font-bold text-sm shadow-sm active:scale-95 transition-all">카카오 로그인</button>
+                              <button onClick={signInWithGoogle} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm shadow-sm active:scale-95 transition-all">구글 로그인</button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{urlItem.url}</p>
-                    </div>
-                    <a
-                      href={urlItem.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition whitespace-nowrap shadow-sm"
-                    >
-                      열기 <FaExternalLinkAlt className="text-[10px]" />
-                    </a>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              </div>
 
-        {/* SNS / Channels */}
-        {parsedSns.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 mb-4">
-            <h2 className="text-sm font-black text-gray-900 dark:text-white mb-4">SNS / 채널</h2>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {parsedSns.map((item, idx) => {
-                const preview = getLinkPreview(item.url, item.label);
-                return (
-                  <a
-                    key={idx}
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 hover:border-blue-200 dark:hover:border-blue-800/50 hover:shadow-sm transition"
-                  >
-                    <div className="relative h-10 w-10 rounded-xl bg-white dark:bg-gray-700 overflow-hidden flex-shrink-0 shadow-sm">
-                      <Image
-                        src={preview.favicon}
-                        alt={item.label || preview.hostname}
-                        fill
-                        sizes="40px"
-                        className="object-contain"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          if (!target.src.includes(preview.fallback)) target.src = preview.fallback;
-                        }}
-                      />
+              {/* Sidebar Column */}
+              <div className="space-y-8">
+                <section className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">
+                  <h3 className="font-black flex items-center gap-2 text-gray-900 dark:text-white">
+                    <FaExternalLinkAlt className="text-blue-500" /> SNS / 채널
+                  </h3>
+                  {app.snsUrls && app.snsUrls.length > 0 ? (
+                    <div className="space-y-3">
+                      {app.snsUrls.map((s, i) => {
+                        const { label, url, favicon, hostname, fallback } = getLinkPreview(s);
+                        return (
+                          <Link key={i} href={url} target="_blank" className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all shadow-sm group">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center border dark:border-gray-800 overflow-hidden">
+                              <img
+                                src={favicon}
+                                alt={label}
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => (e.currentTarget.src = fallback)}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase truncate tracking-tight">{hostname}</div>
+                              <div className="font-bold text-gray-900 dark:text-white truncate flex items-center gap-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <LinkIcon label={label || hostname} />
+                                {label || '바로가기'}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {item.label || preview.hostname}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{preview.hostname}</p>
+                  ) : (
+                    <p className="text-center py-6 text-sm text-gray-400">등록된 SNS 링크가 없습니다.</p>
+                  )}
+
+                  {app.attachments && app.attachments.length > 0 && (
+                    <div className="pt-8 border-t dark:border-gray-800 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-black text-gray-900 dark:text-white">
+                        <FaPaperclip className="text-blue-500" />
+                        첨부 파일 ({app.attachments.length})
+                      </div>
+                      {user ? (
+                        <div className="space-y-3">
+                          {app.attachments.map((file) => (
+                            <button
+                              key={file.id}
+                              onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
+                              disabled={downloadingPath === file.storagePath}
+                              className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-left group"
+                            >
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="p-2 rounded-lg bg-white dark:bg-gray-900 border dark:border-gray-800 text-blue-500 group-hover:scale-110 transition-transform">
+                                  <FaDownload className="text-xs" />
+                                </div>
+                                <div className="overflow-hidden">
+                                  <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{file.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{formatFileSize(file.size)}</div>
+                                </div>
+                              </div>
+                              {downloadingPath === file.storagePath && (
+                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-dashed dark:border-gray-800 text-center text-xs text-gray-400 italic">로그인 후 다운로드 가능</div>
+                      )}
                     </div>
-                  </a>
-                );
-              })}
+                  )}
+                </section>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Attachments */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 mb-4">
-          <h2 className="text-sm font-black text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <FaPaperclip className="text-gray-400" />
-            첨부 파일
-          </h2>
-          {app.attachments.length === 0 ? (
-            <p className="text-sm text-gray-400 dark:text-gray-500">등록된 파일이 없습니다.</p>
-          ) : (
-            <div className="space-y-2">
-              {app.attachments.map((file) => (
-                <div
-                  key={file.storagePath}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{file.name}</p>
-                    <p className="text-xs text-gray-400">{formatFileSize(file.size)} · {file.contentType || '파일'}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadAttachment(file.storagePath, file.name)}
-                    disabled={downloadingPath === file.storagePath}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition disabled:opacity-60"
-                  >
-                    <FaDownload />
-                    {downloadingPath === file.storagePath ? '준비 중...' : '다운로드'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {!user && app.attachments.length > 0 && (
-            <p className="text-xs text-gray-400 mt-3">로그인 후 파일을 다운로드할 수 있습니다.</p>
-          )}
-        </div>
-
-        {/* Comments */}
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6">
+        {/* Comments Section */}
+        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 mt-8">
           <div className="flex items-center gap-2 mb-5">
             <FaCommentDots className="text-blue-500" />
             <h3 className="text-sm font-black text-gray-900 dark:text-white">댓글</h3>
@@ -638,23 +1096,29 @@ export default function AppDetailClient({
           </div>
 
           {user ? (
-            <div className="mb-5">
-              <div className="flex items-start gap-3">
+            <div className="flex gap-4 mb-5">
+              <div className="relative flex-1">
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="댓글을 남겨보세요"
-                  className="flex-1 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-100 p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
+                  placeholder="당신의 의견을 나누어보세요..."
+                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[120px] transition-all"
                 />
-                <button
-                  onClick={handleSubmitComment}
-                  disabled={!newComment.trim() || submitting}
-                  className="px-4 py-3 rounded-2xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
-                >
-                  <FaPaperPlane className="text-xs" />
-                  {submitting ? '등록 중...' : '등록'}
-                </button>
+                <div className="absolute bottom-4 right-4">
+                  <button
+                    onClick={handleSubmitComment}
+                    disabled={!newComment.trim() || submitting}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25"
+                  >
+                    {submitting ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <FaPaperPlane /> <span>댓글 등록</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -669,14 +1133,14 @@ export default function AppDetailClient({
             ) : (
               paginatedComments.map((comment) => {
                 const isAuthor = user?.id === comment.createdBy;
-                const isEditing = editingId === comment.id;
+                const isEditingComment = editingId === comment.id;
                 return (
                   <div key={comment.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 p-4 space-y-2">
                     <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span className="font-bold text-gray-800 dark:text-gray-200">{comment.createdByName}</span>
-                      <span>{comment.createdAt.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{comment.createdAt.toLocaleString('ko-KR')}</span>
                     </div>
-                    {isEditing ? (
+                    {isEditingComment ? (
                       <div className="space-y-2">
                         <textarea
                           value={editingContent}
@@ -692,10 +1156,10 @@ export default function AppDetailClient({
                     ) : (
                       <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{comment.content}</p>
                     )}
-                    {isAuthor && !isEditing && (
+                    {isAuthor && !isEditingComment && (
                       <div className="flex gap-2 justify-end text-xs">
-                        <button onClick={() => handleEditComment(comment)} className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">수정</button>
-                        <button onClick={() => handleDeleteComment(comment.id)} className="px-3 py-1 rounded-lg border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition">삭제</button>
+                        <button onClick={() => handleEditComment(comment)} className="px-3 py-1 rounded-lg border text-gray-500 hover:bg-gray-100 transition">수정</button>
+                        <button onClick={() => handleDeleteComment(comment.id)} className="px-3 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">삭제</button>
                       </div>
                     )}
                   </div>
@@ -706,12 +1170,20 @@ export default function AppDetailClient({
 
           {comments.length > COMMENTS_PER_PAGE && (
             <div className="flex items-center justify-end gap-2 mt-4">
-              <button onClick={() => setCommentPage((p) => Math.max(1, p - 1))} disabled={commentPage === 1} className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50">
-                <FaChevronLeft className="text-[10px]" /> 이전
+              <button
+                onClick={() => setCommentPage((p) => Math.max(1, p - 1))}
+                disabled={commentPage === 1}
+                className="p-2 border rounded-lg disabled:opacity-50"
+              >
+                <FaChevronLeft className="text-xs" />
               </button>
-              <span className="text-xs text-gray-500">{commentPage} / {totalCommentPages}</span>
-              <button onClick={() => setCommentPage((p) => Math.min(totalCommentPages, p + 1))} disabled={commentPage === totalCommentPages} className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-50">
-                다음 <FaChevronRight className="text-[10px]" />
+              <span className="text-xs">{commentPage} / {totalCommentPages}</span>
+              <button
+                onClick={() => setCommentPage((p) => Math.min(totalCommentPages, p + 1))}
+                disabled={commentPage === totalCommentPages}
+                className="p-2 border rounded-lg disabled:opacity-50"
+              >
+                <FaChevronRight className="text-xs" />
               </button>
             </div>
           )}
