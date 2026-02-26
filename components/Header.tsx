@@ -18,15 +18,19 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  /* 
-    Homepage specific: Force refresh to clear stale server cache on mount 
-    This fixes the issue where homepage stays in "logged in" state visuals after logout
-  */
+  // avatarError는 user가 바뀔 때(로그인·로그아웃) 반드시 초기화
+  // 그렇지 않으면 한번 실패한 이미지가 세션 내내 fallback으로 고정됨
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user]);
+
+  // 홈페이지 한정: 마운트 시 1회만 서버 캐시 무효화
+  // user를 dependency에 넣으면 토큰 갱신 때마다 refresh가 반복 호출됨
   useEffect(() => {
     if (window.location.pathname === '/') {
       router.refresh();
     }
-  }, [router, user]); // Re-run when user state changes
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-gray-950/70 border-b border-gray-200/50 dark:border-gray-800/50 transition-colors duration-300">

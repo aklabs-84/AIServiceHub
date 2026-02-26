@@ -7,18 +7,17 @@
 //   Network-Only  : /api/**, POST/PUT/DELETE
 // ===================================================
 
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const STATIC_CACHE  = `ai-labs-static-${CACHE_VERSION}`
 const PAGE_CACHE    = `ai-labs-pages-${CACHE_VERSION}`
 const IMAGE_CACHE   = `ai-labs-images-${CACHE_VERSION}`
 
 const ALL_CACHES = [STATIC_CACHE, PAGE_CACHE, IMAGE_CACHE]
 
-// 앱 셸 - 즉시 캐싱할 핵심 페이지
+// 동적 인증 페이지(/, /apps, /prompts)는 프리캐시 제외
+// → 오래된 로그인 상태가 캐시되어 렌더링 불일치 발생 방지
+// → 오프라인 폴백 페이지만 프리캐시
 const PRECACHE_PAGES = [
-  '/',
-  '/apps',
-  '/prompts',
   '/offline.html',
 ]
 
@@ -91,9 +90,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // ── 4. Stale-While-Revalidate: 페이지 HTML
+  // ── 4. Network-First: 페이지 HTML
+  // SWR → Network-First로 변경: 인증 페이지에서 오래된 HTML이 반환되면
+  // 서버 렌더링 결과와 불일치 발생. 항상 최신 서버 응답을 사용.
   if (request.destination === 'document') {
-    event.respondWith(staleWhileRevalidate(request, PAGE_CACHE))
+    event.respondWith(networkFirst(request, PAGE_CACHE))
     return
   }
 
