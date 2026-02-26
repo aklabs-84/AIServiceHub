@@ -59,6 +59,22 @@ export async function getAll(client: SupabaseClient): Promise<Prompt[]> {
   return attachAttachments(client, prompts);
 }
 
+export async function getPromptsForSelection(client: SupabaseClient): Promise<Pick<Prompt, 'id' | 'name' | 'createdByName' | 'category'>[]> {
+  const { data, error } = await client
+    .from('prompts')
+    .select('id, name, created_by_name, category')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data as any[]).map(row => ({
+    id: row.id,
+    name: row.name,
+    createdByName: row.created_by_name || 'Anonymous',
+    category: row.category || '',
+  }));
+}
+
 export async function getById(client: SupabaseClient, id: string): Promise<Prompt | null> {
   const { data, error } = await client
     .from('prompts')

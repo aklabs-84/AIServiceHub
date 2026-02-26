@@ -72,7 +72,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
     <Link href={`/apps/${app.id}`} className="group flex flex-col gap-2 p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-all duration-200 cursor-pointer">
       {/* Square App Icon */}
       <div className="relative w-full aspect-square rounded-[22%] overflow-hidden shadow-sm group-hover:shadow-lg transition-shadow duration-300">
-        {app.thumbnailUrl && !imageError ? (
+        {app.thumbnailUrl && app.thumbnailUrl.trim() !== '' && !imageError ? (
           <Image
             src={app.thumbnailUrl}
             alt={app.name}

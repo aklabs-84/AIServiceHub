@@ -59,6 +59,22 @@ export async function getAll(client: SupabaseClient): Promise<AIApp[]> {
   return attachAttachments(client, apps);
 }
 
+export async function getAppsForSelection(client: SupabaseClient): Promise<Pick<AIApp, 'id' | 'name' | 'createdByName' | 'category'>[]> {
+  const { data, error } = await client
+    .from('apps')
+    .select('id, name, created_by_name, category')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data as any[]).map(row => ({
+    id: row.id,
+    name: row.name,
+    createdByName: row.created_by_name || 'Anonymous',
+    category: row.category || '',
+  }));
+}
+
 export async function getById(client: SupabaseClient, id: string): Promise<AIApp | null> {
   const { data, error } = await client
     .from('apps')

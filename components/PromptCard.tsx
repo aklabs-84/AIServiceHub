@@ -249,7 +249,7 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
             <div className="flex -space-x-1.5">
               {snsPreview.map((url, idx) => {
                 const preview = getLinkPreview(url);
-                return (
+                return preview.favicon && (
                   <div key={idx} className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 border-2 border-white dark:border-gray-900 shadow-sm flex items-center justify-center overflow-hidden">
                     <Image
                       src={preview.favicon}
@@ -268,8 +268,8 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
               onClick={handleLike}
               disabled={!user || isLiking}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl transition-all ${isLiked
-                  ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
-                  : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500'
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-500'
+                : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500'
                 }`}
             >
               {isLiked ? <FaHeart className="text-xs" /> : <FaRegHeart className="text-xs" />}

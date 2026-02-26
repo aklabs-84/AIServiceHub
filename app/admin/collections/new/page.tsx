@@ -28,7 +28,7 @@ export default function NewCollectionPage() {
   const { user, isAdmin, loading } = useAuth();
   const { showSuccess, showError } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [apps, setApps] = useState<AIApp[]>([]);
+  const [apps, setApps] = useState<Pick<AIApp, 'id' | 'name' | 'createdByName' | 'category'>[]>([]);
   const [appSearch, setAppSearch] = useState('');
   const [uploadingCard, setUploadingCard] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
@@ -51,7 +51,7 @@ export default function NewCollectionPage() {
     const load = async () => {
       try {
         const supabase = getBrowserClient();
-        const data = await db.apps.getAll(supabase);
+        const data = await db.apps.getAppsForSelection(supabase);
         setApps(data);
       } catch (e) {
         console.error(e);
@@ -62,7 +62,7 @@ export default function NewCollectionPage() {
 
   const filteredApps = apps.filter((app) => {
     const q = appSearch.toLowerCase();
-    return app.name.toLowerCase().includes(q) || app.description.toLowerCase().includes(q);
+    return app.name.toLowerCase().includes(q);
   });
 
   const toggleApp = (appId: string) => {

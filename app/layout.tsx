@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { OneTimeAccessProvider } from "@/contexts/OneTimeAccessContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import Header from "@/components/Header";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,6 +90,7 @@ export default function RootLayout({
                 <main className="min-h-screen">
                   {children}
                 </main>
+                <ScrollToTop />
               </AuthProvider>
             </OneTimeAccessProvider>
           </ToastProvider>
