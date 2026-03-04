@@ -39,7 +39,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 
 export default function NewAppPage() {
   const router = useRouter();
-  const { user, signInWithGoogle } = useAuth();
+  const { user, session, signInWithGoogle } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const { categories } = useAppCategories();
@@ -211,47 +211,97 @@ export default function NewAppPage() {
       return;
     }
 
+    if (attachmentError) {
+      showError(attachmentError);
+      return;
+    }
+
     setSubmitting(true);
-    try {
-      const supabase = getBrowserClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      const idToken = session?.access_token;
-      if (!idToken) throw new Error('인증 토큰을 찾을 수 없습니다.');
-      if (attachmentError) {
-        showError(attachmentError);
-        return;
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), ms);
+      });
+      try {
+        return await Promise.race([promise, timeoutPromise]) as T;
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
       }
-      const uploadedAttachments = attachments.length
-        ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
-        : [];
-      const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
-      const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
+    };
 
-      const appId = await db.apps.create(supabase,
-        {
-          name: formData.name,
-          description: formData.description,
-          appUrls: validAppUrls,
-          snsUrls: buildSnsUrls(),
-          category: formData.category,
-          isPublic: formData.isPublic,
-          thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
-          thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
-          thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-          createdByName: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-          tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-        },
-        user.id
-      );
+    const submitWithRetry = async (attempt = 1, maxAttempts = 3): Promise<string> => {
+      try {
+        if (!session?.access_token) {
+          throw new Error('세션 확인 실패 - 다시 로그인해주세요.');
+        }
 
-      // Save uploaded attachments to the attachments table
-      if (uploadedAttachments.length > 0) {
-        await Promise.all(
-          uploadedAttachments.map((file) =>
-            db.attachments.create(supabase, appId, 'app', file, user.id)
+        const supabase = getBrowserClient();
+        const idToken = session.access_token;
+        const uploadedAttachments = attachments.length
+          ? await withTimeout(
+            Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken))),
+            20000,
+            '첨부 파일 업로드 시간이 초과되었습니다.'
           )
-        );
+          : [];
+
+        const hasThumbnail = formData.thumbnailUrl.trim().length > 0;
+        const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
+        const slowNoticeId = setTimeout(() => {
+          showInfo('저장에 시간이 걸리고 있습니다. 잠시만 기다려 주세요.');
+        }, 8000);
+
+        let appId = '';
+        try {
+          appId = await withTimeout(
+            db.apps.create(
+              supabase,
+              {
+                name: formData.name,
+                description: formData.description,
+                appUrls: validAppUrls,
+                snsUrls: buildSnsUrls(),
+                category: formData.category,
+                isPublic: formData.isPublic,
+                thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
+                thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
+                thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
+                createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
+                tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+              },
+              user.id
+            ),
+            30000,
+            '앱 저장 시간이 초과되었습니다.'
+          );
+        } finally {
+          clearTimeout(slowNoticeId);
+        }
+
+        if (uploadedAttachments.length > 0) {
+          await withTimeout(
+            Promise.all(
+              uploadedAttachments.map((file) =>
+                db.attachments.create(supabase, appId, 'app', file, user.id)
+              )
+            ),
+            20000,
+            '첨부 파일 메타데이터 저장 시간이 초과되었습니다.'
+          );
+        }
+
+        return appId;
+      } catch (error) {
+        if (attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return submitWithRetry(attempt + 1, maxAttempts);
+        }
+        throw error;
       }
+    };
+
+    try {
+      const appId = await submitWithRetry();
 
       if (isMountedRef.current) {
         showSuccess('앱이 등록되었습니다!');
@@ -264,10 +314,11 @@ export default function NewAppPage() {
         author: formData.createdByName || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
         url: formData.appUrls[0]?.url || '',
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating app:', error);
       if (isMountedRef.current) {
-        showError('앱 등록 중 오류가 발생했습니다.');
+        const message = error instanceof Error ? error.message : '알 수 없는 오류';
+        showError(`앱 등록 실패: ${message} (3회 시도 실패)`);
       }
     } finally {
       if (isMountedRef.current) {
