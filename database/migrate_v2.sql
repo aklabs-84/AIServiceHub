@@ -9,6 +9,8 @@
 -- profiles: add avatar_url and role
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role text DEFAULT 'user';
+-- NULL이거나 허용 외 값인 role을 'user'로 정규화한 뒤 constraint 추가
+UPDATE profiles SET role = 'user' WHERE role IS NULL OR role NOT IN ('user', 'admin');
 ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin'));
 

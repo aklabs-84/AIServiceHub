@@ -12,6 +12,12 @@ export interface ProfileRow {
   avatar_url: string | null;
   role: 'user' | 'admin';
   created_at: string;
+  username: string | null;
+  minihompy_title: string | null;
+  today_visits: number;
+  total_visits: number;
+  bg_color: string | null;
+  cover_image_url: string | null;
 }
 
 export interface CategoryRow {
@@ -24,6 +30,34 @@ export interface CategoryRow {
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface LessonRow {
+  id: string;
+  teacher_id: string;
+  title: string;
+  description: string | null;
+  published_url: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonStepRow {
+  id: string;
+  lesson_id: string;
+  step_number: number;
+  image_url: string | null;
+  content_markdown: string | null;
+  created_at: string;
+}
+
+export interface GuestbookRow {
+  id: string;
+  owner_id: string;
+  writer_id: string;
+  content: string;
+  created_at: string;
 }
 
 export interface AppRow {
@@ -194,6 +228,40 @@ export interface UserProfile {
   displayName: string | null;
   avatarUrl: string | null;
   role: 'user' | 'admin';
+  createdAt: Date;
+  username: string | null;
+  minihompyTitle: string | null;
+  todayVisits: number;
+  totalVisits: number;
+  bgColor: string | null;
+  coverImageUrl: string | null;
+}
+
+export interface Lesson {
+  id: string;
+  teacherId: string;
+  title: string;
+  description: string | null;
+  publishedUrl: string | null;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LessonStep {
+  id: string;
+  lessonId: string;
+  stepNumber: number;
+  imageUrl: string | null;
+  contentMarkdown: string | null;
+  createdAt: Date;
+}
+
+export interface Guestbook {
+  id: string;
+  ownerId: string;
+  writerId: string;
+  content: string;
   createdAt: Date;
 }
 

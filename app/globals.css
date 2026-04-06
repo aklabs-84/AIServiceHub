@@ -71,3 +71,187 @@ body {
 html.dark .card-hover:hover {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
+
+/* 세로 텍스트 (Tab용) */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 커스텀 스크롤바 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ── Room Character Animations ───────────────────────── */
+@keyframes char-idle {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+@keyframes char-dance {
+  0%   { transform: translateY(0) rotate(-5deg) scaleX(1); }
+  25%  { transform: translateY(-6px) rotate(0deg) scaleX(-1); }
+  50%  { transform: translateY(0) rotate(5deg) scaleX(-1); }
+  75%  { transform: translateY(-6px) rotate(0deg) scaleX(1); }
+  100% { transform: translateY(0) rotate(-5deg) scaleX(1); }
+}
+@keyframes char-wave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%       { transform: translateY(-3px) rotate(-4deg); }
+  75%       { transform: translateY(-3px) rotate(4deg); }
+}
+@keyframes char-sit {
+  0%, 100% { transform: scaleY(0.88) translateY(6px); }
+  50%       { transform: scaleY(0.88) translateY(4px); }
+}
+@keyframes char-sleep {
+  0%, 100% { transform: rotate(-8deg) translateY(0); }
+  50%       { transform: rotate(-8deg) translateY(-3px); }
+}
+@keyframes char-think {
+  0%, 100% { transform: translateY(0) rotate(2deg); }
+  50%       { transform: translateY(-4px) rotate(2deg); }
+}
+
+.animate-character-idle  { animation: char-idle  2.4s ease-in-out infinite; }
+.animate-character-walk  { animation: char-walk-body 0.5s ease-in-out infinite; }
+.animate-character-wave  { animation: char-wave  1.2s ease-in-out infinite; }
+.animate-character-sit   { animation: char-sit   3s ease-in-out infinite; }
+.animate-character-dance { animation: char-dance 0.8s ease-in-out infinite; }
+.animate-character-sleep { animation: char-sleep 3s ease-in-out infinite; }
+.animate-character-think { animation: char-think 2s ease-in-out infinite; }
+
+/* Walking body bounce */
+@keyframes char-walk-body {
+  0%, 100% { transform: translateY(0px); }
+  25%, 75%  { transform: translateY(-3px); }
+  50%       { transform: translateY(0px); }
+}
+
+/* Walking: individual body part keyframes */
+@keyframes walk-left-leg {
+  0%, 100% { transform: rotate(28deg);  }
+  50%       { transform: rotate(-28deg); }
+}
+@keyframes walk-right-leg {
+  0%, 100% { transform: rotate(-28deg); }
+  50%       { transform: rotate(28deg);  }
+}
+@keyframes walk-left-arm {
+  0%, 100% { transform: rotate(-22deg) translateY(-1px); }
+  50%       { transform: rotate(22deg) translateY(-1px);  }
+}
+@keyframes walk-right-arm {
+  0%, 100% { transform: rotate(22deg) translateY(-1px);  }
+  50%       { transform: rotate(-22deg) translateY(-1px); }
+}
+
+/* Applied to SVG elements */
+.walk-left-leg  { animation: walk-left-leg  0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+.walk-right-leg { animation: walk-right-leg 0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+.walk-left-arm  { animation: walk-left-arm  0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: right center; }
+.walk-right-arm { animation: walk-right-arm 0.5s ease-in-out infinite; transform-box: fill-box; transform-origin: left center; }
+
+/* ── Pet Animations ───────────────────────────────────── */
+@keyframes pet-idle {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+@keyframes pet-walk {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25%       { transform: translateY(-3px) rotate(2deg); }
+  75%       { transform: translateY(-3px) rotate(-2deg); }
+}
+@keyframes pet-eat {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  35%, 65% { transform: scaleY(0.88) translateY(5px); }
+}
+@keyframes pet-happy {
+  0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+  20%       { transform: translateY(-13px) scale(1.06) rotate(-5deg); }
+  40%       { transform: translateY(-15px) scale(1.06) rotate(0deg); }
+  60%       { transform: translateY(-10px) scale(1.04) rotate(5deg); }
+  80%       { transform: translateY(-5px) scale(1) rotate(0deg); }
+}
+@keyframes pet-sleep {
+  0%, 100% { transform: rotate(-6deg) translateY(0); }
+  50%       { transform: rotate(-6deg) translateY(-3px); }
+}
+@keyframes pet-curious {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  35%, 65% { transform: rotate(18deg) translateY(-2px); }
+}
+
+@keyframes pet-sad {
+  0%, 100% { transform: translateY(0px) rotate(-5deg); }
+  50%       { transform: translateY(3px)  rotate(-5deg); }
+}
+.animate-pet-idle    { animation: pet-idle    2.2s ease-in-out infinite; }
+.animate-pet-walk    { animation: pet-walk    0.45s ease-in-out infinite; }
+.animate-pet-eat     { animation: pet-eat     0.6s ease-in-out infinite; }
+.animate-pet-happy   { animation: pet-happy   0.7s ease-in-out infinite; }
+.animate-pet-sleep   { animation: pet-sleep   3s ease-in-out infinite; }
+.animate-pet-sad     { animation: pet-sad     2.5s ease-in-out infinite; }
+.animate-pet-curious { animation: pet-curious 1.8s ease-in-out infinite; }
+
+/* 다리·꼬리 기본 transform 속성 (항상 적용 — 애니메이션 ON/OFF는 부모 클래스로 제어) */
+.pet-leg-a, .pet-leg-b {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;   /* 다리 상단(힙 연결부)을 축으로 회전 */
+}
+.pet-tail {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;  /* 꼬리 기부(몸과 연결부)를 축으로 회전 */
+}
+
+/* 보행 키프레임 */
+@keyframes pet-leg-stride-a {
+  0%, 100% { transform: rotate(-22deg); }
+  50%       { transform: rotate(22deg);  }
+}
+@keyframes pet-leg-stride-b {
+  0%, 100% { transform: rotate(22deg);  }
+  50%       { transform: rotate(-22deg); }
+}
+@keyframes pet-tail-sway {
+  0%, 100% { transform: rotate(-18deg); }
+  50%       { transform: rotate(18deg);  }
+}
+
+/* 부모에 .animate-pet-walk 가 있을 때만 애니메이션 실행 */
+.animate-pet-walk .pet-leg-a { animation: pet-leg-stride-a 0.4s ease-in-out infinite; }
+.animate-pet-walk .pet-leg-b { animation: pet-leg-stride-b 0.4s ease-in-out infinite; }
+.animate-pet-walk .pet-tail  { animation: pet-tail-sway    0.5s ease-in-out infinite; }
+
+/* 부유 펫 (Vibe·Prompy — 다리 없이 둥실둥실) */
+@keyframes pet-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-9px); }
+}
+@keyframes pet-float-drift {
+  0%, 100% { transform: translateY(-3px); }
+  50%       { transform: translateY(-13px); }
+}
+.animate-pet-float       { animation: pet-float       3s   ease-in-out infinite; }
+.animate-pet-float-drift { animation: pet-float-drift 1.8s ease-in-out infinite; }
+
+/* 먹이 플로팅 이펙트 */
+@keyframes feedFloat {
+  0%   { opacity: 1;   transform: translate(-50%, -50%) scale(1);    }
+  60%  { opacity: 1;   transform: translate(-50%, -180%) scale(1.3); }
+  100% { opacity: 0;   transform: translate(-50%, -260%) scale(0.8); }
+}

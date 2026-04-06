@@ -303,6 +303,13 @@ export default function NewAppPage() {
     try {
       const appId = await submitWithRetry();
 
+      // 펫 먹이 보상 (백그라운드, 실패 무시)
+      fetch('/api/pet-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_type: 'app', source_id: appId }),
+      }).catch(() => {});
+
       if (isMountedRef.current) {
         showSuccess('앱이 등록되었습니다!');
         router.replace(`/apps/${appId}`);

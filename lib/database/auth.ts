@@ -9,6 +9,12 @@ function mapProfileFromDB(data: ProfileRow): UserProfile {
     avatarUrl: data.avatar_url,
     role: data.role || 'user',
     createdAt: new Date(data.created_at),
+    username: data.username || null,
+    minihompyTitle: data.minihompy_title || null,
+    todayVisits: data.today_visits || 0,
+    totalVisits: data.total_visits || 0,
+    bgColor: data.bg_color || null,
+    coverImageUrl: data.cover_image_url || null,
   };
 }
 
