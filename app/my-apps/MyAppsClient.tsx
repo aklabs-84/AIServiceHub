@@ -6,6 +6,7 @@ import type { AIApp } from '@/types/database';
 import AppCard from '@/components/AppCard';
 import Link from 'next/link';
 import { FaPlus } from 'react-icons/fa';
+import LoadingDots from '@/components/LoadingDots';
 import { useAppCategories } from '@/lib/useCategories';
 import { getCategoryInfo } from '@/lib/categories';
 import { useRouter } from 'next/navigation';
@@ -34,14 +35,7 @@ export default function MyAppsClient({ initialUserId, initialApps }: MyAppsClien
   }, [authLoading, user?.id, initialUserId, router]);
 
   // 로그인하지 않은 경우
-  if (authLoading) {
-    return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
-      </div>
-    );
-  }
+  if (authLoading) return <LoadingDots message="로딩 중..." />;
 
   if (!user) {
     return (

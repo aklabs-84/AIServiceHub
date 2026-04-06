@@ -7,6 +7,7 @@ import { OneTimeAccessProvider } from "@/contexts/OneTimeAccessContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import Header from "@/components/Header";
 import ScrollToTop from "@/components/ScrollToTop";
+import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}
       >
         <ThemeProvider>
+          <NextTopLoader
+            color="linear-gradient(90deg, #3b82f6, #8b5cf6)"
+            initialPosition={0.12}
+            crawlSpeed={180}
+            height={3}
+            crawl
+            showSpinner={false}
+            easing="ease"
+            speed={220}
+          />
           <ToastProvider>
             <OneTimeAccessProvider>
               <AuthProvider>

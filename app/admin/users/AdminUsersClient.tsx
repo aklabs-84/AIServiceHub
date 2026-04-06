@@ -7,6 +7,7 @@ import { db, getBrowserClient } from '@/lib/database';
 import type { UserProfile } from '@/types/database';
 import { useRouter } from 'next/navigation';
 import { FaUserShield, FaUser } from 'react-icons/fa';
+import LoadingDots from '@/components/LoadingDots';
 
 type AdminUsersClientProps = {
   initialUserId: string | null;
@@ -60,13 +61,7 @@ export default function AdminUsersClient({
     }
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (authLoading || loading) return <LoadingDots message="사용자 목록 불러오는 중..." />;
 
   if (!isAdmin) return null;
 

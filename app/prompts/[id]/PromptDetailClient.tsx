@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import LoadingDots from '@/components/LoadingDots';
 import Link from 'next/link';
 import { db, getBrowserClient } from '@/lib/database';
 import type { Prompt, Attachment, AttachmentRow } from '@/types/database';
@@ -454,13 +455,7 @@ export default function PromptDetailClient({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingDots message="프롬프트 불러오는 중..." />;
 
   if (!prompt) {
     return (

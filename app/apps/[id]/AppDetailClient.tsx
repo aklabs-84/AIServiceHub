@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import LoadingDots from '@/components/LoadingDots';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -563,13 +564,7 @@ export default function AppDetailClient({
     return <FaLink />;
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingDots message="앱 정보 불러오는 중..." />;
 
   if (!app) {
     return (

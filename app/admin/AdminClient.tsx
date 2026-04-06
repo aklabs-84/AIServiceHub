@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import LoadingDots from '@/components/LoadingDots';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -44,11 +45,7 @@ type AdminClientProps = {
 
 const AdminPage = dynamic(() => Promise.resolve(AdminPageContent), {
   ssr: false,
-  loading: () => (
-    <div className="flex justify-center items-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>
-  ),
+  loading: () => <LoadingDots message="관리자 페이지 로딩 중..." />,
 });
 
 export default function AdminClient(props: AdminClientProps) {
@@ -616,13 +613,7 @@ function AdminPageContent({
     return '미사용';
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingDots message="인증 확인 중..." />;
 
   if (!user) {
     return (
@@ -885,8 +876,8 @@ function AdminPageContent({
       </section>
 
       {loadingData ? (
-        <div className="flex justify-center py-10">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex justify-center py-12">
+          <LoadingDots fullscreen={false} message="데이터 불러오는 중..." />
         </div>
       ) : (
         <div className="space-y-8">

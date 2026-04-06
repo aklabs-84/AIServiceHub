@@ -10,6 +10,7 @@ import { useAppCategories, usePromptCategories } from '@/lib/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaRocket, FaUserCircle, FaLaptopCode, FaPenFancy, FaHeart, FaBook, FaTrash, FaPaperPlane, FaSpinner } from 'react-icons/fa';
 import RoomCanvas from '@/components/room/RoomCanvas';
+import LoadingDots from '@/components/LoadingDots';
 
 type Tab = 'home' | 'apps' | 'prompts' | 'guestbook';
 
@@ -249,7 +250,7 @@ export default function PublicVibeSpace({ profile, publicApps, publicPrompts }: 
 
           {/* 목록 */}
           {gbLoading ? (
-            <div className="flex justify-center py-8"><FaSpinner className="animate-spin text-amber-400 text-2xl" /></div>
+            <div className="flex justify-center py-8"><LoadingDots fullscreen={false} size="sm" /></div>
           ) : entries.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-amber-100 rounded-2xl text-gray-400 text-sm">아직 방명록이 없습니다. 첫 번째 방문자가 되어보세요!</div>
           ) : (

@@ -11,6 +11,7 @@ import {
   FaList, FaThLarge, FaRocket, FaRegSmile, FaUserCircle, FaArrowRight,
   FaCamera, FaBook, FaTrash, FaPaperPlane,
 } from 'react-icons/fa';
+import LoadingDots from '@/components/LoadingDots';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getCategoryInfo } from '@/lib/categories';
 import { getPromptCategoryInfo } from '@/lib/promptCategories';
@@ -383,12 +384,7 @@ function MyPageContent({
   };
 
   // ── Auth states ─────────────────────────────────────────────
-  if (authLoading) return (
-    <div className="flex flex-col items-center justify-center py-24 text-gray-600">
-      <FaSpinner className="animate-spin text-3xl mb-3" />
-      <p>로그인 상태를 확인하는 중...</p>
-    </div>
-  );
+  if (authLoading) return <LoadingDots message="로그인 상태를 확인하는 중..." />;
 
   if (!user) return (
     <div className="w-full h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] bg-[#6699bc] flex items-center justify-center p-4">
@@ -443,7 +439,7 @@ function MyPageContent({
             <p className="text-right text-xs text-amber-400 mt-1">{gbText.length}/200</p>
           </div>
           {gbLoading ? (
-            <div className="flex justify-center py-8"><FaSpinner className="animate-spin text-amber-400 text-2xl" /></div>
+            <div className="flex justify-center py-8"><LoadingDots fullscreen={false} size="sm" /></div>
           ) : gbEntries.length === 0 ? (
             <div className="text-center py-10 border-2 border-dashed border-amber-100 rounded-2xl text-gray-400 text-sm">아직 방명록이 없습니다.</div>
           ) : (

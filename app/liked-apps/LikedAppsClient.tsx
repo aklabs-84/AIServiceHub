@@ -8,6 +8,7 @@ import AppCard from '@/components/AppCard';
 import { FaHeart } from 'react-icons/fa';
 import { useAppCategories } from '@/lib/useCategories';
 import { getCategoryInfo } from '@/lib/categories';
+import LoadingDots from '@/components/LoadingDots';
 
 type LikedAppsClientProps = {
   initialUserId: string | null;
@@ -40,17 +41,7 @@ export default function LikedAppsClient({ initialUserId, initialApps }: LikedApp
     router.refresh();
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex flex-col justify-center items-center py-20 md:py-32">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-blue-200 dark:border-blue-900"></div>
-        </div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">앱을 불러오는 중...</p>
-      </div>
-    );
-  }
+  if (authLoading) return <LoadingDots message="앱을 불러오는 중..." />;
 
   if (!user) {
     return null;
