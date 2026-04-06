@@ -177,7 +177,7 @@ export default function RoomCanvas({ ownerId, isOwner, isAdmin = false }: RoomCa
 
           const nx = ws.x + (dx / dist) * SPEED;
           const ny = ws.y + (dy / dist) * SPEED;
-          ws.x = nx; ws.y = ny; ws.flip = dx < 0;
+          ws.x = nx; ws.y = ny; ws.flip = dx > 0; // 스프라이트 기본 방향이 왼쪽이므로, 오른쪽 이동 시 flip
           changed = true;
           return { ...pet, pos_x: nx, pos_y: ny, anim: 'walk' as PetAnim, flip: ws.flip };
         });
