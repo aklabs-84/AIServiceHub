@@ -130,26 +130,11 @@ export default function PurchaseModal({
           <span className="text-2xl font-black text-gray-900 dark:text-white">{price.toLocaleString()}원</span>
         </div>
 
-        {/* 결제 수단 탭 */}
-        <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {(['card', 'bank'] as PayTab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { setTab(t); setError(''); setBankStep('form'); }}
-              className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
-                tab === t
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              {t === 'card' ? '💳 카드 결제' : '🏦 계좌이체'}
-            </button>
-          ))}
-        </div>
+        {/* 결제 수단 탭 — 카드 결제는 Toss 심사 완료 후 활성화 예정 */}
+        {/* CARD_PAYMENT_ENABLED: false → 탭 UI 숨김 */}
 
         {/* ── 카드 탭 ── */}
-        {tab === 'card' && (
+        {tab === 'card' && false && (
           <>
             <ul className="space-y-2">
               {['영구 소장 — 한 번 구매로 평생 이용', '모든 기기에서 즉시 접근 가능', '업데이트 시 자동 반영'].map((item) => (
