@@ -2,5 +2,7 @@
 ALTER TABLE purchases ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'card';
 ALTER TABLE purchases ADD COLUMN IF NOT EXISTS depositor_name text;
 
--- pending_bank 상태 허용 (기존 check constraint 있으면 교체)
--- status: pending | pending_bank | paid | cancelled | refunded
+-- status CHECK 제약 조건에 pending_bank 추가
+ALTER TABLE purchases DROP CONSTRAINT IF EXISTS purchases_status_check;
+ALTER TABLE purchases ADD CONSTRAINT purchases_status_check
+  CHECK (status IN ('pending', 'pending_bank', 'paid', 'cancelled', 'refunded'));
