@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import { purchases } from '@/lib/database/purchases';
+import { sendSlack } from '@/lib/slack';
 import type { ProductType } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -75,17 +76,9 @@ export async function POST(request: Request) {
   });
 
   // Slack 알림 (백그라운드, 실패 무시)
-  fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/notify/slack`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'bank_request',
-      productName,
-      amount,
-      depositorName: depositorName.trim(),
-      orderId,
-    }),
-  }).catch(() => {});
+  sendSlack(
+    `💰 계좌이체 입금 신청\n• 상품: ${productName}\n• 금액: ${amount.toLocaleString()}원\n• 입금자명: ${depositorName.trim()}\n• 주문번호: ${orderId}\n⚠️ 관리자 대시보드에서 입금 확인 후 승인해 주세요.`
+  ).catch(() => {});
 
   return NextResponse.json({
     ok: true,

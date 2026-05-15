@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import { purchases } from '@/lib/database/purchases';
 import { sendPushToUser } from '@/lib/push';
+import { sendSlack } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -54,16 +55,9 @@ export async function POST(request: Request) {
   } catch { /* 상품명 조회 실패해도 승인은 완료됨 */ }
 
   // Slack 알림 (백그라운드)
-  fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/notify/slack`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'bank_approved',
-      productName,
-      amount: purchaseData.amount,
-      depositorName: purchaseData.depositor_name,
-    }),
-  }).catch(() => {});
+  sendSlack(
+    `✅ 계좌이체 승인 완료\n• 상품: ${productName}\n• 금액: ${Number(purchaseData.amount).toLocaleString()}원\n• 입금자명: ${purchaseData.depositor_name}`
+  ).catch(() => {});
 
   // 구매자에게 브라우저 푸시 알림 (백그라운드, 실패 무시)
   sendPushToUser(purchaseData.user_id, {
