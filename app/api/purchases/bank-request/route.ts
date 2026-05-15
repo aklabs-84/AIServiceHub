@@ -93,9 +93,9 @@ export async function POST(request: Request) {
     amount,
     productName,
     bankInfo: {
-      bankName: process.env.BANK_NAME || '',
-      accountNumber: process.env.BANK_ACCOUNT_NUMBER || '',
-      accountHolder: process.env.BANK_ACCOUNT_HOLDER || '',
+      bankName: process.env.NEXT_PUBLIC_BANK_NAME || '',
+      accountNumber: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER || '',
+      accountHolder: process.env.NEXT_PUBLIC_BANK_ACCOUNT_HOLDER || '',
     },
   });
 }
