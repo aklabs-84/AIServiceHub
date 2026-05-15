@@ -1514,15 +1514,14 @@ function PendingBankTransfersPanel() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const load = async () => {
+    if (!session?.access_token) { setLoading(false); return; }
     setLoading(true);
     try {
-      const supabase = getBrowserClient();
-      const { data } = await supabase
-        .from('purchases')
-        .select('id, order_id, amount, depositor_name, product_type, product_id, created_at')
-        .eq('status', 'pending_bank')
-        .order('created_at', { ascending: false });
-      setList((data || []).map((r: any) => ({
+      const res = await fetch('/api/admin/purchases/pending-bank', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      setList((json.list || []).map((r: any) => ({
         id: r.id,
         orderId: r.order_id,
         amount: r.amount,
@@ -1536,7 +1535,7 @@ function PendingBankTransfersPanel() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [session]);
 
   const handleApprove = async (orderId: string) => {
     if (!session?.access_token) return;
