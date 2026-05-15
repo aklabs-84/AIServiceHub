@@ -4,7 +4,7 @@ import Image from 'next/image';
 import type { Prompt } from '@/types/database';
 import { PromptCategoryInfo, getPromptCategoryInfo } from '@/lib/promptCategories';
 import { useMemo, useState } from 'react';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaLock } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -26,6 +26,8 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
   const [isLiked, setIsLiked] = useState(user ? prompt.likes.includes(user.id) : false);
   const [likeCount, setLikeCount] = useState(prompt.likeCount ?? prompt.likes.length);
   const [isLiking, setIsLiking] = useState(false);
+
+  const isPaidAndLocked = prompt.isPaid && prompt.price > 0;
 
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -185,6 +187,12 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         )}
 
         {/* 카테고리 배지 */}
+        {isPaidAndLocked && (
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm">
+            <FaLock className="text-white text-[9px]" />
+            <span className="text-white text-[11px] font-black">{prompt.price.toLocaleString()}원</span>
+          </div>
+        )}
         <div className="absolute top-4 left-4 z-20">
           <div className="px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/90 dark:bg-gray-950/80 border border-white/20 dark:border-gray-800/50 shadow-sm flex items-center space-x-1.5">
             <CategoryIcon className="text-sm text-emerald-600 dark:text-emerald-400" />
@@ -279,6 +287,5 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         </div>
       </div>
     </div>
-
   );
 }

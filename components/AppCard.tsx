@@ -5,7 +5,7 @@ import Image from 'next/image';
 import type { AIApp } from '@/types/database';
 import { CategoryInfo, getCategoryInfo } from '@/lib/categories';
 import { useState } from 'react';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaLock } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { db, getBrowserClient } from '@/lib/database';
 
@@ -140,12 +140,14 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
     );
   }
 
+  const isPaidAndLocked = app.isPaid && app.price > 0;
+
   return (
-    <Link 
-      href={`/apps/${app.id}`} 
+    <Link
+      href={`/apps/${app.id}`}
       className={`group flex flex-col gap-2 transition-all duration-300 cursor-pointer ${
-        isCompact 
-          ? 'p-1.5 sm:p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/40' 
+        isCompact
+          ? 'p-1.5 sm:p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/40'
           : 'p-2 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800/60'
       }`}
     >
@@ -173,6 +175,14 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
             }`} />
           </div>
         )}
+
+        {/* Paid badge (corner only, no full overlay) */}
+        {isPaidAndLocked && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+            <FaLock className="text-white text-[8px]" />
+            <span className="text-white text-[10px] font-black">{app.price.toLocaleString()}원</span>
+          </div>
+        )}
       </div>
 
       {/* App Info */}
@@ -190,7 +200,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           </p>
         </div>
 
-        {/* Like + Open (Only for default variant or small screens if needed) */}
+        {/* Like + Open/Buy (Only for default variant) */}
         {!isCompact && (
           <div className="flex items-center justify-between pt-1">
             <button
@@ -201,9 +211,16 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
               {isLiked ? <FaHeart className="text-[10px]" /> : <FaRegHeart className="text-[10px]" />}
               <span className="text-[10px] font-black">{likeCount}</span>
             </button>
-            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
-              OPEN
-            </span>
+            {isPaidAndLocked ? (
+              <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50">
+                <FaLock className="text-[8px]" />
+                {app.price.toLocaleString()}원
+              </span>
+            ) : (
+              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+                OPEN
+              </span>
+            )}
           </div>
         )}
       </div>

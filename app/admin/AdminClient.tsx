@@ -19,7 +19,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales';
 
 interface OneTimeInfo {
   id: string;
@@ -890,6 +890,7 @@ function AdminPageContent({
                 { key: 'users', label: '신규 가입자' },
                 { key: 'categories', label: '카테고리 관리' },
                 { key: 'collections', label: '기획 컬렉션' },
+                { key: 'sales', label: '판매 설정' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1118,6 +1119,9 @@ function AdminPageContent({
                   </div>
                 )}
               </div>
+            )}
+            {activeTab === 'sales' && (
+              <SalesPricingPanel apps={apps} prompts={prompts} />
             )}
           </section>
 
@@ -1490,6 +1494,149 @@ function Pager({
         >
           다음
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 판매 설정 패널 ─────────────────────────────────────────────
+function SalesPricingPanel({ apps, prompts }: { apps: AIApp[]; prompts: Prompt[] }) {
+  const supabase = getBrowserClient();
+  const { showToast } = useToast();
+  const [saving, setSaving] = useState<string | null>(null);
+  const [prices, setPrices] = useState<Record<string, { price: number; isPaid: boolean }>>(() => {
+    const map: Record<string, { price: number; isPaid: boolean }> = {};
+    [...apps, ...prompts].forEach((item) => {
+      map[item.id] = { price: item.price, isPaid: item.isPaid };
+    });
+    return map;
+  });
+  const [filter, setFilter] = useState<'all' | 'paid' | 'free'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'app' | 'prompt'>('all');
+
+  const handleSave = async (item: AIApp | Prompt, type: 'app' | 'prompt') => {
+    const { price, isPaid } = prices[item.id];
+    setSaving(item.id);
+    try {
+      if (type === 'app') {
+        await supabase.from('apps').update({ price, is_paid: isPaid }).eq('id', item.id);
+      } else {
+        await supabase.from('prompts').update({ price, is_paid: isPaid }).eq('id', item.id);
+      }
+      showToast('저장되었습니다', 'success');
+    } catch {
+      showToast('저장 실패', 'error');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const allItems = [
+    ...apps.map((a) => ({ ...a, _type: 'app' as const })),
+    ...prompts.map((p) => ({ ...p, _type: 'prompt' as const })),
+  ];
+
+  const filtered = allItems.filter((item) => {
+    if (typeFilter !== 'all' && item._type !== typeFilter) return false;
+    const p = prices[item.id];
+    if (filter === 'paid') return p?.isPaid;
+    if (filter === 'free') return !p?.isPaid;
+    return true;
+  });
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1">
+          {(['all', 'app', 'prompt'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${typeFilter === t ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+            >
+              {t === 'all' ? '전체' : t === 'app' ? '앱' : '프롬프트'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {(['all', 'paid', 'free'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition ${filter === f ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+            >
+              {f === 'all' ? '전체' : f === 'paid' ? '유료' : '무료'}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{filtered.length}개 항목</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-xs font-bold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+              <th className="text-left py-2 px-3">이름</th>
+              <th className="text-left py-2 px-3">유형</th>
+              <th className="text-left py-2 px-3 w-28">가격 (원)</th>
+              <th className="text-left py-2 px-3">유료 전환</th>
+              <th className="py-2 px-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
+            {filtered.map((item) => {
+              const p = prices[item.id] ?? { price: item.price, isPaid: item.isPaid };
+              return (
+                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                  <td className="py-2 px-3 font-medium text-gray-800 dark:text-gray-200 max-w-[200px] truncate">
+                    {item.name}
+                  </td>
+                  <td className="py-2 px-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item._type === 'app' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'}`}>
+                      {item._type === 'app' ? '앱' : '프롬프트'}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={p.price}
+                      onChange={(e) =>
+                        setPrices((prev) => ({ ...prev, [item.id]: { ...p, price: Number(e.target.value) } }))
+                      }
+                      className="w-24 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                    />
+                  </td>
+                  <td className="py-2 px-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={p.isPaid}
+                        onChange={(e) =>
+                          setPrices((prev) => ({ ...prev, [item.id]: { ...p, isPaid: e.target.checked } }))
+                        }
+                        className="w-4 h-4 accent-amber-500"
+                      />
+                      <span className={`text-xs font-bold ${p.isPaid ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400'}`}>
+                        {p.isPaid ? '유료' : '무료'}
+                      </span>
+                    </label>
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    <button
+                      onClick={() => handleSave(item, item._type)}
+                      disabled={saving === item.id}
+                      className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold transition"
+                    >
+                      {saving === item.id ? '저장 중...' : '저장'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

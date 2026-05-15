@@ -21,6 +21,7 @@ import * as auth from './auth';
 import * as oneTimeAccess from './one-time-access';
 import * as collections from './collections';
 import * as posts from './posts';
+import { purchases } from './purchases';
 
 export const db = {
   apps,
@@ -32,6 +33,7 @@ export const db = {
   oneTimeAccess,
   collections,
   posts,
+  purchases,
 };
 
 // Re-export types for convenience
@@ -55,4 +57,10 @@ export type {
   CommentTargetType,
   CategoryType,
   AppUrlItem,
+  Purchase,
+  Subscription,
+  ProductType,
+  PurchaseStatus,
+  SubscriptionPlan,
+  SubscriptionStatus,
 } from '@/types/database';

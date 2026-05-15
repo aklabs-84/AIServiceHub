@@ -17,6 +17,7 @@ import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
 import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
 import PWAInstallButton from '@/components/PWAInstallButton';
+import PurchaseModal from '@/components/PurchaseModal';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
@@ -78,7 +79,7 @@ export default function AppDetailClient({
 
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
+  const { user, session, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories } = useAppCategories();
@@ -96,6 +97,9 @@ export default function AppDetailClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+  const [canAccessUrls, setCanAccessUrls] = useState<boolean | null>(null);
+  const [checkingAccess, setCheckingAccess] = useState(false);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   // --- Inline Edit States ---
   const [isEditing, setIsEditing] = useState(false);
@@ -183,6 +187,20 @@ export default function AppDetailClient({
     const total = Math.ceil(comments.length / COMMENTS_PER_PAGE) || 1;
     setCommentPage((prev) => Math.min(prev, total));
   }, [comments.length]);
+
+  // 유료 앱이면 구매/구독 여부 확인
+  useEffect(() => {
+    if (!app?.isPaid || !app.price) { setCanAccessUrls(true); return; }
+    if (!user) { setCanAccessUrls(false); return; }
+    setCheckingAccess(true);
+    fetch(`/api/purchases/check?productType=app&productId=${app.id}`, {
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((d) => setCanAccessUrls(!!d.canAccess))
+      .catch(() => setCanAccessUrls(false))
+      .finally(() => setCheckingAccess(false));
+  }, [app?.id, app?.isPaid, app?.price, user, session]);
 
   const handleSubmitComment = async () => {
     if (!user || !app || !newComment.trim() || submitting) return;
@@ -609,6 +627,16 @@ export default function AppDetailClient({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+      {showPurchaseModal && app && (
+        <PurchaseModal
+          productId={app.id}
+          productType="app"
+          productName={app.name}
+          price={app.price}
+          onClose={() => setShowPurchaseModal(false)}
+          onSuccess={() => { setShowPurchaseModal(false); setCanAccessUrls(true); }}
+        />
+      )}
       {/* Top Navigation */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -978,7 +1006,18 @@ export default function AppDetailClient({
                     )}
                     {app.appUrls && app.appUrls.length > 0 && (
                       <div className="pt-8 border-t dark:border-gray-800">
-                        {user ? (
+                        {!user ? (
+                          <div className="p-8 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-dashed border-blue-200 dark:border-blue-800 text-center space-y-4">
+                            <FaLock className="mx-auto text-3xl text-blue-400 opacity-50" />
+                            <div><div className="font-bold text-blue-900 dark:text-blue-100">로그인이 필요한 콘텐츠입니다</div><div className="text-sm text-blue-600 dark:text-blue-400 mt-1">로그인 후 앱 실행 링크를 확인하실 수 있습니다.</div></div>
+                            <div className="flex justify-center gap-2">
+                              <button onClick={signInWithKakao} className="px-5 py-2.5 rounded-xl bg-[#FEE500] text-black font-bold text-sm shadow-sm active:scale-95 transition-all">카카오 로그인</button>
+                              <button onClick={signInWithGoogle} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm shadow-sm active:scale-95 transition-all">구글 로그인</button>
+                            </div>
+                          </div>
+                        ) : checkingAccess ? (
+                          <div className="py-8 text-center text-sm text-gray-400">접근 권한 확인 중...</div>
+                        ) : canAccessUrls ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {app.appUrls.map((u, i) => (
                               <Link key={i} href={u.url} target="_blank" className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border flex justify-between items-center group">
@@ -991,13 +1030,20 @@ export default function AppDetailClient({
                             ))}
                           </div>
                         ) : (
-                          <div className="p-8 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-dashed border-blue-200 dark:border-blue-800 text-center space-y-4">
-                            <FaLock className="mx-auto text-3xl text-blue-400 opacity-50" />
-                            <div><div className="font-bold text-blue-900 dark:text-blue-100">로그인이 필요한 콘텐츠입니다</div><div className="text-sm text-blue-600 dark:text-blue-400 mt-1">로그인 후 앱 실행 링크를 확인하실 수 있습니다.</div></div>
-                            <div className="flex justify-center gap-2">
-                              <button onClick={signInWithKakao} className="px-5 py-2.5 rounded-xl bg-[#FEE500] text-black font-bold text-sm shadow-sm active:scale-95 transition-all">카카오 로그인</button>
-                              <button onClick={signInWithGoogle} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm shadow-sm active:scale-95 transition-all">구글 로그인</button>
+                          <div className="p-8 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-dashed border-amber-200 dark:border-amber-800 text-center space-y-4">
+                            <FaLock className="mx-auto text-3xl text-amber-400" />
+                            <div>
+                              <div className="font-bold text-amber-900 dark:text-amber-100">유료 콘텐츠입니다</div>
+                              <div className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                                구매 후 앱 실행 링크를 확인할 수 있습니다.
+                              </div>
                             </div>
+                            <button
+                              onClick={() => setShowPurchaseModal(true)}
+                              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm shadow-sm active:scale-95 transition-all"
+                            >
+                              {app.price.toLocaleString()}원으로 구매하기
+                            </button>
                           </div>
                         )}
                       </div>

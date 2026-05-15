@@ -72,6 +72,8 @@ export interface AppRow {
   thumbnail_pos: { x: number; y: number } | null;
   tags: string[];
   like_count: number;
+  price: number;
+  is_paid: boolean;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
@@ -92,6 +94,8 @@ export interface PromptRow {
   thumbnail_pos: { x: number; y: number } | null;
   tags: string[];
   like_count: number;
+  price: number;
+  is_paid: boolean;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
@@ -176,6 +180,8 @@ export interface AIApp {
   likes: string[];
   likeCount: number;
   tags: string[];
+  price: number;
+  isPaid: boolean;
 }
 
 export interface Prompt {
@@ -197,6 +203,67 @@ export interface Prompt {
   likes: string[];
   likeCount: number;
   tags: string[];
+  price: number;
+  isPaid: boolean;
+}
+
+// --- 결제 관련 타입 ---
+
+export type ProductType = 'app' | 'prompt' | 'subscription';
+export type PurchaseStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
+export type SubscriptionPlan = 'monthly' | 'yearly';
+export type SubscriptionStatus = 'active' | 'cancelled' | 'expired';
+
+export interface PurchaseRow {
+  id: string;
+  user_id: string;
+  product_type: ProductType;
+  product_id: string | null;
+  amount: number;
+  order_id: string;
+  payment_key: string | null;
+  status: PurchaseStatus;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export interface Purchase {
+  id: string;
+  userId: string;
+  productType: ProductType;
+  productId: string | null;
+  amount: number;
+  orderId: string;
+  paymentKey: string | null;
+  status: PurchaseStatus;
+  paidAt: Date | null;
+  createdAt: Date;
+}
+
+export interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  billing_key: string | null;
+  order_id: string | null;
+  amount: number;
+  started_at: string;
+  expires_at: string;
+  cancelled_at: string | null;
+  created_at: string;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  amount: number;
+  startedAt: Date;
+  expiresAt: Date;
+  cancelledAt: Date | null;
+  createdAt: Date;
 }
 
 export interface Attachment {

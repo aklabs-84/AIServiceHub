@@ -24,6 +24,8 @@ function mapAppFromDB(data: AppRow): AIApp {
     likes,
     likeCount: data.like_count ?? likes.length,
     tags: data.tags || [],
+    price: data.price ?? 0,
+    isPaid: data.is_paid ?? false,
   };
 }
 

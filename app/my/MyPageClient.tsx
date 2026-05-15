@@ -5,7 +5,8 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
-import type { AIApp, AppCategory, Prompt } from '@/types/database';
+import type { AIApp, AppCategory, Prompt, Purchase } from '@/types/database';
+import type { Session } from '@supabase/supabase-js';
 import {
   FaLaptopCode, FaPenFancy, FaHeart, FaDownload, FaSpinner,
   FaList, FaThLarge, FaRocket, FaRegSmile, FaUserCircle, FaArrowRight,
@@ -20,7 +21,7 @@ import { getBrowserClient } from '@/lib/database';
 import ExcelJS from 'exceljs';
 import RoomCanvas from '@/components/room/RoomCanvas';
 
-type Tab = 'home' | 'apps' | 'prompts' | 'likes' | 'guestbook';
+type Tab = 'home' | 'apps' | 'prompts' | 'likes' | 'guestbook' | 'purchases';
 
 type GuestbookEntry = {
   id: string;
@@ -239,7 +240,7 @@ function MyPageContent({
   initialUserId, initialProfile, initialMyApps, initialMyPrompts, initialLikedApps, initialLikedPrompts,
 }: MyPageClientProps) {
   const router = useRouter();
-  const { user, isAdmin, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, session, isAdmin, loading: authLoading, signInWithGoogle } = useAuth();
   const { categories: appCategories } = useAppCategories();
   const { categories: promptCategories } = usePromptCategories();
   const [myApps, setMyApps] = useState<AIApp[]>(initialMyApps);
@@ -278,7 +279,7 @@ function MyPageContent({
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'prompts' || tab === 'likes' || tab === 'apps' || tab === 'home' || tab === 'guestbook') setActiveTab(tab as Tab);
+    if (tab === 'prompts' || tab === 'likes' || tab === 'apps' || tab === 'home' || tab === 'guestbook' || tab === 'purchases') setActiveTab(tab as Tab);
   }, [searchParams]);
 
   // Guestbook fetch (탭 전환 시 1회)
@@ -411,6 +412,7 @@ function MyPageContent({
     { key: 'prompts', label: 'Prompts', shortLabel: '프롬프트', menuLabel: 'Prompts', color: 'bg-[#10b981]' },
     { key: 'likes', label: 'Likes', shortLabel: '좋아요', menuLabel: 'Likes', color: 'bg-[#8b5cf6]' },
     { key: 'guestbook', label: 'Guest', shortLabel: '방명록', menuLabel: 'Guestbook', color: 'bg-[#f59e0b]' },
+    { key: 'purchases', label: 'Buy', shortLabel: '구매', menuLabel: 'Purchases', color: 'bg-[#0ea5e9]' },
   ];
 
   const renderContent = () => {
@@ -419,6 +421,7 @@ function MyPageContent({
       case 'apps': return <AppsTab myApps={myApps} myPrompts={myPrompts} viewMode={viewMode} appCategories={appCategories} promptCategories={promptCategories} exportApps={exportApps} exportPrompts={exportPrompts} />;
       case 'prompts': return <PromptsTab myPrompts={myPrompts} viewMode={viewMode} promptCategories={promptCategories} exportPrompts={exportPrompts} />;
       case 'likes': return <LikesTab likedApps={likedApps} likedPrompts={likedPrompts} viewMode={viewMode} appCategories={appCategories} promptCategories={promptCategories} />;
+      case 'purchases': return <PurchasesTab session={session} />;
       case 'guestbook': return (
         <div className="animate-in fade-in duration-500 space-y-4">
           <h2 className="text-base font-black text-gray-800 border-l-4 border-amber-400 pl-3 flex items-center gap-2">
@@ -665,6 +668,21 @@ function HomeTab({ ownerId, displayName, myApps, myPrompts, likedApps, likedProm
         </button>
       </div>
 
+      {/* Purchases shortcut */}
+      <button
+        onClick={() => onTabChange('purchases')}
+        className="w-full flex items-center justify-between px-4 py-3 bg-sky-50 border border-sky-200 rounded-xl hover:bg-sky-100 hover:shadow-md transition-all text-left"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-xl">🛒</span>
+          <div>
+            <p className="text-sm font-black text-sky-700">구매 내역</p>
+            <p className="text-xs text-sky-500">구매한 앱 · 프롬프트 확인</p>
+          </div>
+        </div>
+        <span className="text-sky-400 text-lg">›</span>
+      </button>
+
       {/* Quick Links */}
       <div className="flex gap-2">
         <Link href="/apps/new" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-sm font-bold text-indigo-600 hover:bg-indigo-100 hover:shadow-md transition-all"><FaLaptopCode /> 새 앱 등록</Link>
@@ -730,6 +748,87 @@ function LikesTab({ likedApps, likedPrompts, viewMode, appCategories, promptCate
         <SectionHeader title={<><FaHeart className="inline text-orange-500 mr-1.5" />좋아요한 프롬프트</>} borderColor="border-orange-500" />
         <PromptList prompts={likedPrompts} viewMode={viewMode} categories={promptCategories} />
       </section>
+    </div>
+  );
+}
+
+// ── 구매 내역 탭 ──────────────────────────────────────────────
+function PurchasesTab({ session }: { session: Session | null }) {
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.access_token) { setLoading(false); return; }
+    fetch('/api/purchases/my', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setPurchases(d.purchases ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [session]);
+
+  if (loading) return <div className="py-10 text-center text-gray-400 text-sm">구매 내역 불러오는 중...</div>;
+
+  if (!purchases.length) {
+    return (
+      <div className="py-16 text-center space-y-3">
+        <div className="text-4xl">🛒</div>
+        <p className="font-bold text-gray-700 dark:text-gray-300">구매 내역이 없습니다</p>
+        <p className="text-sm text-gray-400">유료 앱이나 프롬프트를 구매하면 여기에 표시됩니다.</p>
+        <Link href="/apps" className="inline-block mt-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+          앱 둘러보기
+        </Link>
+      </div>
+    );
+  }
+
+  const statusLabel = (status: string) => {
+    if (status === 'paid') return { text: '결제완료', cls: 'bg-green-100 text-green-700' };
+    if (status === 'cancelled') return { text: '취소됨', cls: 'bg-red-100 text-red-600' };
+    if (status === 'refunded') return { text: '환불됨', cls: 'bg-orange-100 text-orange-600' };
+    return { text: status, cls: 'bg-gray-100 text-gray-500' };
+  };
+
+  return (
+    <div className="animate-in fade-in duration-500 space-y-3">
+      <h2 className="text-base font-black text-gray-800 dark:text-gray-100 border-l-4 border-sky-400 pl-3">
+        구매 내역 <span className="text-sm font-normal text-gray-400">({purchases.length}건)</span>
+      </h2>
+      <div className="space-y-2">
+        {purchases.map((p) => {
+          const isCancelled = p.status === 'cancelled' || p.status === 'refunded';
+          const { text: statusText, cls: statusCls } = statusLabel(p.status);
+          return (
+          <div key={p.id} className={`flex items-center justify-between p-4 rounded-2xl border shadow-sm ${isCancelled ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.productType === 'app' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'}`}>
+                  {p.productType === 'app' ? '앱' : p.productType === 'prompt' ? '프롬프트' : '구독'}
+                </span>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${statusCls}`}>
+                  {statusText}
+                </span>
+              </div>
+              <p className={`text-sm font-bold ${isCancelled ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-100'}`}>
+                {p.amount.toLocaleString()}원
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {p.paidAt ? new Date(p.paidAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date(p.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+            {!isCancelled && p.productId && p.productType !== 'subscription' && (
+              <Link
+                href={`/${p.productType === 'app' ? 'apps' : 'prompts'}/${p.productId}`}
+                className="flex-none ml-3 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors"
+              >
+                보러가기
+              </Link>
+            )}
+          </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

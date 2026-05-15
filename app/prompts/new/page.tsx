@@ -11,6 +11,7 @@ import type { Prompt } from '@/types/database';
 import { sendSlackNotification } from '@/lib/notifications';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
+import TagInput from '@/components/TagInput';
 
 const detectUrls = (value: string) =>
   value
@@ -77,7 +78,7 @@ export default function NewPromptPage() {
     createdByName: (user?.user_metadata?.full_name || user?.user_metadata?.name) || '',
     tags: [],
   });
-  const [tagInput, setTagInput] = useState('');
+  // tagInput 제거: formData.tags 배열로 직접 관리
   const [attachments, setAttachments] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [snsForm, setSnsForm] = useState({
@@ -248,7 +249,7 @@ export default function NewPromptPage() {
                 thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
                 thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
                 createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
-                tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+                tags: formData.tags,
               }),
               signal: controller.signal,
             }),
@@ -537,19 +538,17 @@ export default function NewPromptPage() {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-              태그 (쉼표로 구분)
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              태그
             </label>
-            <input
-              type="text"
-              id="tags"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            <TagInput
+              value={formData.tags}
+              onChange={(tags) => setFormData({ ...formData, tags })}
               placeholder="창작, 교육, 생산성"
+              accentColor="emerald"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              관련 키워드를 입력하면 검색과 분류에 도움이 됩니다.
+              Enter 또는 쉼표로 추가 · 기존 태그는 입력 시 자동완성됩니다
             </p>
           </div>
 
