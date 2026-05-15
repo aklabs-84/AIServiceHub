@@ -26,7 +26,7 @@ export default function PurchaseModal({
 }: PurchaseModalProps) {
   const { session, user } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<PayTab>('card');
+  const [tab, setTab] = useState<PayTab>('bank');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
