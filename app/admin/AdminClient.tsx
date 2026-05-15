@@ -1508,7 +1508,8 @@ function PendingBankTransfersPanel() {
   const { showSuccess, showError } = useToast();
   const [list, setList] = useState<Array<{
     id: string; orderId: string; amount: number;
-    depositorName: string | null; productType: string; productId: string | null; createdAt: Date;
+    depositorName: string | null; productType: string; productId: string | null;
+    productName: string | null; createdAt: Date;
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -1528,6 +1529,7 @@ function PendingBankTransfersPanel() {
         depositorName: r.depositor_name,
         productType: r.product_type,
         productId: r.product_id,
+        productName: r.product_name ?? null,
         createdAt: new Date(r.created_at),
       })));
     } finally {
@@ -1583,7 +1585,9 @@ function PendingBankTransfersPanel() {
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                     {item.productType === 'app' ? '앱' : '프롬프트'}
                   </span>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.productId}</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                    {item.productName ?? item.productId}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                   <span>입금자: <strong className="text-gray-700 dark:text-gray-300">{item.depositorName || '—'}</strong></span>
