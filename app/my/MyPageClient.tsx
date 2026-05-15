@@ -791,8 +791,24 @@ function PurchasesTab({ session }: { session: Session | null }) {
     return { text: status, cls: 'bg-gray-100 text-gray-500' };
   };
 
+  // 최근 48시간 이내 결제 완료된 항목
+  const recentlyPaid = purchases.filter(
+    (p) => p.status === 'paid' && p.paidAt && Date.now() - new Date(p.paidAt).getTime() < 48 * 60 * 60 * 1000,
+  );
+
   return (
     <div className="animate-in fade-in duration-500 space-y-3">
+      {recentlyPaid.length > 0 && (
+        <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+          <span className="text-2xl flex-shrink-0">🎉</span>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-green-700">결제가 확인되었습니다!</p>
+            <p className="text-xs text-green-600 mt-0.5">
+              {recentlyPaid.map((p) => p.amount.toLocaleString() + '원').join(', ')} 결제가 완료되어 콘텐츠를 이용하실 수 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
       <h2 className="text-base font-black text-gray-800 dark:text-gray-100 border-l-4 border-sky-400 pl-3">
         구매 내역 <span className="text-sm font-normal text-gray-400">({purchases.length}건)</span>
       </h2>
@@ -800,8 +816,9 @@ function PurchasesTab({ session }: { session: Session | null }) {
         {purchases.map((p) => {
           const isCancelled = p.status === 'cancelled' || p.status === 'refunded';
           const { text: statusText, cls: statusCls } = statusLabel(p.status);
+          const isRecentlyPaid = p.status === 'paid' && p.paidAt && Date.now() - new Date(p.paidAt).getTime() < 48 * 60 * 60 * 1000;
           return (
-          <div key={p.id} className={`flex items-center justify-between p-4 rounded-2xl border shadow-sm ${isCancelled ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
+          <div key={p.id} className={`flex items-center justify-between p-4 rounded-2xl border shadow-sm ${isCancelled ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 opacity-70' : isRecentlyPaid ? 'bg-green-50 border-green-300' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.productType === 'app' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'}`}>

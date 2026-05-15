@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import { purchases } from '@/lib/database/purchases';
+import { sendPushToUser } from '@/lib/push';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +63,13 @@ export async function POST(request: Request) {
       amount: purchaseData.amount,
       depositorName: purchaseData.depositor_name,
     }),
+  }).catch(() => {});
+
+  // 구매자에게 브라우저 푸시 알림 (백그라운드, 실패 무시)
+  sendPushToUser(purchaseData.user_id, {
+    title: '결제가 확인되었습니다! 🎉',
+    body: `${productName} 구매가 완료되었습니다. 지금 바로 이용해 보세요!`,
+    url: '/my?tab=purchases',
   }).catch(() => {});
 
   return NextResponse.json({ ok: true });
