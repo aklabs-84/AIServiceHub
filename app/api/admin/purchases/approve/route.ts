@@ -54,8 +54,8 @@ export async function POST(request: Request) {
     }
   } catch { /* 상품명 조회 실패해도 승인은 완료됨 */ }
 
-  // Slack 알림 (백그라운드)
-  sendSlack(
+  // Slack 알림 (응답 전 완료 — 서버리스 조기 종료 방지)
+  await sendSlack(
     `✅ 계좌이체 승인 완료\n• 상품: ${productName}\n• 금액: ${Number(purchaseData.amount).toLocaleString()}원\n• 입금자명: ${purchaseData.depositor_name}`
   ).catch(() => {});
 
