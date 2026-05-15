@@ -13,6 +13,8 @@ function mapPurchaseFromDB(row: PurchaseRow): Purchase {
     amount: row.amount,
     orderId: row.order_id,
     paymentKey: row.payment_key,
+    paymentMethod: row.payment_method ?? 'card',
+    depositorName: row.depositor_name ?? null,
     status: row.status,
     paidAt: row.paid_at ? new Date(row.paid_at) : null,
     createdAt: new Date(row.created_at),
@@ -33,7 +35,7 @@ function mapSubscriptionFromDB(row: SubscriptionRow): Subscription {
   };
 }
 
-// 구매 이력 pending 레코드 생성 (결제 시작 시)
+// 카드 결제 pending 레코드 생성
 async function createPending(
   client: SupabaseClient,
   params: {
@@ -52,7 +54,39 @@ async function createPending(
       product_id: params.productId,
       amount: params.amount,
       order_id: params.orderId,
+      payment_method: 'card',
       status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapPurchaseFromDB(data as PurchaseRow);
+}
+
+// 계좌이체 입금 신청 레코드 생성
+async function createBankRequest(
+  client: SupabaseClient,
+  params: {
+    userId: string;
+    productType: ProductType;
+    productId: string | null;
+    amount: number;
+    orderId: string;
+    depositorName: string;
+  }
+): Promise<Purchase> {
+  const { data, error } = await client
+    .from('purchases')
+    .insert({
+      user_id: params.userId,
+      product_type: params.productType,
+      product_id: params.productId,
+      amount: params.amount,
+      order_id: params.orderId,
+      payment_method: 'bank_transfer',
+      depositor_name: params.depositorName,
+      status: 'pending_bank',
     })
     .select()
     .single();
@@ -80,6 +114,40 @@ async function confirmPayment(
 
   if (error) throw error;
   return mapPurchaseFromDB(data as PurchaseRow);
+}
+
+// 관리자: 계좌이체 입금 확인 승인
+async function approveBankTransfer(
+  client: SupabaseClient,
+  orderId: string
+): Promise<Purchase> {
+  const { data, error } = await client
+    .from('purchases')
+    .update({
+      status: 'paid' as PurchaseStatus,
+      paid_at: new Date().toISOString(),
+    })
+    .eq('order_id', orderId)
+    .eq('status', 'pending_bank')
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapPurchaseFromDB(data as PurchaseRow);
+}
+
+// 관리자: 입금 대기 목록 조회
+async function getPendingBankTransfers(
+  client: SupabaseClient
+): Promise<Purchase[]> {
+  const { data, error } = await client
+    .from('purchases')
+    .select('*')
+    .eq('status', 'pending_bank')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data as PurchaseRow[]).map(mapPurchaseFromDB);
 }
 
 // 구매 여부 확인 (단일 상품)
@@ -131,7 +199,7 @@ async function canAccess(
   return purchased || subscribed;
 }
 
-// 내 구매 목록 (취소/환불 포함)
+// 내 구매 목록 (취소/환불/입금대기 포함)
 async function getMyPurchases(
   client: SupabaseClient,
   userId: string
@@ -140,7 +208,7 @@ async function getMyPurchases(
     .from('purchases')
     .select('*')
     .eq('user_id', userId)
-    .in('status', ['paid', 'cancelled', 'refunded'])
+    .in('status', ['paid', 'cancelled', 'refunded', 'pending_bank'])
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -198,7 +266,10 @@ async function createSubscription(
 
 export const purchases = {
   createPending,
+  createBankRequest,
   confirmPayment,
+  approveBankTransfer,
+  getPendingBankTransfers,
   hasPurchased,
   isSubscribed,
   canAccess,

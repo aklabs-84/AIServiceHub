@@ -210,7 +210,8 @@ export interface Prompt {
 // --- 결제 관련 타입 ---
 
 export type ProductType = 'app' | 'prompt' | 'subscription';
-export type PurchaseStatus = 'pending' | 'paid' | 'cancelled' | 'refunded';
+export type PurchaseStatus = 'pending' | 'pending_bank' | 'paid' | 'cancelled' | 'refunded';
+export type PaymentMethod = 'card' | 'virtual_account' | 'bank_transfer';
 export type SubscriptionPlan = 'monthly' | 'yearly';
 export type SubscriptionStatus = 'active' | 'cancelled' | 'expired';
 
@@ -222,6 +223,8 @@ export interface PurchaseRow {
   amount: number;
   order_id: string;
   payment_key: string | null;
+  payment_method: PaymentMethod;
+  depositor_name: string | null;
   status: PurchaseStatus;
   paid_at: string | null;
   created_at: string;
@@ -235,6 +238,8 @@ export interface Purchase {
   amount: number;
   orderId: string;
   paymentKey: string | null;
+  paymentMethod: PaymentMethod;
+  depositorName: string | null;
   status: PurchaseStatus;
   paidAt: Date | null;
   createdAt: Date;

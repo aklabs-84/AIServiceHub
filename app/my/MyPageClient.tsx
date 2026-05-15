@@ -785,6 +785,7 @@ function PurchasesTab({ session }: { session: Session | null }) {
 
   const statusLabel = (status: string) => {
     if (status === 'paid') return { text: '결제완료', cls: 'bg-green-100 text-green-700' };
+    if (status === 'pending_bank') return { text: '입금확인중', cls: 'bg-amber-100 text-amber-700' };
     if (status === 'cancelled') return { text: '취소됨', cls: 'bg-red-100 text-red-600' };
     if (status === 'refunded') return { text: '환불됨', cls: 'bg-orange-100 text-orange-600' };
     return { text: status, cls: 'bg-gray-100 text-gray-500' };

@@ -22,6 +22,12 @@ export async function POST(request: Request) {
       case 'signup':
         text = `🆕 새 회원 가입: ${body.name || '신규 사용자'} (${body.email ?? body.uid})`;
         break;
+      case 'bank_request':
+        text = `💰 계좌이체 입금 신청\n• 상품: ${body.productName}\n• 금액: ${Number(body.amount).toLocaleString()}원\n• 입금자명: ${body.depositorName}\n• 주문번호: ${body.orderId}\n⚠️ 관리자 대시보드에서 입금 확인 후 승인해 주세요.`;
+        break;
+      case 'bank_approved':
+        text = `✅ 계좌이체 승인 완료\n• 상품: ${body.productName}\n• 금액: ${Number(body.amount).toLocaleString()}원\n• 입금자명: ${body.depositorName}`;
+        break;
       default:
         text = '새 알림이 도착했습니다.';
     }

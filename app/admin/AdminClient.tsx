@@ -1121,7 +1121,10 @@ function AdminPageContent({
               </div>
             )}
             {activeTab === 'sales' && (
-              <SalesPricingPanel apps={apps} prompts={prompts} />
+              <>
+                <PendingBankTransfersPanel />
+                <SalesPricingPanel apps={apps} prompts={prompts} />
+              </>
             )}
           </section>
 
@@ -1495,6 +1498,111 @@ function Pager({
           다음
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── 입금 대기 목록 패널 ────────────────────────────────────────
+function PendingBankTransfersPanel() {
+  const { session } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const [list, setList] = useState<Array<{
+    id: string; orderId: string; amount: number;
+    depositorName: string | null; productType: string; productId: string | null; createdAt: Date;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const supabase = getBrowserClient();
+      const { data } = await supabase
+        .from('purchases')
+        .select('id, order_id, amount, depositor_name, product_type, product_id, created_at')
+        .eq('status', 'pending_bank')
+        .order('created_at', { ascending: false });
+      setList((data || []).map((r: any) => ({
+        id: r.id,
+        orderId: r.order_id,
+        amount: r.amount,
+        depositorName: r.depositor_name,
+        productType: r.product_type,
+        productId: r.product_id,
+        createdAt: new Date(r.created_at),
+      })));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleApprove = async (orderId: string) => {
+    if (!session?.access_token) return;
+    setApprovingId(orderId);
+    try {
+      const res = await fetch('/api/admin/purchases/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || '승인 실패');
+      }
+      showSuccess('입금 확인 완료! 구매가 승인되었습니다.');
+      await load();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '오류가 발생했습니다');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  return (
+    <div className="mb-6 bg-white dark:bg-gray-900 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+        <h3 className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          🏦 계좌이체 입금 대기
+          {list.length > 0 && (
+            <span className="bg-amber-500 text-white text-xs font-black px-2 py-0.5 rounded-full">{list.length}</span>
+          )}
+        </h3>
+        <button onClick={load} className="text-xs text-amber-600 dark:text-amber-400 hover:underline">새로고침</button>
+      </div>
+      {loading ? (
+        <div className="p-6 text-center text-sm text-gray-400">로딩 중...</div>
+      ) : list.length === 0 ? (
+        <div className="p-6 text-center text-sm text-gray-400">입금 대기 중인 건이 없습니다.</div>
+      ) : (
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {list.map((item) => (
+            <div key={item.id} className="px-4 py-3 flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    {item.productType === 'app' ? '앱' : '프롬프트'}
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.productId}</span>
+                </div>
+                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                  <span>입금자: <strong className="text-gray-700 dark:text-gray-300">{item.depositorName || '—'}</strong></span>
+                  <span>금액: <strong className="text-blue-600">{item.amount.toLocaleString()}원</strong></span>
+                  <span>{item.createdAt.toLocaleDateString('ko-KR')} {item.createdAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleApprove(item.orderId)}
+                disabled={approvingId === item.orderId}
+                className="shrink-0 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-bold transition-colors"
+              >
+                {approvingId === item.orderId ? '처리 중...' : '입금 확인'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
