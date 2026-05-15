@@ -22,6 +22,7 @@ import remarkGfm from 'remark-gfm';
 import type { Comment } from '@/types/database';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
+import TagInput from '@/components/TagInput';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -123,7 +124,7 @@ export default function PromptDetailClient({
     thumbnailPositionY: number;
     tags: string[];
   } | null>(null);
-  const [tagInput, setTagInput] = useState('');
+  // tagInput 제거: formData.tags 배열로 직접 관리
   const [snsForm, setSnsForm] = useState({
     blog: '', instagram: '', tiktok: '', youtube: '', etc: '',
   });
@@ -164,7 +165,7 @@ export default function PromptDetailClient({
         thumbnailPositionY: prompt.thumbnailPositionY ?? 50,
         tags: prompt.tags || [],
       });
-      setTagInput((prompt.tags || []).join(', '));
+      // tags는 formData.tags에 이미 설정됨
       hydrateSnsForm(prompt.snsUrls);
       setExistingAttachments(prompt.attachments || []);
       setAttachments([]);
@@ -276,7 +277,7 @@ export default function PromptDetailClient({
         thumbnailUrl: formData.thumbnailUrl || undefined,
         thumbnailPositionX: formData.thumbnailPositionX,
         thumbnailPositionY: formData.thumbnailPositionY,
-        tags: tagInput.split(',').map(t => t.trim()).filter(Boolean),
+        tags: formData.tags,
       });
 
       if (uploaded.length) {
@@ -574,7 +575,13 @@ export default function PromptDetailClient({
                     </div>
                     <div>
                       <label className="block text-sm font-bold mb-2">태그</label>
-                      <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 outline-none" placeholder="태그, 태그2..." />
+                      <TagInput
+                        value={formData.tags}
+                        onChange={(tags) => setFormData({ ...formData, tags })}
+                        placeholder="창작, 교육, 생산성"
+                        accentColor="emerald"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Enter 또는 쉼표로 추가 · 기존 태그는 입력 시 자동완성됩니다</p>
                     </div>
                   </div>
                 </section>

@@ -18,6 +18,7 @@ import { useAppCategories } from '@/lib/useCategories';
 import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import PurchaseModal from '@/components/PurchaseModal';
+import TagInput from '@/components/TagInput';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
@@ -114,7 +115,7 @@ export default function AppDetailClient({
     thumbnailPositionY: number;
     tags: string[];
   } | null>(null);
-  const [tagInput, setTagInput] = useState('');
+  // tagInput 제거: formData.tags 배열로 직접 관리
   const [snsForm, setSnsForm] = useState({
     blog: '', instagram: '', tiktok: '', youtube: '', etc: '',
   });
@@ -289,7 +290,7 @@ export default function AppDetailClient({
         thumbnailPositionY: typeof app.thumbnailPositionY === 'number' ? app.thumbnailPositionY : 50,
         tags: app.tags || [],
       });
-      setTagInput(app.tags?.join(', ') || '');
+      // tags는 formData.tags에 이미 설정됨
       hydrateSnsForm(app.snsUrls || []);
       setExistingAttachments(app.attachments || []);
       setAttachments([]);
@@ -470,7 +471,7 @@ export default function AppDetailClient({
         thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
         thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
-        tags: tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+        tags: formData.tags,
       });
 
       if (uploadedAttachments.length > 0) {
@@ -784,13 +785,13 @@ export default function AppDetailClient({
 
                     <div>
                       <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">태그</label>
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        placeholder="쉼표로 구분 예: AI, 챗봇, 업무효율"
+                      <TagInput
+                        value={formData.tags}
+                        onChange={(tags) => setFormData({ ...formData, tags })}
+                        placeholder="AI, 챗봇, 업무효율"
+                        accentColor="blue"
                       />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Enter 또는 쉼표로 추가 · 기존 태그는 입력 시 자동완성됩니다</p>
                     </div>
                   </div>
                 </section>
