@@ -188,9 +188,10 @@ export default function AppDetailClient({
     setCommentPage((prev) => Math.min(prev, total));
   }, [comments.length]);
 
-  // 유료 앱이면 구매/구독 여부 확인
+  // 유료 앱이면 구매/구독 여부 확인 (관리자는 항상 접근 가능)
   useEffect(() => {
     if (!app?.isPaid || !app.price) { setCanAccessUrls(true); return; }
+    if (isAdmin) { setCanAccessUrls(true); return; }
     if (!user) { setCanAccessUrls(false); return; }
     setCheckingAccess(true);
     fetch(`/api/purchases/check?productType=app&productId=${app.id}`, {

@@ -5,6 +5,8 @@ import { purchases } from '@/lib/database/purchases';
 
 export const runtime = 'nodejs';
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'mosebb@gmail.com';
+
 async function requireAuth(request: Request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '');
   if (!token) return null;
@@ -28,8 +30,8 @@ export async function POST(request: Request) {
   const app = await db.apps.getById(admin, appId);
   if (!app) return NextResponse.json({ error: '앱을 찾을 수 없습니다' }, { status: 404 });
 
-  // 무료 앱은 바로 반환
-  if (!app.isPaid || app.price === 0) {
+  // 무료 앱이거나 관리자면 바로 반환
+  if (!app.isPaid || app.price === 0 || user.email === ADMIN_EMAIL) {
     const publicUrls = app.appUrls.filter((u) => u.isPublic).map((u) => u.url);
     return NextResponse.json({ urls: publicUrls });
   }
