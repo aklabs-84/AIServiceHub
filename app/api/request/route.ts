@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+const WEBHOOK_URL = process.env.SLACK_REQUEST_WEBHOOK_URL;
 
 export async function POST(request: Request) {
   try {
