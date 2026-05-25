@@ -18,14 +18,28 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
   const { isAdmin } = useAuth();
   const [pricing, setPricing] = useState<PricingFilter>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    initialCourses.forEach(c => c.tags?.forEach(t => tagSet.add(t)));
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, [initialCourses]);
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
 
   const filtered = useMemo(() => {
     let result = initialCourses;
     if (pricing === 'free') result = result.filter(c => !c.isPaid || c.price === 0);
     if (pricing === 'paid') result = result.filter(c => c.isPaid && c.price > 0);
     if (typeFilter !== 'all') result = result.filter(c => c.courseType === typeFilter);
+    if (selectedTags.length > 0) result = result.filter(c => selectedTags.every(t => c.tags?.includes(t)));
     return result;
-  }, [initialCourses, pricing, typeFilter]);
+  }, [initialCourses, pricing, typeFilter, selectedTags]);
 
   const counts = useMemo(() => ({
     all: initialCourses.length,
@@ -63,6 +77,7 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
 
       {/* Filters */}
       <section className="sticky top-16 md:top-20 z-30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800">
+        {/* 가격·수업 유형 필터 */}
         <div className="container mx-auto max-w-6xl px-4 py-3 flex flex-wrap gap-2">
           {([['all', '🔍 전체', counts.all], ['free', '🆓 무료', counts.free], ['paid', '💎 유료', counts.paid]] as [PricingFilter, string, number][]).map(([key, label, count]) => (
             <button
@@ -93,6 +108,36 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
             </button>
           ))}
         </div>
+
+        {/* 태그 필터 */}
+        {allTags.length > 0 && (
+          <div className="container mx-auto max-w-6xl px-4 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-none"># 태그</span>
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={() => setSelectedTags([])}
+                  className="flex-none px-2.5 py-1 rounded-lg text-[10px] font-black bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-100 dark:border-red-800 hover:bg-red-100 transition-colors"
+                >
+                  초기화
+                </button>
+              )}
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`flex-none px-3 py-1 rounded-xl text-[11px] font-bold transition-all border ${
+                    selectedTags.includes(tag)
+                      ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                      : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 hover:border-violet-300 dark:hover:border-violet-700'
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Grid */}
