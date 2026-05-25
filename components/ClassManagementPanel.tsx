@@ -26,13 +26,19 @@ function courseTypeLabel(type: string) {
 }
 
 // ── QR 모달 ────────────────────────────────────────────────────────────────
-// QR 코드: 교실 URL 인코딩 (스캔 → 교실 바로 이동)
-// 입장 코드는 수강 승인 후 개인별 발급 — QR 모달에는 코드 없음
-function QRModal({ courseId, title, onClose }: { courseId: string; title: string; onClose: () => void }) {
+function QRModal({ courseId, title, token, onClose }: {
+  courseId: string;
+  title: string;
+  token: string;
+  onClose: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [classroomUrl, setClassroomUrl] = useState('');
+  const [confirmedList, setConfirmedList] = useState<Enrollment[]>([]);
+  const [showCodes, setShowCodes] = useState(false);
 
+  // QR 생성
   useEffect(() => {
     const url = `${window.location.origin}/classes/${courseId}/classroom`;
     setClassroomUrl(url);
@@ -40,67 +46,128 @@ function QRModal({ courseId, title, onClose }: { courseId: string; title: string
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Fallback 텍스트
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      canvas.width = 300;
-      canvas.height = 300;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 300, 300);
-      ctx.fillStyle = '#7c3aed';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('교실 QR 로딩 중...', 150, 150);
-    }
-
-    // qrcode 라이브러리 동적 로드
     import('qrcode').then(QRCode => {
       QRCode.toCanvas(canvas, url, {
-        width: 300,
+        width: 400,
         margin: 2,
         color: { dark: '#1a1a1a', light: '#ffffff' },
       }).catch(() => {});
     }).catch(() => {});
   }, [courseId]);
 
+  // 확정 수강생 입장코드 로드
+  useEffect(() => {
+    if (!showCodes) return;
+    fetch(`/api/admin/enrollments?courseId=${courseId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => {
+        const confirmed = (d.enrollments ?? []).filter((e: Enrollment) => e.status === 'confirmed' && e.entryCode);
+        setConfirmedList(confirmed);
+      })
+      .catch(() => {});
+  }, [showCodes, courseId, token]);
+
   const handleFullscreen = () => {
     containerRef.current?.requestFullscreen?.();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div ref={containerRef} className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-sm w-full mx-4 space-y-4 text-center" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-black text-gray-900 dark:text-white text-sm truncate flex-1 text-left">{title}</h3>
-          <div className="flex items-center gap-2">
-            <button onClick={handleFullscreen} className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 hover:bg-violet-100 transition-colors" title="프로젝터 전체화면">
-              <FaExpand className="text-sm" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+      onClick={onClose}
+    >
+      {/* 전체화면 시 흰 배경으로 프로젝터 대응 */}
+      <div
+        ref={containerRef}
+        className="bg-white dark:bg-gray-950 rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 헤더 */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800 flex-none">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-0.5">교실 입장 QR</p>
+            <h3 className="font-black text-gray-900 dark:text-white text-sm truncate">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2 flex-none ml-3">
+            <button
+              onClick={handleFullscreen}
+              className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+              title="프로젝터 전체화면"
+            >
+              <FaExpand />
             </button>
-            <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-              <FaTimes className="text-sm" />
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <FaTimes />
             </button>
           </div>
         </div>
 
-        {/* QR 코드 */}
-        <canvas ref={canvasRef} className="mx-auto rounded-2xl" style={{ maxWidth: '100%', height: 'auto' }} />
+        {/* 스크롤 영역 */}
+        <div className="overflow-y-auto flex-1">
+          {/* QR 코드 — 크고 중앙 */}
+          <div className="flex flex-col items-center justify-center px-6 py-8 bg-white dark:bg-gray-950">
+            <canvas
+              ref={canvasRef}
+              className="rounded-2xl shadow-lg"
+              style={{ width: '100%', maxWidth: '400px', height: 'auto' }}
+            />
+          </div>
 
-        {/* 교실 URL */}
-        <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
-          <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-1">교실 URL</p>
-          <p className="text-[11px] font-mono text-violet-700 dark:text-violet-300 break-all">{classroomUrl}</p>
+          {/* 교실 URL */}
+          <div className="px-6 pb-4">
+            <div className="p-4 rounded-2xl bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-1">교실 URL (직접 입력)</p>
+              <p className="text-sm font-mono font-bold text-violet-700 dark:text-violet-300 break-all leading-relaxed">
+                {classroomUrl}
+              </p>
+            </div>
+          </div>
+
+          {/* 확정 수강생 입장 코드 */}
+          <div className="px-6 pb-6">
+            <button
+              onClick={() => setShowCodes(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="text-sm font-black text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <FaUsers className="text-violet-500" />
+                수강 확정 학생 입장 코드 보기
+              </span>
+              <span className="text-xs text-gray-400">{showCodes ? '▲ 숨기기' : '▼ 펼치기'}</span>
+            </button>
+
+            {showCodes && (
+              <div className="mt-2 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                {confirmedList.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-gray-400 font-bold">확정된 수강생이 없습니다</p>
+                ) : (
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {confirmedList.map(e => (
+                      <div key={e.id} className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-800 dark:text-gray-200 truncate">
+                            {e.userName || '(이름 없음)'}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">{e.userEmail}</p>
+                        </div>
+                        <div className="ml-3 flex-none">
+                          <span className="px-3 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 font-mono font-black text-sm text-violet-700 dark:text-violet-300 tracking-widest">
+                            {e.entryCode}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* 안내 */}
-        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-left">
-          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
-            📌 입장 코드는 수강 승인 후 개인별 발급됩니다.<br />
-            수강생이 QR 스캔 후 본인의 입장 코드를 입력하면 교실에 입장합니다.
-          </p>
-        </div>
-
-        <p className="text-xs text-gray-400">↗ 전체화면 버튼으로 프로젝터에 표시</p>
       </div>
     </div>
   );
@@ -381,8 +448,8 @@ export default function ClassManagementPanel() {
       )}
 
       {/* QR 모달 */}
-      {qrTarget && (
-        <QRModal courseId={qrTarget.courseId} title={qrTarget.title} onClose={() => setQrTarget(null)} />
+      {qrTarget && session && (
+        <QRModal courseId={qrTarget.courseId} title={qrTarget.title} token={session.access_token} onClose={() => setQrTarget(null)} />
       )}
 
       {/* 수강 신청 모달 */}
