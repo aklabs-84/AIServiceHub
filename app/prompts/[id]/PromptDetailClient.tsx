@@ -24,6 +24,7 @@ import type { Comment } from '@/types/database';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
 import TagInput from '@/components/TagInput';
+import MarkdownEditor from '@/components/MarkdownEditor';
 
 const COMMENTS_PER_PAGE = 5;
 
@@ -679,7 +680,12 @@ export default function PromptDetailClient({
                     </div>
                     <h2 className="text-xl font-bold">상세 설명 (Markdown)</h2>
                   </div>
-                  <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full h-64 px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-emerald-500 outline-none resize-none font-mono text-sm" />
+                  <MarkdownEditor
+                    value={formData.description}
+                    onChange={v => setFormData({ ...formData, description: v })}
+                    placeholder="프롬프트 소개를 입력하세요"
+                    minHeight={260}
+                  />
                 </section>
 
                 <section className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm space-y-6">

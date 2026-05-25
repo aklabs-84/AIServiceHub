@@ -19,6 +19,7 @@ import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import PurchaseModal from '@/components/PurchaseModal';
 import TagInput from '@/components/TagInput';
+import MarkdownEditor from '@/components/MarkdownEditor';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
@@ -910,12 +911,11 @@ export default function AppDetailClient({
                     </div>
                     <h2 className="text-xl font-bold">앱 소개</h2>
                   </div>
-                  <textarea
+                  <MarkdownEditor
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={10}
-                    className="w-full px-4 py-4 rounded-2xl border dark:bg-gray-900 dark:border-gray-700 text-sm"
-                    placeholder="Markdown 지원"
+                    onChange={v => setFormData({ ...formData, description: v })}
+                    placeholder="앱에 대한 설명을 입력하세요"
+                    minHeight={280}
                   />
                 </section>
               </div>

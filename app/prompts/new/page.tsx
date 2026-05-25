@@ -12,6 +12,7 @@ import { sendSlackNotification } from '@/lib/notifications';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 import TagInput from '@/components/TagInput';
+import MarkdownEditor from '@/components/MarkdownEditor';
 
 const detectUrls = (value: string) =>
   value
@@ -405,16 +406,12 @@ export default function NewPromptPage() {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               소개 <span className="text-red-500">*</span>
             </label>
-            <textarea
-              id="description"
-              required
-              rows={4}
+            <MarkdownEditor
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              onChange={v => setFormData({ ...formData, description: v })}
               placeholder="프롬프트 핵심 의도와 활용법을 적어주세요"
             />
           </div>

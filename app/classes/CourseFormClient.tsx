@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Course, CourseMaterial, CourseType } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import TagInput from '@/components/TagInput';
+import MarkdownEditor from '@/components/MarkdownEditor';
 import { FaArrowLeft, FaPlus, FaTrash } from 'react-icons/fa';
 import Link from 'next/link';
 
@@ -57,15 +58,17 @@ export default function CourseFormPage({ mode, initialData }: Props) {
   const [form, setForm] = useState<FormData>(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formInitialized = useRef(false);
 
   // 관리자 아니면 리다이렉트
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace('/classes');
   }, [loading, user, isAdmin, router]);
 
-  // 수정 모드: 초기값 세팅
+  // 수정 모드: 초기값 세팅 (최초 1회만 — initialData 참조 변경 시 재초기화 방지)
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !formInitialized.current) {
+      formInitialized.current = true;
       setForm({
         title: initialData.title,
         description: initialData.description,
@@ -174,8 +177,8 @@ export default function CourseFormPage({ mode, initialData }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">소개 (마크다운 가능)</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={5} placeholder="클래스 소개 내용..." className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y" />
+            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">소개</label>
+            <MarkdownEditor value={form.description} onChange={v => set('description', v)} placeholder="클래스 소개 내용..." minHeight={220} />
           </div>
 
           <div>
