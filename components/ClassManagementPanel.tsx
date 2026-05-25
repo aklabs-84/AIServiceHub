@@ -179,6 +179,7 @@ export default function ClassManagementPanel() {
   const { showSuccess, showError } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [qrTarget, setQrTarget] = useState<{ code: string; title: string } | null>(null);
   const [enrollCourse, setEnrollCourse] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -187,6 +188,7 @@ export default function ClassManagementPanel() {
   const load = useCallback(async () => {
     if (!session) return;
     setLoading(true);
+    setLoadError('');
     try {
       const res = await fetch('/api/classes', {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -194,7 +196,12 @@ export default function ClassManagementPanel() {
       if (res.ok) {
         const { courses } = await res.json();
         setCourses(courses ?? []);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setLoadError(`클래스 목록 로드 실패 (${res.status}): ${d.error || '알 수 없는 오류'}`);
       }
+    } catch (e) {
+      setLoadError('네트워크 오류로 클래스를 불러올 수 없습니다');
     } finally { setLoading(false); }
   }, [session]);
 
@@ -231,6 +238,15 @@ export default function ClassManagementPanel() {
 
   if (loading) {
     return <div className="p-8 text-center text-gray-400 text-sm">로딩 중...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-8 text-center space-y-3">
+        <p className="text-sm font-bold text-red-500">{loadError}</p>
+        <button onClick={load} className="text-xs font-bold text-violet-600 hover:underline">다시 시도</button>
+      </div>
+    );
   }
 
   return (
