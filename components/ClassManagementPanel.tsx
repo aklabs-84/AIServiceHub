@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers, FaDoorOpen, FaSync } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers, FaDoorOpen, FaSync, FaUserCheck, FaUserPlus, FaUserMinus } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 
 function toDate(d: Date | string): Date {
@@ -222,6 +222,177 @@ function QRModal({ courseId, title, classEntryCode: initialClassEntryCode, token
   );
 }
 
+// ── 확정 학생 목록 모달 ────────────────────────────────────────────────────
+function StudentsModal({ course, token, onClose }: { course: Course; token: string; onClose: () => void }) {
+  const [students, setStudents] = useState<Enrollment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addEmail, setAddEmail] = useState('');
+  const [addName, setAddName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+  const { showSuccess, showError } = useToast();
+
+  const load = () => {
+    setLoading(true);
+    fetch(`/api/admin/enrollments?courseId=${course.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => {
+        setStudents((d.enrollments ?? []).filter((e: Enrollment) => e.status === 'confirmed'));
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [course.id, token]);
+
+  const removeStudent = async (enrollmentId: string, name: string) => {
+    if (!confirm(`"${name || '이 학생'}"을 수강생 목록에서 삭제하시겠습니까?`)) return;
+    setDeleting(enrollmentId);
+    try {
+      const res = await fetch(`/api/admin/enrollments/${enrollmentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { showError('삭제 실패'); return; }
+      showSuccess('삭제되었습니다');
+      setStudents(prev => prev.filter(e => e.id !== enrollmentId));
+    } finally { setDeleting(null); }
+  };
+
+  const addStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addEmail.trim()) return;
+    setAdding(true);
+    setAddError('');
+    try {
+      const res = await fetch('/api/admin/enrollments/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ courseId: course.id, email: addEmail.trim(), name: addName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAddError(data.error || '추가 실패'); return; }
+      showSuccess(`✅ ${data.enrollment.userName || addEmail} 추가 완료! 입장코드: ${data.enrollment.entryCode}`);
+      setStudents(prev => [...prev, data.enrollment]);
+      setAddEmail('');
+      setAddName('');
+      setShowAddForm(false);
+    } finally { setAdding(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* 헤더 */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800 flex-none">
+          <div>
+            <h3 className="font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <FaUserCheck className="text-emerald-500" /> 확정 수강생
+            </h3>
+            <p className="text-xs text-gray-500 truncate max-w-[240px]">{course.title}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setShowAddForm(v => !v); setAddError(''); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-black hover:bg-emerald-100 transition-colors"
+            >
+              <FaUserPlus className="text-[10px]" /> 직접 추가
+            </button>
+            <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+              <FaTimes />
+            </button>
+          </div>
+        </div>
+
+        {/* 직접 추가 폼 */}
+        {showAddForm && (
+          <form onSubmit={addStudent} className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-emerald-50 dark:bg-emerald-900/10 flex-none space-y-3">
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">학생 직접 추가 (즉시 확정)</p>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={addEmail}
+                onChange={e => setAddEmail(e.target.value)}
+                placeholder="이메일 (필수)"
+                required
+                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <input
+                type="text"
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                placeholder="이름 (선택)"
+                className="w-28 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            {addError && <p className="text-xs text-red-500 font-bold">{addError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowAddForm(false); setAddError(''); }}
+                className="flex-1 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={adding || !addEmail.trim()}
+                className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-black transition-colors"
+              >
+                {adding ? '추가 중...' : '추가하기'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* 학생 목록 */}
+        <div className="overflow-y-auto flex-1">
+          {loading ? (
+            <div className="p-8 text-center text-gray-400 text-sm">로딩 중...</div>
+          ) : students.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">확정된 수강생이 없습니다</div>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {students.map(s => (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-none">
+                    <FaUserCheck className="text-emerald-600 dark:text-emerald-400 text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{s.userName || '(이름 없음)'}</p>
+                    <p className="text-xs text-gray-400 truncate">{s.userEmail}</p>
+                  </div>
+                  {s.entryCode && (
+                    <span className="px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-800 font-mono font-black text-xs text-violet-700 dark:text-violet-300 tracking-widest flex-none">
+                      {s.entryCode}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removeStudent(s.id, s.userName || '')}
+                    disabled={deleting === s.id}
+                    className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 disabled:opacity-50 transition-colors flex-none"
+                    title="수강생 삭제"
+                  >
+                    <FaUserMinus className="text-xs" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 하단 카운트 */}
+        <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-none">
+          <p className="text-xs text-gray-400 font-bold">총 {students.length}명 확정</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 수강 신청 목록 모달 ─────────────────────────────────────────────────────
 function EnrollmentsModal({ course, token, onClose }: { course: Course; token: string; onClose: () => void }) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -324,6 +495,7 @@ export default function ClassManagementPanel() {
   const [loadError, setLoadError] = useState('');
   const [qrTarget, setQrTarget] = useState<{ courseId: string; title: string; classEntryCode?: string | null } | null>(null);
   const [enrollCourse, setEnrollCourse] = useState<Course | null>(null);
+  const [studentsCourse, setStudentsCourse] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
@@ -459,10 +631,20 @@ export default function ClassManagementPanel() {
                   <FaDoorOpen className="text-xs" /> 교실
                 </Link>
 
+                {/* 확정 학생 목록 */}
+                <button
+                  onClick={() => setStudentsCourse(course)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 transition-colors"
+                  title="확정 학생 목록"
+                >
+                  <FaUserCheck className="text-xs" /> 학생
+                </button>
+
                 {/* 수강 신청 목록 */}
                 <button
                   onClick={() => setEnrollCourse(course)}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-100 transition-colors"
+                  title="대기 중인 신청"
                 >
                   <FaUsers className="text-xs" /> 신청
                 </button>
@@ -512,6 +694,11 @@ export default function ClassManagementPanel() {
             setQrTarget(prev => prev ? { ...prev, classEntryCode: code } : null);
           }}
         />
+      )}
+
+      {/* 확정 학생 목록 모달 */}
+      {studentsCourse && session && (
+        <StudentsModal course={studentsCourse} token={session.access_token} onClose={() => setStudentsCourse(null)} />
       )}
 
       {/* 수강 신청 모달 */}
