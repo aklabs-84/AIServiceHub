@@ -25,16 +25,27 @@ function courseTypeLabel(type: string) {
   return '🔀 혼합';
 }
 
+// UUID → 짧은 입장 코드 (앞 8자리 추출, 하이픈 제거 후 XXXX-XXXX 형식)
+function toEntryCode(id: string): string {
+  const clean = id.replace(/-/g, '').toUpperCase();
+  const part = clean.slice(0, 8);
+  return `${part.slice(0, 4)}-${part.slice(4)}`; // e.g. "FA4F-101A"
+}
+
 // ── QR 모달 ────────────────────────────────────────────────────────────────
-function QRModal({ code, title, onClose }: { code: string; title: string; onClose: () => void }) {
+function QRModal({ courseId, title, onClose }: { courseId: string; title: string; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const displayCode = toEntryCode(courseId);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 먼저 텍스트로 fallback 표시
+    // QR 코드 내용: 교실 URL (스캔하면 바로 교실 페이지로 이동)
+    const qrUrl = `${window.location.origin}/classes/${courseId}/classroom`;
+
+    // Fallback: 텍스트
     const ctx = canvas.getContext('2d');
     if (ctx) {
       canvas.width = 300;
@@ -42,21 +53,21 @@ function QRModal({ code, title, onClose }: { code: string; title: string; onClos
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 300, 300);
       ctx.fillStyle = '#1a1a1a';
-      ctx.font = 'bold 32px monospace';
+      ctx.font = 'bold 20px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(code, 150, 150);
+      ctx.fillText(displayCode, 150, 150);
     }
 
     // qrcode 라이브러리 동적 로드
     import('qrcode').then(QRCode => {
-      QRCode.toCanvas(canvas, code, {
+      QRCode.toCanvas(canvas, qrUrl, {
         width: 300,
         margin: 2,
         color: { dark: '#1a1a1a', light: '#ffffff' },
       }).catch(() => {});
     }).catch(() => {});
-  }, [code]);
+  }, [courseId, displayCode]);
 
   const handleFullscreen = () => {
     containerRef.current?.requestFullscreen?.();
@@ -78,10 +89,10 @@ function QRModal({ code, title, onClose }: { code: string; title: string; onClos
         </div>
         <canvas ref={canvasRef} className="mx-auto rounded-2xl" style={{ maxWidth: '100%', height: 'auto' }} />
         <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">오프라인 체크인 코드</p>
-          <p className="text-2xl font-black font-mono tracking-widest text-gray-900 dark:text-white">{code}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">입장 코드</p>
+          <p className="text-3xl font-black font-mono tracking-widest text-gray-900 dark:text-white">{displayCode}</p>
         </div>
-        <p className="text-xs text-gray-400">전체화면 버튼 → 프로젝터에 표시</p>
+        <p className="text-xs text-gray-400">QR 스캔 → 교실 페이지 이동 · 전체화면 버튼 → 프로젝터 표시</p>
       </div>
     </div>
   );
@@ -187,7 +198,7 @@ export default function ClassManagementPanel() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [qrTarget, setQrTarget] = useState<{ code: string; title: string } | null>(null);
+  const [qrTarget, setQrTarget] = useState<{ courseId: string; title: string } | null>(null);
   const [enrollCourse, setEnrollCourse] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -304,11 +315,11 @@ export default function ClassManagementPanel() {
               </div>
 
               <div className="flex items-center gap-1.5 flex-none flex-wrap justify-end">
-                {/* QR 코드 버튼 — course.id를 코드로 사용 (별도 class_code 없음) */}
+                {/* 입장 코드 QR */}
                 <button
-                  onClick={() => setQrTarget({ code: course.id, title: course.title })}
+                  onClick={() => setQrTarget({ courseId: course.id, title: course.title })}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold hover:bg-violet-100 transition-colors"
-                  title="오프라인 체크인 QR"
+                  title="입장 코드 QR"
                 >
                   <FaQrcode className="text-xs" /> QR
                 </button>
@@ -352,7 +363,7 @@ export default function ClassManagementPanel() {
 
       {/* QR 모달 */}
       {qrTarget && (
-        <QRModal code={qrTarget.code} title={qrTarget.title} onClose={() => setQrTarget(null)} />
+        <QRModal courseId={qrTarget.courseId} title={qrTarget.title} onClose={() => setQrTarget(null)} />
       )}
 
       {/* 수강 신청 모달 */}
