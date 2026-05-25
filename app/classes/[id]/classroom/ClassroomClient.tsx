@@ -70,7 +70,19 @@ export default function ClassroomClient({ course }: Props) {
         setCodeError(d.error || '유효하지 않은 입장코드입니다');
         return;
       }
-      const { enrollment: e } = await res.json();
+      const { enrollment: e, classAccess, courseId: accessCourseId } = await res.json();
+
+      // 클래스 단일 입장코드 (전원 공용)
+      if (classAccess) {
+        if (accessCourseId !== course.id) {
+          setCodeError('이 클래스의 입장코드가 아닙니다');
+          return;
+        }
+        setAccessGranted(true);
+        return;
+      }
+
+      // 개인 입장코드
       if (e.courseId !== course.id) {
         setCodeError('이 클래스의 입장코드가 아닙니다');
         return;

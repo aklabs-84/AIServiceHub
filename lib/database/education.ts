@@ -28,6 +28,7 @@ function mapCourseFromDB(row: CourseRow): Course {
     isPaid: row.is_paid,
     isPublished: row.is_published,
     likeCount: row.like_count,
+    classEntryCode: row.class_entry_code ?? null,
     createdBy: row.created_by,
     createdByName: row.created_by_name ?? '',
     createdAt: new Date(row.created_at),
@@ -115,6 +116,7 @@ async function createCourse(
       price: input.price ?? 0,
       is_paid: input.isPaid ?? false,
       is_published: input.isPublished ?? false,
+      class_entry_code: generateCode(8), // 클래스 단일 입장코드 자동 생성
       created_by: userId,
       created_by_name: userName,
     })
@@ -147,6 +149,9 @@ async function updateCourse(
   if (rest.price !== undefined) patch.price = rest.price;
   if (rest.isPaid !== undefined) patch.is_paid = rest.isPaid;
   if (rest.isPublished !== undefined) patch.is_published = rest.isPublished;
+  if ((rest as Record<string, unknown>).classEntryCode !== undefined) {
+    patch.class_entry_code = (rest as Record<string, unknown>).classEntryCode;
+  }
 
   const { data, error } = await client
     .from('education_courses')
@@ -156,6 +161,32 @@ async function updateCourse(
     .single();
   if (error) throw error;
   return mapCourseFromDB(data as CourseRow);
+}
+
+async function getCourseByClassEntryCode(
+  client: SupabaseClient,
+  code: string
+): Promise<Course | null> {
+  const { data, error } = await client
+    .from('education_courses')
+    .select('*')
+    .eq('class_entry_code', code)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapCourseFromDB(data as CourseRow) : null;
+}
+
+async function setClassEntryCode(
+  client: SupabaseClient,
+  courseId: string
+): Promise<string> {
+  const code = generateCode(8);
+  const { error } = await client
+    .from('education_courses')
+    .update({ class_entry_code: code, updated_at: new Date().toISOString() })
+    .eq('id', courseId);
+  if (error) throw error;
+  return code;
 }
 
 async function deleteCourse(client: SupabaseClient, id: string): Promise<void> {
@@ -345,6 +376,8 @@ export const education = {
   getPublishedCourses,
   getAllCourses,
   getCourseById,
+  getCourseByClassEntryCode,
+  setClassEntryCode,
   createCourse,
   updateCourse,
   deleteCourse,

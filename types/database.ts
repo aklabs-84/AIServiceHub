@@ -238,6 +238,7 @@ export interface CourseRow {
   is_paid: boolean;
   is_published: boolean;
   like_count: number;
+  class_entry_code: string | null;   // 클래스 단일 입장코드 (전원 공용)
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
@@ -263,6 +264,7 @@ export interface Course {
   isPaid: boolean;
   isPublished: boolean;
   likeCount: number;
+  classEntryCode: string | null;     // 클래스 단일 입장코드
   createdBy: string | null;
   createdByName: string;
   createdAt: Date;

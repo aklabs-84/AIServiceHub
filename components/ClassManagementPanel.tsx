@@ -26,9 +26,10 @@ function courseTypeLabel(type: string) {
 }
 
 // ── QR 모달 ────────────────────────────────────────────────────────────────
-function QRModal({ courseId, title, token, onClose }: {
+function QRModal({ courseId, title, classEntryCode, token, onClose }: {
   courseId: string;
   title: string;
+  classEntryCode?: string | null;
   token: string;
   onClose: () => void;
 }) {
@@ -117,6 +118,18 @@ function QRModal({ courseId, title, token, onClose }: {
               style={{ width: '100%', maxWidth: '400px', height: 'auto' }}
             />
           </div>
+
+          {/* 클래스 단일 입장코드 — 오프라인 공용 코드 */}
+          {classEntryCode && (
+            <div className="px-6 pb-2 text-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">클래스 입장 코드 (전원 공용)</p>
+              <div className="inline-block px-6 py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/30 border-2 border-violet-200 dark:border-violet-700">
+                <span className="text-4xl font-black font-mono tracking-widest text-violet-700 dark:text-violet-300 select-all">
+                  {classEntryCode}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 교실 URL */}
           <div className="px-6 pb-4">
@@ -273,7 +286,7 @@ export default function ClassManagementPanel() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [qrTarget, setQrTarget] = useState<{ courseId: string; title: string } | null>(null);
+  const [qrTarget, setQrTarget] = useState<{ courseId: string; title: string; classEntryCode?: string | null } | null>(null);
   const [enrollCourse, setEnrollCourse] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -392,7 +405,7 @@ export default function ClassManagementPanel() {
               <div className="flex items-center gap-1.5 flex-none flex-wrap justify-end">
                 {/* QR — 교실 URL 표시 */}
                 <button
-                  onClick={() => setQrTarget({ courseId: course.id, title: course.title })}
+                  onClick={() => setQrTarget({ courseId: course.id, title: course.title, classEntryCode: course.classEntryCode })}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold hover:bg-violet-100 transition-colors"
                   title="QR 코드 표시"
                 >
@@ -449,7 +462,13 @@ export default function ClassManagementPanel() {
 
       {/* QR 모달 */}
       {qrTarget && session && (
-        <QRModal courseId={qrTarget.courseId} title={qrTarget.title} token={session.access_token} onClose={() => setQrTarget(null)} />
+        <QRModal
+          courseId={qrTarget.courseId}
+          title={qrTarget.title}
+          classEntryCode={qrTarget.classEntryCode}
+          token={session.access_token}
+          onClose={() => setQrTarget(null)}
+        />
       )}
 
       {/* 수강 신청 모달 */}
