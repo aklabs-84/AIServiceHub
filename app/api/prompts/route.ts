@@ -42,6 +42,8 @@ type CreatePromptPayload = {
   createdByName: string;
   tags?: string[];
   snsUrls?: string[];
+  price?: number;
+  isPaid?: boolean;
 };
 
 const getAccessToken = (req: NextRequest) => {
@@ -70,6 +72,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '필수 입력값이 누락되었습니다.' }, { status: 400 });
     }
 
+    // 관리자 이메일 확인 (유료 설정 권한)
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'mosebb@gmail.com';
+    const isAdmin = userData.user.email === ADMIN_EMAIL;
+
     const payload = {
       name: body.name,
       description: body.description,
@@ -83,6 +89,9 @@ export async function POST(req: NextRequest) {
         y: body.thumbnailPositionY ?? 50,
       },
       tags: body.tags ?? [],
+      // 유료 설정은 관리자만 가능
+      price: isAdmin ? (body.price ?? 0) : 0,
+      is_paid: isAdmin ? (body.isPaid ?? false) : false,
       created_by: userData.user.id,
       created_by_name: body.createdByName,
     };

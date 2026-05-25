@@ -40,7 +40,7 @@ const ALLOWED_ATTACHMENT_TYPES = [
 
 export default function NewAppPage() {
   const router = useRouter();
-  const { user, session, signInWithGoogle } = useAuth();
+  const { user, session, isAdmin, signInWithGoogle } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const { categories } = useAppCategories();
@@ -64,6 +64,8 @@ export default function NewAppPage() {
     thumbnailPositionY: number;
     createdByName: string;
     tags: string[];
+    isPaid: boolean;
+    price: number;
   }
 
   const [formData, setFormData] = useState<AppFormData>({
@@ -77,6 +79,8 @@ export default function NewAppPage() {
     thumbnailPositionY: 50,
     createdByName: (user?.user_metadata?.full_name || user?.user_metadata?.name) || '',
     tags: [],
+    isPaid: false,
+    price: 0,
   });
   // tagInput 제거: formData.tags 배열로 직접 관리
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -269,6 +273,8 @@ export default function NewAppPage() {
                 thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
                 createdByName: formData.createdByName.trim() || (user.user_metadata?.full_name || user.user_metadata?.name) || '익명',
                 tags: formData.tags,
+                isPaid: isAdmin ? formData.isPaid : false,
+                price: isAdmin ? formData.price : 0,
               },
               user.id
             ),
@@ -705,6 +711,56 @@ export default function NewAppPage() {
               비공개로 설정하면 작성자만 볼 수 있습니다.
             </p>
           </div>
+
+          {/* 판매 설정 (관리자 전용) */}
+          {isAdmin && (
+            <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/10">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-base">💰</span>
+                <label className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  판매 설정 <span className="text-xs font-normal text-amber-600 dark:text-amber-500">(관리자 전용)</span>
+                </label>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isPaid: false, price: 0 })}
+                  className={`px-4 py-2 rounded-lg border text-sm font-bold transition ${!formData.isPaid
+                    ? 'bg-emerald-500 text-white border-emerald-500 shadow'
+                    : 'bg-white dark:bg-gray-950 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  🆓 무료
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isPaid: true })}
+                  className={`px-4 py-2 rounded-lg border text-sm font-bold transition ${formData.isPaid
+                    ? 'bg-amber-500 text-white border-amber-500 shadow'
+                    : 'bg-white dark:bg-gray-950 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  💎 유료
+                </button>
+              </div>
+              {formData.isPaid && (
+                <div>
+                  <label className="block text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">가격 (원)</label>
+                  <input
+                    type="number"
+                    min="100"
+                    step="100"
+                    value={formData.price || ''}
+                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                    placeholder="예: 5000"
+                    required={formData.isPaid}
+                  />
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">100원 단위로 입력하세요</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 작성자 이름 */}
           <div className="mb-6">

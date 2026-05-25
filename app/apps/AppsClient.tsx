@@ -32,6 +32,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   const currentPage = Number(searchParams.get('page')) || 1;
   const searchTerm = searchParams.get('search') || '';
   const selectedTag = searchParams.get('tag') || null;
+  const selectedPricing = (searchParams.get('pricing') as 'all' | 'free' | 'paid') || 'all';
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchInput, setSearchInput] = useState(searchTerm);
@@ -83,6 +84,10 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
     updateParams({ tag: tag || null, page: '1' });
   };
 
+  const onPricingChange = (pricing: 'all' | 'free' | 'paid') => {
+    updateParams({ pricing: pricing === 'all' ? null : pricing, page: '1' });
+  };
+
   useEffect(() => {
     if (loadingCategories) return;
     if (selectedCategory === 'all') return;
@@ -124,6 +129,8 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
     let result = visibleApps;
     if (selectedCategory !== 'all') result = result.filter(app => app.category === selectedCategory);
     if (selectedTag) result = result.filter(app => app.tags?.includes(selectedTag));
+    if (selectedPricing === 'free') result = result.filter(app => !app.isPaid || app.price === 0);
+    if (selectedPricing === 'paid') result = result.filter(app => app.isPaid && app.price > 0);
     const term = searchInput.trim().toLowerCase();
     if (!term) return result;
     return result.filter((app) => {
@@ -133,9 +140,9 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
       const tags = (app.tags || []).join(' ').toLowerCase();
       return name.includes(term) || author.includes(term) || desc.includes(term) || tags.includes(term);
     });
-  }, [visibleApps, selectedCategory, searchInput, selectedTag]);
+  }, [visibleApps, selectedCategory, searchInput, selectedTag, selectedPricing]);
 
-  const isFiltered = selectedCategory !== 'all' || !!searchTerm || !!selectedTag;
+  const isFiltered = selectedCategory !== 'all' || !!searchTerm || !!selectedTag || selectedPricing !== 'all';
 
   const popularApps = useMemo(() =>
     [...visibleApps].sort((a, b) => b.likeCount - a.likeCount).slice(0, 10),
@@ -179,7 +186,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const clearAllFilters = () => {
-    updateParams({ category: null, search: null, tag: null, page: '1' });
+    updateParams({ category: null, search: null, tag: null, pricing: null, page: '1' });
     setSearchInput('');
   };
 
@@ -493,6 +500,42 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
                         <p className="text-xs sm:text-sm font-bold text-gray-400">다양한 태그와 카테고리로 필터링해보세요</p>
                      </div>
                   </div>
+               </div>
+
+               {/* 무료/유료 필터 */}
+               <div className="flex items-center gap-2 mb-3">
+                 {([
+                   { value: 'all', label: '전체', emoji: '🔍' },
+                   { value: 'free', label: '무료', emoji: '🆓' },
+                   { value: 'paid', label: '유료', emoji: '💎' },
+                 ] as const).map(({ value, label, emoji }) => {
+                   const count = value === 'all'
+                     ? visibleApps.length
+                     : value === 'free'
+                       ? visibleApps.filter(a => !a.isPaid || a.price === 0).length
+                       : visibleApps.filter(a => a.isPaid && a.price > 0).length;
+                   return (
+                     <button
+                       key={value}
+                       onClick={() => onPricingChange(value)}
+                       className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all border ${
+                         selectedPricing === value
+                           ? value === 'paid'
+                             ? 'bg-amber-500 text-white border-transparent shadow-md'
+                             : value === 'free'
+                               ? 'bg-emerald-500 text-white border-transparent shadow-md'
+                               : 'bg-blue-600 text-white border-transparent shadow-md'
+                           : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-gray-700 hover:border-blue-300 hover:text-blue-600'
+                       }`}
+                     >
+                       <span>{emoji}</span>
+                       <span>{label}</span>
+                       <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${selectedPricing === value ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                         {count}
+                       </span>
+                     </button>
+                   );
+                 })}
                </div>
 
                {/* Integrated Tag Chips */}

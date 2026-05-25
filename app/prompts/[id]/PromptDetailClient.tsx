@@ -14,8 +14,9 @@ import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
 import {
   FaCalendar, FaCommentDots, FaExternalLinkAlt, FaFeatherAlt, FaLink, FaUser, FaLock, FaEdit, FaTrash,
   FaPaperPlane, FaChevronLeft, FaChevronRight, FaDownload, FaPaperclip, FaCopy, FaCheck, FaHeart, FaRegHeart,
-  FaSave, FaPlus, FaGlobe, FaGripVertical
+  FaSave, FaPlus, FaGlobe, FaGripVertical, FaShoppingCart
 } from 'react-icons/fa';
+import PurchaseModal from '@/components/PurchaseModal';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,7 +93,7 @@ export default function PromptDetailClient({
 
   const params = useParams();
   const router = useRouter();
-  const { user, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
+  const { user, isAdmin, session, signInWithGoogle, signInWithKakao } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const { categories } = usePromptCategories();
@@ -110,6 +111,14 @@ export default function PromptDetailClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+
+  // --- 유료 콘텐츠 보호 상태 ---
+  const [promptContent, setPromptContent] = useState<string>(initialPrompt?.promptContent || '');
+  const [canAccessContent, setCanAccessContent] = useState<boolean>(
+    !initialPrompt?.isPaid || !initialPrompt?.price || !!initialPrompt?.promptContent
+  );
+  const [checkingAccess, setCheckingAccess] = useState(false);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   // --- Inline Edit States ---
   const [isEditing, setIsEditing] = useState(false);
@@ -150,6 +159,42 @@ export default function PromptDetailClient({
   const previewImageSrc = useMemo(() => {
     return getProxiedImageUrl(previewUrl);
   }, [previewUrl]);
+
+  // 유료 프롬프트: API에서 본문 fetch
+  useEffect(() => {
+    if (!prompt) return;
+    // 무료이거나 이미 초기값에 content가 있으면 (서버에서 access 허용됨) skip
+    if (!prompt.isPaid || !prompt.price) {
+      setCanAccessContent(true);
+      setPromptContent(prompt.promptContent || '');
+      return;
+    }
+    if (prompt.promptContent) {
+      // 서버에서 이미 content 포함됨 → 접근 허용 상태
+      setCanAccessContent(true);
+      setPromptContent(prompt.promptContent);
+      return;
+    }
+    // 유료 & 서버에서 content 미전달 → API로 확인
+    setCheckingAccess(true);
+    const headers: Record<string, string> = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    fetch(`/api/prompts/${prompt.id}/content`, { headers })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.locked) {
+          setCanAccessContent(true);
+          setPromptContent(data.content || '');
+        } else {
+          setCanAccessContent(false);
+          setPromptContent(''); // 잠긴 상태
+        }
+      })
+      .catch(() => setCanAccessContent(false))
+      .finally(() => setCheckingAccess(false));
+  }, [prompt?.id, prompt?.isPaid, prompt?.price, prompt?.promptContent, session]);
 
   const toggleEdit = () => {
     if (!prompt) return;
@@ -487,6 +532,7 @@ export default function PromptDetailClient({
   const paginatedComments = comments.slice(startIdx, startIdx + COMMENTS_PER_PAGE);
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -742,25 +788,85 @@ export default function PromptDetailClient({
                   </div>
 
                   <div className="pt-8 border-t dark:border-gray-800 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-                      <FaLink className="text-emerald-500" /> 프롬프트 본문
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+                        <FaLink className="text-emerald-500" /> 프롬프트 본문
+                      </div>
+                      {prompt.isPaid && prompt.price > 0 && (
+                        <span className="flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                          <FaLock className="text-[10px]" /> {prompt.price.toLocaleString()}원
+                        </span>
+                      )}
                     </div>
-                    {user ? (
+
+                    {/* 로딩 중 */}
+                    {checkingAccess && (
+                      <div className="p-8 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-center text-sm text-gray-400">
+                        콘텐츠 확인 중...
+                      </div>
+                    )}
+
+                    {/* 접근 가능: 본문 표시 */}
+                    {!checkingAccess && canAccessContent && (
                       <div className="p-6 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800/50 font-mono text-sm group relative overflow-hidden">
-                        <div className="whitespace-pre-wrap leading-relaxed relative z-10">{prompt.promptContent}</div>
+                        <div className="whitespace-pre-wrap leading-relaxed relative z-10">{promptContent}</div>
                         <div className="absolute top-4 right-4 z-20">
-                          <button onClick={() => { navigator.clipboard.writeText(prompt.promptContent); showSuccess('프롬프트가 복사되었습니다.'); }} className="p-3 rounded-xl bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-500 dark:text-gray-400 shadow-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 group/btn">
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(promptContent); showSuccess('프롬프트가 복사되었습니다.'); }}
+                            className="p-3 rounded-xl bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-500 dark:text-gray-400 shadow-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-all active:scale-95 group/btn"
+                          >
                             <FaCopy className="text-lg group-hover/btn:scale-110 transition-transform" />
                           </button>
                         </div>
                       </div>
-                    ) : (
+                    )}
+
+                    {/* 비로그인: 로그인 유도 */}
+                    {!checkingAccess && !canAccessContent && !user && (
                       <div className="p-8 rounded-2xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-dashed border-emerald-200 dark:border-emerald-800 text-center space-y-4">
                         <FaLock className="mx-auto text-3xl text-emerald-400 opacity-50" />
-                        <div><div className="font-bold text-emerald-900 dark:text-emerald-100">로그인이 필요한 콘텐츠입니다</div><div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">로그인 후 프롬프트 본문과 첨부 파일을 확인하실 수 있습니다.</div></div>
+                        <div>
+                          <div className="font-bold text-emerald-900 dark:text-emerald-100">로그인이 필요한 콘텐츠입니다</div>
+                          <div className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">로그인 후 프롬프트 본문과 첨부 파일을 확인하실 수 있습니다.</div>
+                        </div>
                         <div className="flex justify-center gap-2">
                           <button onClick={signInWithKakao} className="px-5 py-2.5 rounded-xl bg-[#FEE500] text-black font-bold text-sm shadow-sm active:scale-95 transition-all">카카오 로그인</button>
                           <button onClick={signInWithGoogle} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold text-sm shadow-sm active:scale-95 transition-all">구글 로그인</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 로그인했지만 미구매: 구매 유도 */}
+                    {!checkingAccess && !canAccessContent && user && prompt.isPaid && prompt.price > 0 && (
+                      <div className="rounded-2xl overflow-hidden border border-amber-200 dark:border-amber-800/50">
+                        {/* 미리보기 (흐림 처리) */}
+                        <div className="relative p-6 bg-gray-50 dark:bg-gray-900 font-mono text-sm">
+                          <div className="whitespace-pre-wrap leading-relaxed text-gray-400 dark:text-gray-600 select-none blur-[3px] pointer-events-none">
+                            {/* API에서 가져온 preview는 없으니 placeholder로 표시 */}
+                            이 프롬프트의 내용은 구매 후에 확인하실 수 있습니다...{'\n'}
+                            구매하시면 즉시 전체 내용을 확인할 수 있습니다.
+                          </div>
+                          {/* 잠금 오버레이 */}
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-white/90 dark:from-gray-900/90 via-white/50 dark:via-gray-900/50 to-transparent">
+                            <FaLock className="text-4xl text-amber-500 mb-3" />
+                            <div className="text-center space-y-1">
+                              <div className="font-black text-gray-900 dark:text-white text-base">유료 콘텐츠</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">구매 후 전체 본문을 볼 수 있습니다</div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* 구매 버튼 */}
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-800/50 flex items-center justify-between">
+                          <div className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                            {prompt.price.toLocaleString()}원
+                          </div>
+                          <button
+                            onClick={() => setShowPurchaseModal(true)}
+                            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm transition-all active:scale-95 shadow-sm shadow-amber-500/30"
+                          >
+                            <FaShoppingCart className="text-xs" />
+                            구매하기
+                          </button>
                         </div>
                       </div>
                     )}
@@ -912,5 +1018,34 @@ export default function PromptDetailClient({
         )}
       </div>
     </div>
+
+    {/* 유료 프롬프트 구매 모달 */}
+    {showPurchaseModal && prompt && (
+      <PurchaseModal
+        productType="prompt"
+        productId={prompt.id}
+        productName={prompt.name}
+        price={prompt.price}
+        onClose={() => setShowPurchaseModal(false)}
+        onSuccess={() => {
+          setShowPurchaseModal(false);
+          // 구매 성공 후 content 다시 fetch
+          const headers: Record<string, string> = {};
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
+          fetch(`/api/prompts/${prompt.id}/content`, { headers })
+            .then((r) => r.json())
+            .then((data) => {
+              if (!data.locked) {
+                setCanAccessContent(true);
+                setPromptContent(data.content || '');
+              }
+            })
+            .catch(() => {});
+        }}
+      />
+    )}
+    </>
   );
 }

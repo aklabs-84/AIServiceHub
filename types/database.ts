@@ -361,6 +361,8 @@ export interface CreateAppInput {
   thumbnailPositionY?: number;
   createdByName: string;
   tags?: string[];
+  price?: number;
+  isPaid?: boolean;
 }
 
 export interface UpdateAppInput extends Partial<CreateAppInput> {
@@ -379,6 +381,8 @@ export interface CreatePromptInput {
   thumbnailPositionY?: number;
   createdByName: string;
   tags?: string[];
+  price?: number;
+  isPaid?: boolean;
 }
 
 export interface UpdatePromptInput extends Partial<CreatePromptInput> {

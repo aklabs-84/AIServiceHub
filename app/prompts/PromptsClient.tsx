@@ -29,6 +29,7 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
   const viewMode = (searchParams.get('view') as 'card' | 'list') || 'card';
   const searchTerm = searchParams.get('search') || '';
   const selectedTag = searchParams.get('tag') || null;
+  const selectedPricing = (searchParams.get('pricing') as 'all' | 'free' | 'paid') || 'all';
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchInput, setSearchInput] = useState(searchTerm);
@@ -98,6 +99,10 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
     updateParams({ tag: tag || null, page: '1' });
   };
 
+  const onPricingChange = (pricing: 'all' | 'free' | 'paid') => {
+    updateParams({ pricing: pricing === 'all' ? null : pricing, page: '1' });
+  };
+
   useEffect(() => {
     if (loadingCategories) return;
     if (selectedCategory === 'all') return;
@@ -154,6 +159,12 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
       result = result.filter(p => p.tags?.includes(selectedTag));
     }
 
+    if (selectedPricing === 'free') {
+      result = result.filter(p => !p.isPaid || p.price === 0);
+    } else if (selectedPricing === 'paid') {
+      result = result.filter(p => p.isPaid && p.price > 0);
+    }
+
     const term = searchInput.trim().toLowerCase();
     if (!term) return result;
 
@@ -164,7 +175,7 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
       const tags = (prompt.tags || []).join(' ').toLowerCase();
       return name.includes(term) || author.includes(term) || desc.includes(term) || tags.includes(term);
     });
-  }, [visiblePrompts, selectedCategory, searchInput, selectedTag]);
+  }, [visiblePrompts, selectedCategory, searchInput, selectedTag, selectedPricing]);
 
   const totalPages = Math.ceil(filteredPrompts.length / itemsPerPage);
   const paginatedPrompts = useMemo(() => {
@@ -290,6 +301,42 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
           </div>
 
           <div className="mt-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl p-6 sm:p-8">
+            {/* 무료/유료 필터 */}
+            <div className="flex items-center gap-2 mb-5">
+              {([
+                { value: 'all', label: '전체', emoji: '🔍' },
+                { value: 'free', label: '무료', emoji: '🆓' },
+                { value: 'paid', label: '유료', emoji: '💎' },
+              ] as const).map(({ value, label, emoji }) => {
+                const count = value === 'all'
+                  ? visiblePrompts.length
+                  : value === 'free'
+                    ? visiblePrompts.filter(p => !p.isPaid || p.price === 0).length
+                    : visiblePrompts.filter(p => p.isPaid && p.price > 0).length;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => onPricingChange(value)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all border ${
+                      selectedPricing === value
+                        ? value === 'paid'
+                          ? 'bg-amber-500 text-white border-transparent shadow-md'
+                          : value === 'free'
+                            ? 'bg-emerald-500 text-white border-transparent shadow-md'
+                            : 'bg-emerald-600 text-white border-transparent shadow-md'
+                        : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-emerald-300 hover:text-emerald-600'
+                    }`}
+                  >
+                    <span>{emoji}</span>
+                    <span>{label}</span>
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${selectedPricing === value ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <FaFilter />

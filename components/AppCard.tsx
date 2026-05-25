@@ -176,11 +176,15 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           </div>
         )}
 
-        {/* Paid badge (corner only, no full overlay) */}
-        {isPaidAndLocked && (
+        {/* 유료/무료 배지 */}
+        {isPaidAndLocked ? (
           <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
             <FaLock className="text-white text-[8px]" />
             <span className="text-white text-[10px] font-black">{app.price.toLocaleString()}원</span>
+          </div>
+        ) : (
+          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/80 backdrop-blur-sm">
+            <span className="text-white text-[10px] font-black">🆓 무료</span>
           </div>
         )}
       </div>
@@ -217,8 +221,8 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
                 {app.price.toLocaleString()}원
               </span>
             ) : (
-              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
-                OPEN
+              <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
+                🆓 무료
               </span>
             )}
           </div>

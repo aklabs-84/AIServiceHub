@@ -186,11 +186,15 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
           </div>
         )}
 
-        {/* 카테고리 배지 */}
-        {isPaidAndLocked && (
+        {/* 유료/무료 배지 */}
+        {isPaidAndLocked ? (
           <div className="absolute top-4 right-4 z-20 flex items-center gap-1 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm">
             <FaLock className="text-white text-[9px]" />
             <span className="text-white text-[11px] font-black">{prompt.price.toLocaleString()}원</span>
+          </div>
+        ) : (
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/80 backdrop-blur-sm">
+            <span className="text-white text-[11px] font-black">🆓 무료</span>
           </div>
         )}
         <div className="absolute top-4 left-4 z-20">

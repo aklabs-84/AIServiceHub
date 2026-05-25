@@ -161,6 +161,8 @@ export async function create(
       ? { x: input.thumbnailPositionX, y: input.thumbnailPositionY }
       : null,
     tags: input.tags || [],
+    price: input.price ?? 0,
+    is_paid: input.isPaid ?? false,
     created_by: userId,
     created_by_name: input.createdByName,
   };
