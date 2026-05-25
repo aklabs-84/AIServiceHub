@@ -128,6 +128,8 @@ export default function PromptDetailClient({
     promptContent: string;
     category: string;
     isPublic: boolean;
+    isPaid: boolean;
+    price: number;
     thumbnailUrl: string;
     thumbnailPositionX: number;
     thumbnailPositionY: number;
@@ -205,6 +207,8 @@ export default function PromptDetailClient({
         promptContent: prompt.promptContent || '',
         category: prompt.category || '',
         isPublic: prompt.isPublic !== false,
+        isPaid: prompt.isPaid ?? false,
+        price: prompt.price ?? 0,
         thumbnailUrl: prompt.thumbnailUrl || '',
         thumbnailPositionX: prompt.thumbnailPositionX ?? 50,
         thumbnailPositionY: prompt.thumbnailPositionY ?? 50,
@@ -319,6 +323,8 @@ export default function PromptDetailClient({
         snsUrls: buildSnsUrls(),
         category: formData.category,
         isPublic: formData.isPublic,
+        isPaid: formData.isPaid,
+        price: formData.isPaid ? formData.price : 0,
         thumbnailUrl: formData.thumbnailUrl || undefined,
         thumbnailPositionX: formData.thumbnailPositionX,
         thumbnailPositionY: formData.thumbnailPositionY,
@@ -615,6 +621,40 @@ export default function PromptDetailClient({
                         </select>
                       </div>
                     </div>
+
+                    {/* 유료/무료 설정 — 관리자만 */}
+                    {isAdmin && (
+                      <div className="p-4 rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10 space-y-3">
+                        <p className="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">💰 유료/무료 설정 (관리자)</p>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={formData.isPaid}
+                              onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked, price: e.target.checked ? formData.price || 0 : 0 })}
+                              className="w-4 h-4 accent-amber-500"
+                            />
+                            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">유료</span>
+                          </label>
+                          {formData.isPaid && (
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <input
+                                type="number"
+                                min={0}
+                                step={100}
+                                value={formData.price}
+                                onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                                className="flex-1 px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-700 bg-white dark:bg-gray-900 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-400"
+                                placeholder="가격 (원)"
+                              />
+                              <span className="text-sm font-bold text-gray-500">원</span>
+                            </div>
+                          )}
+                          {!formData.isPaid && <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">🆓 무료</span>}
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-bold mb-2">배경 이미지 URL</label>
                       <input type="url" value={formData.thumbnailUrl} onChange={(e) => { setFormData({ ...formData, thumbnailUrl: e.target.value }); setPreviewError(false); }} className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 outline-none" placeholder="https://..." />

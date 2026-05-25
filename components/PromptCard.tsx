@@ -254,6 +254,20 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* 무료/유료 배지 */}
+            {isPaidAndLocked ? (
+              <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50">
+                <FaLock className="text-[8px]" />
+                {prompt.price.toLocaleString()}원
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
+                🆓 무료
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-3">
             <div className="flex -space-x-1.5">
               {snsPreview.map((url, idx) => {
                 const preview = getLinkPreview(url);
