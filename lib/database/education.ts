@@ -319,12 +319,26 @@ async function getEnrollmentCount(
 // ────────────────────────────────────────────────
 
 function generateCode(length: number): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 헷갈리기 쉬운 0/O/1/I 제외
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // 헷갈리기 쉬운 O/I 제외
+  const digits  = '23456789';                  // 헷갈리기 쉬운 0/1 제외
+  const all     = letters + digits;
+
+  const result: string[] = [];
+  // 최소 2글자 + 2숫자 보장
+  result.push(letters[Math.floor(Math.random() * letters.length)]);
+  result.push(letters[Math.floor(Math.random() * letters.length)]);
+  result.push(digits[Math.floor(Math.random() * digits.length)]);
+  result.push(digits[Math.floor(Math.random() * digits.length)]);
+  // 나머지 채우기
+  for (let i = 4; i < length; i++) {
+    result.push(all[Math.floor(Math.random() * all.length)]);
   }
-  return result;
+  // Fisher-Yates 셔플로 순서 섞기
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result.join('');
 }
 
 export const education = {

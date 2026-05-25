@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers, FaDoorOpen, FaExternalLinkAlt } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 
 function toDate(d: Date | string): Date {
@@ -25,49 +25,44 @@ function courseTypeLabel(type: string) {
   return '🔀 혼합';
 }
 
-// UUID → 짧은 입장 코드 (앞 8자리 추출, 하이픈 제거 후 XXXX-XXXX 형식)
-function toEntryCode(id: string): string {
-  const clean = id.replace(/-/g, '').toUpperCase();
-  const part = clean.slice(0, 8);
-  return `${part.slice(0, 4)}-${part.slice(4)}`; // e.g. "FA4F-101A"
-}
-
 // ── QR 모달 ────────────────────────────────────────────────────────────────
+// QR 코드: 교실 URL 인코딩 (스캔 → 교실 바로 이동)
+// 입장 코드는 수강 승인 후 개인별 발급 — QR 모달에는 코드 없음
 function QRModal({ courseId, title, onClose }: { courseId: string; title: string; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const displayCode = toEntryCode(courseId);
+  const [classroomUrl, setClassroomUrl] = useState('');
 
   useEffect(() => {
+    const url = `${window.location.origin}/classes/${courseId}/classroom`;
+    setClassroomUrl(url);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // QR 코드 내용: 교실 URL (스캔하면 바로 교실 페이지로 이동)
-    const qrUrl = `${window.location.origin}/classes/${courseId}/classroom`;
-
-    // Fallback: 텍스트
+    // Fallback 텍스트
     const ctx = canvas.getContext('2d');
     if (ctx) {
       canvas.width = 300;
       canvas.height = 300;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 300, 300);
-      ctx.fillStyle = '#1a1a1a';
-      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(displayCode, 150, 150);
+      ctx.fillText('교실 QR 로딩 중...', 150, 150);
     }
 
     // qrcode 라이브러리 동적 로드
     import('qrcode').then(QRCode => {
-      QRCode.toCanvas(canvas, qrUrl, {
+      QRCode.toCanvas(canvas, url, {
         width: 300,
         margin: 2,
         color: { dark: '#1a1a1a', light: '#ffffff' },
       }).catch(() => {});
     }).catch(() => {});
-  }, [courseId, displayCode]);
+  }, [courseId]);
 
   const handleFullscreen = () => {
     containerRef.current?.requestFullscreen?.();
@@ -75,11 +70,11 @@ function QRModal({ courseId, title, onClose }: { courseId: string; title: string
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div ref={containerRef} className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-xs w-full mx-4 space-y-4 text-center" onClick={e => e.stopPropagation()}>
+      <div ref={containerRef} className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-sm w-full mx-4 space-y-4 text-center" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-black text-gray-900 dark:text-white text-sm truncate flex-1 text-left">{title}</h3>
           <div className="flex items-center gap-2">
-            <button onClick={handleFullscreen} className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 hover:bg-violet-100 transition-colors">
+            <button onClick={handleFullscreen} className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 hover:bg-violet-100 transition-colors" title="프로젝터 전체화면">
               <FaExpand className="text-sm" />
             </button>
             <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
@@ -87,12 +82,25 @@ function QRModal({ courseId, title, onClose }: { courseId: string; title: string
             </button>
           </div>
         </div>
+
+        {/* QR 코드 */}
         <canvas ref={canvasRef} className="mx-auto rounded-2xl" style={{ maxWidth: '100%', height: 'auto' }} />
-        <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">입장 코드</p>
-          <p className="text-3xl font-black font-mono tracking-widest text-gray-900 dark:text-white">{displayCode}</p>
+
+        {/* 교실 URL */}
+        <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800">
+          <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-1">교실 URL</p>
+          <p className="text-[11px] font-mono text-violet-700 dark:text-violet-300 break-all">{classroomUrl}</p>
         </div>
-        <p className="text-xs text-gray-400">QR 스캔 → 교실 페이지 이동 · 전체화면 버튼 → 프로젝터 표시</p>
+
+        {/* 안내 */}
+        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-left">
+          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+            📌 입장 코드는 수강 승인 후 개인별 발급됩니다.<br />
+            수강생이 QR 스캔 후 본인의 입장 코드를 입력하면 교실에 입장합니다.
+          </p>
+        </div>
+
+        <p className="text-xs text-gray-400">↗ 전체화면 버튼으로 프로젝터에 표시</p>
       </div>
     </div>
   );
@@ -315,14 +323,25 @@ export default function ClassManagementPanel() {
               </div>
 
               <div className="flex items-center gap-1.5 flex-none flex-wrap justify-end">
-                {/* 입장 코드 QR */}
+                {/* QR — 교실 URL 표시 */}
                 <button
                   onClick={() => setQrTarget({ courseId: course.id, title: course.title })}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold hover:bg-violet-100 transition-colors"
-                  title="입장 코드 QR"
+                  title="QR 코드 표시"
                 >
                   <FaQrcode className="text-xs" /> QR
                 </button>
+
+                {/* 교실 입장 — 직접 이동 */}
+                <Link
+                  href={`/classes/${course.id}/classroom`}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 transition-colors"
+                  title="교실 입장 페이지로 이동"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FaDoorOpen className="text-xs" /> 교실
+                </Link>
 
                 {/* 수강 신청 목록 */}
                 <button
