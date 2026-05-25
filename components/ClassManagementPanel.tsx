@@ -232,6 +232,11 @@ function StudentsModal({ course, token, onClose }: { course: Course; token: stri
   const [addName, setAddName] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  // 자동완성
+  const [suggestions, setSuggestions] = useState<{ id: string; email: string; displayName: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const { showSuccess, showError } = useToast();
 
   const load = () => {
@@ -247,6 +252,35 @@ function StudentsModal({ course, token, onClose }: { course: Course; token: stri
   };
 
   useEffect(() => { load(); }, [course.id, token]);
+
+  // 이메일 입력 시 자동완성 검색 (300ms 디바운스)
+  const handleEmailChange = (value: string) => {
+    setAddEmail(value);
+    setAddError('');
+    if (searchTimer) clearTimeout(searchTimer);
+    if (value.trim().length < 1) { setSuggestions([]); setShowSuggestions(false); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(value.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const { users } = await res.json();
+          setSuggestions(users ?? []);
+          setShowSuggestions(true);
+        }
+      } catch { /* silent */ }
+    }, 300);
+    setSearchTimer(timer);
+  };
+
+  const selectSuggestion = (user: { email: string; displayName: string }) => {
+    setAddEmail(user.email);
+    if (!addName) setAddName(user.displayName);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    emailInputRef.current?.blur();
+  };
 
   const removeStudent = async (enrollmentId: string, name: string) => {
     if (!confirm(`"${name || '이 학생'}"을 수강생 목록에서 삭제하시겠습니까?`)) return;
@@ -312,14 +346,41 @@ function StudentsModal({ course, token, onClose }: { course: Course; token: stri
           <form onSubmit={addStudent} className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-emerald-50 dark:bg-emerald-900/10 flex-none space-y-3">
             <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">학생 직접 추가 (즉시 확정)</p>
             <div className="flex gap-2">
-              <input
-                type="email"
-                value={addEmail}
-                onChange={e => setAddEmail(e.target.value)}
-                placeholder="이메일 (필수)"
-                required
-                className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              {/* 이메일 자동완성 */}
+              <div className="flex-1 relative">
+                <input
+                  ref={emailInputRef}
+                  type="text"
+                  value={addEmail}
+                  onChange={e => handleEmailChange(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  placeholder="이메일 또는 이름 검색"
+                  required
+                  autoComplete="off"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                {/* 드롭다운 */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="absolute z-10 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+                    {suggestions.map(u => (
+                      <li
+                        key={u.id}
+                        onMouseDown={() => selectSuggestion(u)}
+                        className="flex items-center gap-2 px-3 py-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 cursor-pointer transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-none text-xs font-black text-emerald-600 dark:text-emerald-400">
+                          {(u.displayName || u.email).charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          {u.displayName && <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{u.displayName}</p>}
+                          <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <input
                 type="text"
                 value={addName}
