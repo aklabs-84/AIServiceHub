@@ -21,7 +21,7 @@ import { getBrowserClient } from '@/lib/database';
 import ExcelJS from 'exceljs';
 import RoomCanvas from '@/components/room/RoomCanvas';
 
-type Tab = 'home' | 'apps' | 'prompts' | 'likes' | 'guestbook' | 'purchases';
+type Tab = 'home' | 'apps' | 'prompts' | 'likes' | 'guestbook' | 'purchases' | 'classes';
 
 type GuestbookEntry = {
   id: string;
@@ -279,7 +279,7 @@ function MyPageContent({
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'prompts' || tab === 'likes' || tab === 'apps' || tab === 'home' || tab === 'guestbook' || tab === 'purchases') setActiveTab(tab as Tab);
+    if (tab === 'prompts' || tab === 'likes' || tab === 'apps' || tab === 'home' || tab === 'guestbook' || tab === 'purchases' || tab === 'classes') setActiveTab(tab as Tab);
   }, [searchParams]);
 
   // Guestbook fetch (탭 전환 시 1회)
@@ -413,6 +413,7 @@ function MyPageContent({
     { key: 'likes', label: 'Likes', shortLabel: '좋아요', menuLabel: 'Likes', color: 'bg-[#8b5cf6]' },
     { key: 'guestbook', label: 'Guest', shortLabel: '방명록', menuLabel: 'Guestbook', color: 'bg-[#f59e0b]' },
     { key: 'purchases', label: 'Buy', shortLabel: '구매', menuLabel: 'Purchases', color: 'bg-[#0ea5e9]' },
+    { key: 'classes', label: 'Class', shortLabel: '클래스', menuLabel: 'Classes', color: 'bg-[#7c3aed]' },
   ];
 
   const renderContent = () => {
@@ -422,6 +423,7 @@ function MyPageContent({
       case 'prompts': return <PromptsTab myPrompts={myPrompts} viewMode={viewMode} promptCategories={promptCategories} exportPrompts={exportPrompts} />;
       case 'likes': return <LikesTab likedApps={likedApps} likedPrompts={likedPrompts} viewMode={viewMode} appCategories={appCategories} promptCategories={promptCategories} />;
       case 'purchases': return <PurchasesTab session={session} />;
+      case 'classes': return <MyClassesTab session={session} />;
       case 'guestbook': return (
         <div className="animate-in fade-in duration-500 space-y-4">
           <h2 className="text-base font-black text-gray-800 border-l-4 border-amber-400 pl-3 flex items-center gap-2">
@@ -844,6 +846,88 @@ function PurchasesTab({ session }: { session: Session | null }) {
               </Link>
             )}
           </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── 내 클래스 탭 ──────────────────────────────────────────────────────────
+function MyClassesTab({ session }: { session: Session | null }) {
+  const [enrollments, setEnrollments] = useState<{
+    id: string; courseId: string; status: string; entryCode: string | null;
+    courseTitle: string; coursePrice: number; courseIsPaid: boolean; createdAt: string;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.access_token) { setLoading(false); return; }
+    fetch('/api/enrollments', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(r => r.json())
+      .then(d => setEnrollments(d.enrollments ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [session]);
+
+  if (loading) return <div className="py-10 text-center text-gray-400 text-sm">수강 내역 불러오는 중...</div>;
+
+  if (!enrollments.length) {
+    return (
+      <div className="py-16 text-center space-y-3">
+        <div className="text-4xl">🎓</div>
+        <p className="font-bold text-gray-700 dark:text-gray-300">수강 신청 내역이 없습니다</p>
+        <p className="text-sm text-gray-400">클래스를 신청하면 여기에 표시됩니다.</p>
+        <Link href="/classes" className="inline-block mt-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors">
+          클래스 보기
+        </Link>
+      </div>
+    );
+  }
+
+  const statusLabel = (status: string) => {
+    if (status === 'confirmed') return { text: '수강 확정', cls: 'bg-emerald-100 text-emerald-700' };
+    if (status === 'pending') return { text: '승인 대기', cls: 'bg-blue-100 text-blue-600' };
+    if (status === 'waitlist') return { text: '대기자', cls: 'bg-amber-100 text-amber-700' };
+    if (status === 'cancelled') return { text: '취소됨', cls: 'bg-red-100 text-red-500' };
+    return { text: status, cls: 'bg-gray-100 text-gray-500' };
+  };
+
+  return (
+    <div className="animate-in fade-in duration-500 space-y-3">
+      <h2 className="text-base font-black text-gray-800 dark:text-gray-100 border-l-4 border-violet-400 pl-3">
+        내 클래스 <span className="text-sm font-normal text-gray-400">({enrollments.length}건)</span>
+      </h2>
+      <div className="space-y-2">
+        {enrollments.map(e => {
+          const { text: statusText, cls: statusCls } = statusLabel(e.status);
+          return (
+            <div key={e.id} className="p-4 rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <Link href={`/classes/${e.courseId}`} className="text-sm font-black text-gray-800 dark:text-gray-100 hover:text-violet-600 dark:hover:text-violet-400 transition-colors line-clamp-1">
+                    {e.courseTitle || '클래스'}
+                  </Link>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(e.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-none ${statusCls}`}>{statusText}</span>
+              </div>
+              {e.status === 'confirmed' && e.entryCode && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">입장코드</p>
+                    <p className="font-mono font-black text-lg tracking-widest text-violet-700 dark:text-violet-300">{e.entryCode}</p>
+                  </div>
+                  <Link href={`/classes/${e.courseId}/classroom`} className="px-4 py-2 rounded-xl bg-violet-600 text-white text-xs font-black hover:bg-violet-700 transition-colors">
+                    입장
+                  </Link>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

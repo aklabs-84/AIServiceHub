@@ -22,6 +22,7 @@ import * as oneTimeAccess from './one-time-access';
 import * as collections from './collections';
 import * as posts from './posts';
 import { purchases } from './purchases';
+import { education } from './education';
 
 export const db = {
   apps,
@@ -34,6 +35,7 @@ export const db = {
   collections,
   posts,
   purchases,
+  education,
 };
 
 // Re-export types for convenience
@@ -63,4 +65,11 @@ export type {
   PurchaseStatus,
   SubscriptionPlan,
   SubscriptionStatus,
+  Course,
+  Enrollment,
+  CreateCourseInput,
+  UpdateCourseInput,
+  EnrollmentStatus,
+  ResourceLink,
+  LocationType,
 } from '@/types/database';

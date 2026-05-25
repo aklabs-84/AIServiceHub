@@ -10,6 +10,7 @@ import type { AIApp, Prompt, Comment, Category, UserProfile, Collection } from '
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
 import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit, FaLayerGroup } from 'react-icons/fa';
 import Link from 'next/link';
+import ClassManagementPanel from '@/components/ClassManagementPanel';
 
 interface CreatorStat {
   userId: string;
@@ -19,7 +20,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales' | 'classes';
 
 interface OneTimeInfo {
   id: string;
@@ -891,6 +892,7 @@ function AdminPageContent({
                 { key: 'categories', label: '카테고리 관리' },
                 { key: 'collections', label: '기획 컬렉션' },
                 { key: 'sales', label: '판매 설정' },
+                { key: 'classes', label: '🎓 클래스 관리' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1125,6 +1127,9 @@ function AdminPageContent({
                 <PendingBankTransfersPanel />
                 <SalesPricingPanel apps={apps} prompts={prompts} />
               </>
+            )}
+            {activeTab === 'classes' && (
+              <ClassManagementPanel />
             )}
           </section>
 
@@ -1752,3 +1757,7 @@ function SalesPricingPanel({ apps, prompts }: { apps: AIApp[]; prompts: Prompt[]
     </div>
   );
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 클래스 관리 패널
+// ────────────────────────────────────────────────────────────────────────────
