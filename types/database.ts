@@ -209,78 +209,78 @@ export interface Prompt {
 
 // --- Education / Class 타입 ---
 
-export type LocationType = 'online' | 'offline' | 'hybrid';
-export type EnrollmentStatus = 'pending' | 'confirmed' | 'waitlist' | 'cancelled';
+export type CourseType = 'online' | 'offline' | 'hybrid';
+export type EnrollmentStatus = 'pending' | 'waitlist' | 'confirmed' | 'cancelled';
 
-export interface ResourceLink {
+/** materials JSONB 배열의 각 항목 */
+export interface CourseMaterial {
+  type: 'video' | 'link' | 'file' | 'embed';
   title: string;
   url: string;
-  type?: 'video' | 'link' | 'doc' | 'pdf' | 'other';
+  desc?: string;
 }
 
 export interface CourseRow {
   id: string;
   title: string;
   description: string | null;
-  content: string | null;
-  schedule_at: string | null;
-  duration_minutes: number;
-  location_type: LocationType;
-  location_detail: string | null;
-  capacity: number;
+  thumbnail_url: string | null;
+  thumbnail_pos: { x: number; y: number } | null;
+  course_type: CourseType;
+  start_at: string;
+  end_at: string;
+  location: string | null;
+  materials: CourseMaterial[] | null;
+  material_url: string | null;
+  tags: string[];
+  max_participants: number | null;
   price: number;
   is_paid: boolean;
-  is_public: boolean;
-  thumbnail_url: string | null;
-  tags: string[];
-  class_code: string | null;
-  resource_url: string | null;
-  resource_urls: ResourceLink[];
+  is_published: boolean;
+  like_count: number;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
   updated_at: string;
-  // Joined
-  enrollment_count?: number;
 }
 
 export interface Course {
   id: string;
   title: string;
   description: string;
-  content: string;
-  scheduleAt: Date | null;
-  durationMinutes: number;
-  locationType: LocationType;
-  locationDetail: string;
-  capacity: number;
+  thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
+  courseType: CourseType;
+  startAt: Date;
+  endAt: Date;
+  location: string;
+  materials: CourseMaterial[];
+  materialUrl: string;
+  tags: string[];
+  maxParticipants: number | null;
   price: number;
   isPaid: boolean;
-  isPublic: boolean;
-  thumbnailUrl?: string;
-  tags: string[];
-  classCode: string | null;
-  resourceUrl: string;
-  resourceUrls: ResourceLink[];
+  isPublished: boolean;
+  likeCount: number;
   createdBy: string | null;
   createdByName: string;
   createdAt: Date;
   updatedAt: Date;
-  enrollmentCount: number;
 }
 
 export interface EnrollmentRow {
   id: string;
   course_id: string;
   user_id: string;
+  user_name: string | null;
+  user_email: string | null;
   status: EnrollmentStatus;
   entry_code: string | null;
-  purchase_order_id: string | null;
-  notes: string | null;
+  note: string | null;
   created_at: string;
   updated_at: string;
   // Joined
-  profiles?: { display_name: string | null; email: string | null };
   education_courses?: { title: string | null; price: number | null; is_paid: boolean | null };
 }
 
@@ -288,15 +288,14 @@ export interface Enrollment {
   id: string;
   courseId: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   status: EnrollmentStatus;
   entryCode: string | null;
-  purchaseOrderId: string | null;
-  notes: string | null;
+  note: string | null;
   createdAt: Date;
   updatedAt: Date;
   // Joined
-  userName?: string;
-  userEmail?: string;
   courseTitle?: string;
   coursePrice?: number;
   courseIsPaid?: boolean;
@@ -305,19 +304,20 @@ export interface Enrollment {
 export interface CreateCourseInput {
   title: string;
   description?: string;
-  content?: string;
-  scheduleAt?: string | null;
-  durationMinutes?: number;
-  locationType?: LocationType;
-  locationDetail?: string;
-  capacity?: number;
+  thumbnailUrl?: string;
+  thumbnailPositionX?: number;
+  thumbnailPositionY?: number;
+  courseType?: CourseType;
+  startAt: string;
+  endAt: string;
+  location?: string;
+  materials?: CourseMaterial[];
+  materialUrl?: string;
+  tags?: string[];
+  maxParticipants?: number | null;
   price?: number;
   isPaid?: boolean;
-  isPublic?: boolean;
-  thumbnailUrl?: string;
-  tags?: string[];
-  resourceUrl?: string;
-  resourceUrls?: ResourceLink[];
+  isPublished?: boolean;
 }
 
 export interface UpdateCourseInput extends Partial<CreateCourseInput> {

@@ -11,29 +11,29 @@ interface ClassesClientProps {
   initialCourses: Course[];
 }
 
-type FilterType = 'all' | 'free' | 'paid';
-type LocationFilter = 'all' | 'online' | 'offline' | 'hybrid';
+type PricingFilter = 'all' | 'free' | 'paid';
+type TypeFilter = 'all' | 'online' | 'offline' | 'hybrid';
 
 export default function ClassesClient({ initialCourses }: ClassesClientProps) {
   const { isAdmin } = useAuth();
-  const [pricing, setPricing] = useState<FilterType>('all');
-  const [location, setLocation] = useState<LocationFilter>('all');
+  const [pricing, setPricing] = useState<PricingFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const filtered = useMemo(() => {
     let result = initialCourses;
     if (pricing === 'free') result = result.filter(c => !c.isPaid || c.price === 0);
     if (pricing === 'paid') result = result.filter(c => c.isPaid && c.price > 0);
-    if (location !== 'all') result = result.filter(c => c.locationType === location);
+    if (typeFilter !== 'all') result = result.filter(c => c.courseType === typeFilter);
     return result;
-  }, [initialCourses, pricing, location]);
+  }, [initialCourses, pricing, typeFilter]);
 
   const counts = useMemo(() => ({
     all: initialCourses.length,
     free: initialCourses.filter(c => !c.isPaid || c.price === 0).length,
     paid: initialCourses.filter(c => c.isPaid && c.price > 0).length,
-    online: initialCourses.filter(c => c.locationType === 'online').length,
-    offline: initialCourses.filter(c => c.locationType === 'offline').length,
-    hybrid: initialCourses.filter(c => c.locationType === 'hybrid').length,
+    online: initialCourses.filter(c => c.courseType === 'online').length,
+    offline: initialCourses.filter(c => c.courseType === 'offline').length,
+    hybrid: initialCourses.filter(c => c.courseType === 'hybrid').length,
   }), [initialCourses]);
 
   return (
@@ -47,19 +47,14 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
               <FaGraduationCap className="text-violet-600 dark:text-violet-400 text-sm" />
               <span className="text-[11px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-300">CLASSES</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-gray-900 dark:text-white mb-4">
-              AI 클래스
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-gray-900 dark:text-white mb-4">AI 클래스</h1>
             <p className="text-lg font-medium text-gray-500 dark:text-gray-400 leading-relaxed">
               바이브코딩 AI 실전 클래스에 참여하세요.<br />
               온라인·오프라인 수업으로 AI를 빠르게 익힙니다.
             </p>
           </div>
           {isAdmin && (
-            <Link
-              href="/classes/new"
-              className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-200 dark:shadow-violet-900/30 transition-all"
-            >
+            <Link href="/classes/new" className="absolute top-0 right-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg transition-all">
               <FaPlus className="text-xs" /> 클래스 추가
             </Link>
           )}
@@ -69,33 +64,29 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
       {/* Filters */}
       <section className="sticky top-16 md:top-20 z-30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800">
         <div className="container mx-auto max-w-6xl px-4 py-3 flex flex-wrap gap-2">
-          {/* 가격 필터 */}
-          {([['all', '🔍 전체', counts.all], ['free', '🆓 무료', counts.free], ['paid', '💎 유료', counts.paid]] as [FilterType, string, number][]).map(([key, label, count]) => (
+          {([['all', '🔍 전체', counts.all], ['free', '🆓 무료', counts.free], ['paid', '💎 유료', counts.paid]] as [PricingFilter, string, number][]).map(([key, label, count]) => (
             <button
               key={key}
               onClick={() => setPricing(key)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                 pricing === key
-                  ? 'bg-violet-600 text-white border-violet-600 shadow-md shadow-violet-200 dark:shadow-violet-900/30'
-                  : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-violet-300 dark:hover:border-violet-700'
+                  ? 'bg-violet-600 text-white border-violet-600 shadow-md'
+                  : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 hover:border-violet-300'
               }`}
             >
               {label}
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${pricing === key ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
-                {count}
-              </span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${pricing === key ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{count}</span>
             </button>
           ))}
           <div className="w-px h-6 bg-gray-200 dark:bg-gray-800 self-center mx-1" />
-          {/* 방식 필터 */}
-          {([['all', '전체'], ['online', '🖥️ 온라인'], ['offline', '🏫 오프라인'], ['hybrid', '🔀 혼합']] as [LocationFilter, string][]).map(([key, label]) => (
+          {([['all', '전체'], ['online', '🖥️ 온라인'], ['offline', '🏫 오프라인'], ['hybrid', '🔀 혼합']] as [TypeFilter, string][]).map(([key, label]) => (
             <button
               key={key}
-              onClick={() => setLocation(key)}
+              onClick={() => setTypeFilter(key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                location === key
+                typeFilter === key
                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white'
-                  : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                  : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 hover:border-gray-300'
               }`}
             >
               {label}
@@ -104,7 +95,7 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
         </div>
       </section>
 
-      {/* Course Grid */}
+      {/* Grid */}
       <section className="container mx-auto max-w-6xl px-4 py-12">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">

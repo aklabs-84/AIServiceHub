@@ -23,7 +23,7 @@ export default async function ClassDetailPage({ params }: Props) {
   const { id } = await params;
   const client = await getServerClient();
   const course = await db.education.getCourseById(client, id).catch(() => null);
-  if (!course || !course.isPublic) notFound();
+  if (!course || !course.isPublished) notFound();
 
   return <ClassDetailClient course={course} />;
 }

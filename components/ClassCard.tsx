@@ -10,8 +10,7 @@ interface ClassCardProps {
   course: Course;
 }
 
-function formatSchedule(date: Date | null): string {
-  if (!date) return '일정 미정';
+function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('ko-KR', {
     month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -19,7 +18,11 @@ function formatSchedule(date: Date | null): string {
   }).format(date);
 }
 
-function locationLabel(type: string) {
+function getDurationMinutes(start: Date, end: Date): number {
+  return Math.round((end.getTime() - start.getTime()) / 60000);
+}
+
+function courseTypeLabel(type: string) {
   if (type === 'online') return { emoji: '🖥️', text: '온라인' };
   if (type === 'offline') return { emoji: '🏫', text: '오프라인' };
   return { emoji: '🔀', text: '혼합' };
@@ -27,8 +30,9 @@ function locationLabel(type: string) {
 
 export default function ClassCard({ course }: ClassCardProps) {
   const isPaid = course.isPaid && course.price > 0;
-  const loc = locationLabel(course.locationType);
-  const isUpcoming = course.scheduleAt ? course.scheduleAt > new Date() : true;
+  const typeInfo = courseTypeLabel(course.courseType);
+  const durationMin = getDurationMinutes(course.startAt, course.endAt);
+  const isUpcoming = course.startAt > new Date();
 
   return (
     <Link
@@ -44,6 +48,7 @@ export default function ClassCard({ course }: ClassCardProps) {
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             className="object-cover transition-transform duration-700 group-hover:scale-110"
+            style={{ objectPosition: `${course.thumbnailPositionX ?? 50}% ${course.thumbnailPositionY ?? 50}%` }}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -64,11 +69,11 @@ export default function ClassCard({ course }: ClassCardProps) {
         {/* 방식 배지 */}
         <div className="absolute top-3 left-3 z-20">
           <div className="px-2.5 py-1 rounded-xl backdrop-blur-md bg-white/90 dark:bg-gray-950/80 border border-white/20 shadow-sm">
-            <span className="text-[10px] font-black">{loc.emoji} {loc.text}</span>
+            <span className="text-[10px] font-black">{typeInfo.emoji} {typeInfo.text}</span>
           </div>
         </div>
 
-        {/* 상태 배지 */}
+        {/* 종료 배지 */}
         {!isUpcoming && (
           <div className="absolute bottom-3 left-3 z-20 px-2.5 py-1 rounded-full bg-gray-900/70 backdrop-blur-sm">
             <span className="text-white text-[10px] font-black">종료됨</span>
@@ -100,22 +105,26 @@ export default function ClassCard({ course }: ClassCardProps) {
         )}
 
         <div className="mt-auto space-y-2 pt-3 border-t border-gray-50 dark:border-gray-800">
-          {/* 일시 */}
+          {/* 시작 일시 */}
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <FaCalendarAlt className="text-violet-500 text-[10px] flex-none" />
-            <span className="font-medium">{formatSchedule(course.scheduleAt)}</span>
+            <span className="font-medium">{formatDate(course.startAt)}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <FaClock className="text-[10px]" />
-                <span className="font-medium">{course.durationMinutes}분</span>
-              </div>
-              {course.capacity > 0 && (
+              {/* 소요 시간 */}
+              {durationMin > 0 && (
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <FaUsers className="text-[10px]" />
-                  <span className="font-medium">{course.enrollmentCount}/{course.capacity}명</span>
+                  <FaClock className="text-[10px]" />
+                  <span className="font-medium">{durationMin >= 60 ? `${Math.floor(durationMin / 60)}시간${durationMin % 60 > 0 ? ` ${durationMin % 60}분` : ''}` : `${durationMin}분`}</span>
+                </div>
+              )}
+              {/* 장소 */}
+              {course.location && (
+                <div className="flex items-center gap-1 text-xs text-gray-400 max-w-[80px]">
+                  <FaMapMarkerAlt className="text-[10px] flex-none" />
+                  <span className="font-medium truncate">{course.location}</span>
                 </div>
               )}
             </div>

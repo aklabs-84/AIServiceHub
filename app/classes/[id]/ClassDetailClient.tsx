@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaGraduationCap, FaCheckCircle, FaHourglassHalf, FaEdit } from 'react-icons/fa';
+import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,19 +15,30 @@ interface Props {
   course: Course;
 }
 
-function formatSchedule(date: Date | null): string {
-  if (!date) return '일정 미정';
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-    weekday: 'long',
-  }).format(date);
+function formatDate(date: Date, full = false): string {
+  const opts: Intl.DateTimeFormatOptions = full
+    ? { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', weekday: 'long' }
+    : { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', weekday: 'short' };
+  return new Intl.DateTimeFormat('ko-KR', opts).format(date);
 }
 
-function locationLabel(type: string) {
+function getDurationLabel(start: Date, end: Date): string {
+  const min = Math.round((end.getTime() - start.getTime()) / 60000);
+  if (min >= 60) return `${Math.floor(min / 60)}시간${min % 60 > 0 ? ` ${min % 60}분` : ''}`;
+  return `${min}분`;
+}
+
+function courseTypeLabel(type: string) {
   if (type === 'online') return { emoji: '🖥️', text: '온라인' };
   if (type === 'offline') return { emoji: '🏫', text: '오프라인' };
   return { emoji: '🔀', text: '온·오프라인 혼합' };
+}
+
+function MaterialIcon({ type }: { type: string }) {
+  if (type === 'video') return <span>🎥</span>;
+  if (type === 'file') return <span>📁</span>;
+  if (type === 'embed') return <span>📺</span>;
+  return <span>🔗</span>;
 }
 
 export default function ClassDetailClient({ course }: Props) {
@@ -42,9 +53,9 @@ export default function ClassDetailClient({ course }: Props) {
   const [error, setError] = useState('');
 
   const isPaid = course.isPaid && course.price > 0;
-  const loc = locationLabel(course.locationType);
+  const loc = courseTypeLabel(course.courseType);
+  const durationLabel = getDurationLabel(course.startAt, course.endAt);
 
-  // 수강 신청 여부 확인
   useEffect(() => {
     if (!user || !session) { setCheckingEnrollment(false); return; }
     async function check() {
@@ -53,20 +64,17 @@ export default function ClassDetailClient({ course }: Props) {
           headers: { Authorization: `Bearer ${session!.access_token}` },
         });
         if (res.ok) {
-          const { enrollment } = await res.json();
-          setEnrollment(enrollment ?? null);
+          const { enrollment: e } = await res.json();
+          setEnrollment(e ?? null);
         }
-      } finally {
-        setCheckingEnrollment(false);
-      }
+      } finally { setCheckingEnrollment(false); }
     }
     check();
   }, [user, session, course.id]);
 
   const handleEnroll = async () => {
-    if (!user || !session) { router.push('/'); return; }
+    if (!user || !session) return;
     if (isPaid) { setShowBankModal(true); return; }
-
     setEnrolling(true);
     setError('');
     try {
@@ -77,7 +85,7 @@ export default function ClassDetailClient({ course }: Props) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || '신청 실패'); return; }
-      setEnrollment({ id: data.enrollmentId, courseId: course.id, userId: user.id, status: data.isWaitlist ? 'waitlist' : 'pending', entryCode: null, purchaseOrderId: null, notes: null, createdAt: new Date(), updatedAt: new Date() });
+      setEnrollment({ id: data.enrollmentId, courseId: course.id, userId: user.id, userName: null, userEmail: null, status: data.isWaitlist ? 'waitlist' : 'pending', entryCode: null, note: null, createdAt: new Date(), updatedAt: new Date() });
     } catch { setError('네트워크 오류가 발생했습니다'); }
     finally { setEnrolling(false); }
   };
@@ -96,25 +104,22 @@ export default function ClassDetailClient({ course }: Props) {
       if (!res.ok) { setError(data.error || '신청 실패'); return; }
       setShowBankModal(false);
       setBankResult({ bankInfo: data.bankInfo, amount: course.price });
-      setEnrollment({ id: data.enrollmentId, courseId: course.id, userId: user.id, status: 'pending', entryCode: null, purchaseOrderId: data.orderId, notes: null, createdAt: new Date(), updatedAt: new Date() });
+      setEnrollment({ id: data.enrollmentId, courseId: course.id, userId: user.id, userName: null, userEmail: null, status: 'pending', entryCode: null, note: null, createdAt: new Date(), updatedAt: new Date() });
     } catch { setError('네트워크 오류가 발생했습니다'); }
     finally { setEnrolling(false); }
   };
 
   const enrollmentStatusUI = () => {
-    if (checkingEnrollment) return null;
-    if (!enrollment) return null;
+    if (checkingEnrollment || !enrollment) return null;
     if (enrollment.status === 'confirmed') {
       return (
         <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
           <FaCheckCircle className="text-emerald-600 text-xl flex-none" />
           <div>
             <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">수강 확정!</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-500">수업 입장코드: <span className="font-black font-mono text-base tracking-widest">{enrollment.entryCode}</span></p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-500">입장코드: <span className="font-black font-mono text-base tracking-widest">{enrollment.entryCode}</span></p>
           </div>
-          <Link href={`/classes/${course.id}/classroom`} className="ml-auto px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition-colors flex-none">
-            입장하기
-          </Link>
+          <Link href={`/classes/${course.id}/classroom`} className="ml-auto px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition-colors flex-none">입장하기</Link>
         </div>
       );
     }
@@ -142,7 +147,6 @@ export default function ClassDetailClient({ course }: Props) {
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
-      {/* 헤더 */}
       <div className="sticky top-16 md:top-20 z-20 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800">
         <div className="container mx-auto max-w-4xl px-4 py-3 flex items-center gap-3">
           <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -161,7 +165,7 @@ export default function ClassDetailClient({ course }: Props) {
         {/* 썸네일 */}
         <div className="relative aspect-[21/9] rounded-3xl overflow-hidden mb-8 bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600">
           {course.thumbnailUrl ? (
-            <Image src={course.thumbnailUrl} alt={course.title} fill className="object-cover" sizes="(max-width: 896px) 100vw, 896px" />
+            <Image src={course.thumbnailUrl} alt={course.title} fill className="object-cover" sizes="(max-width: 896px) 100vw, 896px" style={{ objectPosition: `${course.thumbnailPositionX ?? 50}% ${course.thumbnailPositionY ?? 50}%` }} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <HiAcademicCap className="text-white/10 text-[200px] absolute" />
@@ -171,15 +175,12 @@ export default function ClassDetailClient({ course }: Props) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 메인 내용 */}
+          {/* 본문 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 태그 */}
             {course.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {course.tags.map(tag => (
-                  <span key={tag} className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50">
-                    #{tag}
-                  </span>
+                  <span key={tag} className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50">#{tag}</span>
                 ))}
               </div>
             )}
@@ -187,99 +188,87 @@ export default function ClassDetailClient({ course }: Props) {
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">{course.title}</h1>
 
             {course.description && (
-              <p className="text-base font-medium text-gray-600 dark:text-gray-400 leading-relaxed">{course.description}</p>
-            )}
-
-            {course.content && (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-black prose-headings:tracking-tight prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{course.content}</ReactMarkdown>
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-black prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{course.description}</ReactMarkdown>
               </div>
             )}
 
-            {/* 수업 자료 링크 */}
-            {course.resourceUrls.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">참고 자료</h3>
-                <div className="space-y-2">
-                  {course.resourceUrls.map((r, idx) => (
-                    <a key={idx} href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-violet-300 dark:hover:border-violet-700 transition-colors group">
-                      <span className="text-lg">{r.type === 'video' ? '🎥' : r.type === 'doc' ? '📄' : r.type === 'pdf' ? '📑' : '🔗'}</span>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{r.title || r.url}</span>
-                    </a>
+            {/* 공개 자료 미리보기 (입장코드 없이도 볼 수 있는 정보) */}
+            {course.materials.length > 0 && (
+              <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">수업 자료 ({course.materials.length}개)</p>
+                <div className="flex flex-wrap gap-2">
+                  {course.materials.map((m, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <MaterialIcon type={m.type} />
+                      <span>{m.title || `자료 ${idx + 1}`}</span>
+                    </div>
                   ))}
                 </div>
+                <p className="text-[10px] text-gray-400 mt-2">🔒 수강 확정 후 교실 페이지에서 열람 가능</p>
               </div>
             )}
           </div>
 
           {/* 사이드바 */}
           <div className="space-y-4">
-            {/* 정보 카드 */}
             <div className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
-              <div className="flex items-center gap-3">
-                <FaCalendarAlt className="text-violet-500 text-sm flex-none" />
+              <div className="flex items-start gap-3">
+                <FaCalendarAlt className="text-violet-500 text-sm flex-none mt-0.5" />
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">일시</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{formatSchedule(course.scheduleAt)}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">시작</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{formatDate(course.startAt, true)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <FaClock className="text-violet-500 text-sm flex-none" />
+              <div className="flex items-start gap-3">
+                <FaClock className="text-violet-500 text-sm flex-none mt-0.5" />
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">소요 시간</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{course.durationMinutes}분</p>
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{durationLabel}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm flex-none">{loc.emoji}</span>
+              <div className="flex items-start gap-3">
+                <span className="text-sm flex-none mt-0.5">{loc.emoji}</span>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">진행 방식</p>
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{loc.text}</p>
+                  {course.location && <p className="text-xs text-gray-400 mt-0.5">{course.location}</p>}
                 </div>
               </div>
-              {course.capacity > 0 && (
+              {course.maxParticipants && (
                 <div className="flex items-center gap-3">
                   <FaUsers className="text-violet-500 text-sm flex-none" />
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">정원</p>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{course.enrollmentCount} / {course.capacity}명</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{course.maxParticipants}명</p>
                   </div>
                 </div>
               )}
               <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                {course.isPaid && course.price > 0 ? (
-                  <p className="text-xl font-black text-gray-900 dark:text-white">{course.price.toLocaleString()}원</p>
-                ) : (
-                  <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">🆓 무료</p>
-                )}
+                {isPaid
+                  ? <p className="text-xl font-black text-gray-900 dark:text-white">{course.price.toLocaleString()}원</p>
+                  : <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">🆓 무료</p>
+                }
               </div>
             </div>
 
-            {/* 신청 상태 / 버튼 */}
             {enrollmentStatusUI()}
 
             {!checkingEnrollment && !enrollment && (
               <div className="space-y-2">
                 {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
                 {user ? (
-                  <button
-                    onClick={handleEnroll}
-                    disabled={enrolling}
-                    className="w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm shadow-lg shadow-violet-200 dark:shadow-violet-900/30 transition-all"
-                  >
+                  <button onClick={handleEnroll} disabled={enrolling} className="w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm shadow-lg shadow-violet-200 dark:shadow-violet-900/30 transition-all">
                     {enrolling ? '처리 중...' : isPaid ? '💳 수강 신청 (계좌이체)' : '✅ 무료 수강 신청'}
                   </button>
                 ) : (
-                  <div className="text-center py-4 text-sm text-gray-500">
-                    수강 신청은 로그인 후 가능합니다.
-                  </div>
+                  <p className="text-center py-4 text-sm text-gray-500">수강 신청은 로그인 후 가능합니다.</p>
                 )}
               </div>
             )}
 
-            {/* 이미 확정된 경우 교실 입장 버튼 */}
             {enrollment?.status === 'confirmed' && (
-              <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30 transition-all">
+              <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-lg transition-all">
                 🚪 교실 입장하기
               </Link>
             )}
@@ -287,7 +276,7 @@ export default function ClassDetailClient({ course }: Props) {
         </div>
       </article>
 
-      {/* 계좌이체 모달 */}
+      {/* 계좌이체 신청 모달 */}
       {showBankModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowBankModal(false)}>
           <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
@@ -301,23 +290,12 @@ export default function ClassDetailClient({ course }: Props) {
             </div>
             <div>
               <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">입금자명 *</label>
-              <input
-                type="text"
-                value={depositorName}
-                onChange={e => setDepositorName(e.target.value)}
-                placeholder="입금 시 사용할 이름"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
-              />
+              <input type="text" value={depositorName} onChange={e => setDepositorName(e.target.value)} placeholder="입금 시 사용할 이름" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
             {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
-            <p className="text-xs text-gray-400">신청 후 계좌 정보가 안내됩니다. 입금 확인 후 관리자가 수강을 확정합니다.</p>
             <div className="flex gap-2">
               <button onClick={() => setShowBankModal(false)} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-600 dark:text-gray-400">취소</button>
-              <button
-                onClick={handleBankEnroll}
-                disabled={enrolling || !depositorName.trim()}
-                className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm"
-              >
+              <button onClick={handleBankEnroll} disabled={enrolling || !depositorName.trim()} className="flex-1 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm">
                 {enrolling ? '처리 중...' : '신청하기'}
               </button>
             </div>
@@ -325,7 +303,7 @@ export default function ClassDetailClient({ course }: Props) {
         </div>
       )}
 
-      {/* 계좌 안내 모달 */}
+      {/* 입금 안내 모달 */}
       {bankResult && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl p-6 space-y-5">
@@ -335,26 +313,12 @@ export default function ClassDetailClient({ course }: Props) {
               <p className="text-sm text-gray-500">아래 계좌로 입금해 주세요</p>
             </div>
             <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800 space-y-3">
-              <div className="flex justify-between">
-                <span className="text-xs font-bold text-gray-500">은행</span>
-                <span className="text-sm font-black text-gray-900 dark:text-white">{bankResult.bankInfo.bankName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-xs font-bold text-gray-500">계좌번호</span>
-                <span className="text-sm font-black text-gray-900 dark:text-white font-mono">{bankResult.bankInfo.accountNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-xs font-bold text-gray-500">예금주</span>
-                <span className="text-sm font-black text-gray-900 dark:text-white">{bankResult.bankInfo.accountHolder}</span>
-              </div>
-              <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
-                <span className="text-xs font-bold text-gray-500">입금 금액</span>
-                <span className="text-base font-black text-violet-600 dark:text-violet-400">{bankResult.amount.toLocaleString()}원</span>
-              </div>
+              <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">은행</span><span className="text-sm font-black">{bankResult.bankInfo.bankName}</span></div>
+              <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">계좌번호</span><span className="text-sm font-black font-mono">{bankResult.bankInfo.accountNumber}</span></div>
+              <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">예금주</span><span className="text-sm font-black">{bankResult.bankInfo.accountHolder}</span></div>
+              <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-3"><span className="text-xs font-bold text-gray-500">입금 금액</span><span className="text-base font-black text-violet-600 dark:text-violet-400">{bankResult.amount.toLocaleString()}원</span></div>
             </div>
-            <button onClick={() => setBankResult(null)} className="w-full py-3 rounded-2xl bg-violet-600 text-white font-black text-sm">
-              확인했습니다
-            </button>
+            <button onClick={() => setBankResult(null)} className="w-full py-3 rounded-2xl bg-violet-600 text-white font-black text-sm">확인했습니다</button>
           </div>
         </div>
       )}

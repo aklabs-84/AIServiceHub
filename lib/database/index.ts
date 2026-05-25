@@ -70,6 +70,6 @@ export type {
   CreateCourseInput,
   UpdateCourseInput,
   EnrollmentStatus,
-  ResourceLink,
-  LocationType,
+  CourseMaterial,
+  CourseType,
 } from '@/types/database';

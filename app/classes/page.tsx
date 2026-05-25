@@ -10,7 +10,6 @@ export const metadata: Metadata = {
 
 export default async function ClassesPage() {
   const client = await getServerClient();
-  const courses = await db.education.getPublicCourses(client).catch(() => []);
-
+  const courses = await db.education.getPublishedCourses(client).catch(() => []);
   return <ClassesClient initialCourses={courses} />;
 }
