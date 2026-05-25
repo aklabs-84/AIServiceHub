@@ -129,18 +129,17 @@ export default function ClassDetailClient({ course }: Props) {
             <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm flex-1">수강 확정!</p>
             <Link href={`/classes/${course.id}/classroom`} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black hover:bg-emerald-700 transition-colors flex-none">입장하기</Link>
           </div>
-          {/* 클래스 공용 입장코드 (관리자가 재생성해도 항상 최신 코드) */}
-          {course.classEntryCode && (
+          {/* 오프라인/혼합: 클래스 공용 입장코드만 표시 */}
+          {course.courseType !== 'online' && course.classEntryCode && (
             <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">클래스 입장코드</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">입장코드</p>
               <span className="font-black font-mono text-2xl tracking-widest text-emerald-700 dark:text-emerald-300">{course.classEntryCode}</span>
             </div>
           )}
-          {/* 개인 입장코드 (없으면 생략) */}
-          {enrollment.entryCode && (
-            <div className={course.classEntryCode ? '' : 'pt-2 border-t border-emerald-200 dark:border-emerald-800'}>
-              {course.classEntryCode && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">개인 입장코드</p>}
-              {!course.classEntryCode && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">입장코드</p>}
+          {/* 온라인: 개인 입장코드만 표시 */}
+          {course.courseType === 'online' && enrollment.entryCode && (
+            <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-500 mb-1">입장코드</p>
               <span className="font-black font-mono text-2xl tracking-widest text-emerald-700 dark:text-emerald-300">{enrollment.entryCode}</span>
             </div>
           )}
