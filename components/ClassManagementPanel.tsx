@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers, FaDoorOpen, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers, FaDoorOpen, FaSync } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 
 function toDate(d: Date | string): Date {
@@ -26,18 +26,21 @@ function courseTypeLabel(type: string) {
 }
 
 // ── QR 모달 ────────────────────────────────────────────────────────────────
-function QRModal({ courseId, title, classEntryCode, token, onClose }: {
+function QRModal({ courseId, title, classEntryCode: initialClassEntryCode, token, onClose, onCodeRegenerated }: {
   courseId: string;
   title: string;
   classEntryCode?: string | null;
   token: string;
   onClose: () => void;
+  onCodeRegenerated?: (code: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [classroomUrl, setClassroomUrl] = useState('');
   const [confirmedList, setConfirmedList] = useState<Enrollment[]>([]);
   const [showCodes, setShowCodes] = useState(false);
+  const [classEntryCode, setClassEntryCode] = useState<string | null | undefined>(initialClassEntryCode);
+  const [regenerating, setRegenerating] = useState(false);
 
   // QR 생성
   useEffect(() => {
@@ -69,6 +72,21 @@ function QRModal({ courseId, title, classEntryCode, token, onClose }: {
       })
       .catch(() => {});
   }, [showCodes, courseId, token]);
+
+  const regenCode = async () => {
+    if (!confirm(classEntryCode ? '입장 코드를 재생성하면 기존 코드는 더 이상 사용할 수 없습니다. 계속하시겠습니까?' : '클래스 단일 입장코드를 생성합니다.')) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch(`/api/classes/${courseId}/regen-code`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { alert('코드 생성 실패'); return; }
+      const { classEntryCode: newCode } = await res.json();
+      setClassEntryCode(newCode);
+      onCodeRegenerated?.(newCode);
+    } finally { setRegenerating(false); }
+  };
 
   const handleFullscreen = () => {
     containerRef.current?.requestFullscreen?.();
@@ -120,16 +138,34 @@ function QRModal({ courseId, title, classEntryCode, token, onClose }: {
           </div>
 
           {/* 클래스 단일 입장코드 — 오프라인 공용 코드 */}
-          {classEntryCode && (
-            <div className="px-6 pb-2 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">클래스 입장 코드 (전원 공용)</p>
-              <div className="inline-block px-6 py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/30 border-2 border-violet-200 dark:border-violet-700">
-                <span className="text-4xl font-black font-mono tracking-widest text-violet-700 dark:text-violet-300 select-all">
-                  {classEntryCode}
-                </span>
+          <div className="px-6 pb-2 text-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">클래스 입장 코드 (전원 공용)</p>
+            {classEntryCode ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="px-6 py-4 rounded-2xl bg-violet-50 dark:bg-violet-900/30 border-2 border-violet-200 dark:border-violet-700">
+                  <span className="text-4xl font-black font-mono tracking-widest text-violet-700 dark:text-violet-300 select-all">
+                    {classEntryCode}
+                  </span>
+                </div>
+                <button
+                  onClick={regenCode}
+                  disabled={regenerating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold disabled:opacity-50 transition-colors"
+                >
+                  <FaSync className={`text-[10px] ${regenerating ? 'animate-spin' : ''}`} />
+                  {regenerating ? '생성 중...' : '코드 재생성'}
+                </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={regenCode}
+                disabled={regenerating}
+                className="px-5 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-black transition-colors"
+              >
+                {regenerating ? '생성 중...' : '+ 입장 코드 생성'}
+              </button>
+            )}
+          </div>
 
           {/* 교실 URL */}
           <div className="px-6 pb-4">
@@ -468,6 +504,13 @@ export default function ClassManagementPanel() {
           classEntryCode={qrTarget.classEntryCode}
           token={session.access_token}
           onClose={() => setQrTarget(null)}
+          onCodeRegenerated={(code) => {
+            // courses 목록도 즉시 업데이트
+            setCourses(prev => prev.map(c =>
+              c.id === qrTarget.courseId ? { ...c, classEntryCode: code } : c
+            ));
+            setQrTarget(prev => prev ? { ...prev, classEntryCode: code } : null);
+          }}
         />
       )}
 
