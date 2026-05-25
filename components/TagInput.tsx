@@ -8,6 +8,8 @@ interface TagInputProps {
   onChange: (tags: string[]) => void;
   placeholder?: string;
   accentColor?: 'blue' | 'emerald';
+  /** 자동완성 태그 소스. 기본값: 'apps_prompts' */
+  source?: 'apps_prompts' | 'classes';
 }
 
 export default function TagInput({
@@ -15,6 +17,7 @@ export default function TagInput({
   onChange,
   placeholder = 'AI, 챗봇, 자동화',
   accentColor = 'blue',
+  source = 'apps_prompts',
 }: TagInputProps) {
   const [input, setInput] = useState('');
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -29,24 +32,36 @@ export default function TagInput({
     async function fetchTags() {
       try {
         const supabase = getBrowserClient();
-        const [appsRes, promptsRes] = await Promise.all([
-          supabase.from('apps').select('tags').eq('is_public', true),
-          supabase.from('prompts').select('tags').eq('is_public', true),
-        ]);
         const tagSet = new Set<string>();
-        [...(appsRes.data ?? []), ...(promptsRes.data ?? [])].forEach((row) => {
-          (row.tags as string[] | null)?.forEach((t) => {
-            const trimmed = t.trim();
-            if (trimmed) tagSet.add(trimmed);
+
+        if (source === 'classes') {
+          const { data } = await supabase.from('education_courses').select('tags');
+          (data ?? []).forEach((row) => {
+            (row.tags as string[] | null)?.forEach((t) => {
+              const trimmed = t.trim();
+              if (trimmed) tagSet.add(trimmed);
+            });
           });
-        });
+        } else {
+          const [appsRes, promptsRes] = await Promise.all([
+            supabase.from('apps').select('tags').eq('is_public', true),
+            supabase.from('prompts').select('tags').eq('is_public', true),
+          ]);
+          [...(appsRes.data ?? []), ...(promptsRes.data ?? [])].forEach((row) => {
+            (row.tags as string[] | null)?.forEach((t) => {
+              const trimmed = t.trim();
+              if (trimmed) tagSet.add(trimmed);
+            });
+          });
+        }
+
         setAllTags(Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'ko')));
       } catch {
         // 태그 목록 로드 실패 시 자동완성 없이 동작
       }
     }
     fetchTags();
-  }, []);
+  }, [source]);
 
   // 입력값 or 태그 목록 변경 시 suggestions 업데이트
   useEffect(() => {

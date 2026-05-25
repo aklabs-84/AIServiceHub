@@ -180,7 +180,7 @@ export default function CourseFormPage({ mode, initialData }: Props) {
 
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">태그</label>
-            <TagInput value={form.tags} onChange={tags => set('tags', tags)} placeholder="AI, 챗봇, 자동화" accentColor="blue" />
+            <TagInput value={form.tags} onChange={tags => set('tags', tags)} placeholder="AI, 챗봇, 자동화" accentColor="blue" source="classes" />
           </div>
 
           <div>
