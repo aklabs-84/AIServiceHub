@@ -32,6 +32,14 @@ export default function ClassroomClient({ course }: Props) {
   const [validatingCode, setValidatingCode] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
 
+  // 게스트 접근 복원 (sessionStorage — 탭 닫기 전까지 유지)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (sessionStorage.getItem(`classroom_guest_${course.id}`) === 'true') {
+      setAccessGranted(true);
+    }
+  }, [course.id]);
+
   // 로그인 사용자: 확정 수강 신청 확인
   useEffect(() => {
     if (!session) { setLoading(false); return; }
@@ -78,6 +86,7 @@ export default function ClassroomClient({ course }: Props) {
           setCodeError('이 클래스의 입장코드가 아닙니다');
           return;
         }
+        sessionStorage.setItem(`classroom_guest_${course.id}`, 'true');
         setAccessGranted(true);
         return;
       }
@@ -88,6 +97,7 @@ export default function ClassroomClient({ course }: Props) {
         return;
       }
       setEnrollment(e);
+      sessionStorage.setItem(`classroom_guest_${course.id}`, 'true');
       setAccessGranted(true);
     } catch { setCodeError('확인 중 오류가 발생했습니다'); }
     finally { setValidatingCode(false); }

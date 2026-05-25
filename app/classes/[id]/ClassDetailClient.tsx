@@ -287,6 +287,9 @@ export default function ClassDetailClient({ course }: Props) {
                 ) : (
                   <p className="text-center py-4 text-sm text-gray-500">수강 신청은 로그인 후 가능합니다.</p>
                 )}
+                <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3 rounded-2xl border-2 border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 font-black text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all">
+                  🔑 입장코드로 입장하기
+                </Link>
               </div>
             )}
 
