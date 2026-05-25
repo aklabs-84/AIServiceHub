@@ -15,15 +15,25 @@ interface Props {
   course: Course;
 }
 
-function formatDate(date: Date, full = false): string {
+function toDate(d: Date | string): Date {
+  if (d instanceof Date) return d;
+  return new Date(d);
+}
+
+function formatDate(date: Date | string, full = false): string {
+  const d = toDate(date);
+  if (isNaN(d.getTime())) return '날짜 미정';
   const opts: Intl.DateTimeFormatOptions = full
     ? { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', weekday: 'long' }
     : { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', weekday: 'short' };
-  return new Intl.DateTimeFormat('ko-KR', opts).format(date);
+  return new Intl.DateTimeFormat('ko-KR', opts).format(d);
 }
 
-function getDurationLabel(start: Date, end: Date): string {
-  const min = Math.round((end.getTime() - start.getTime()) / 60000);
+function getDurationLabel(start: Date | string, end: Date | string): string {
+  const s = toDate(start);
+  const e = toDate(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return '';
+  const min = Math.round((e.getTime() - s.getTime()) / 60000);
   if (min >= 60) return `${Math.floor(min / 60)}시간${min % 60 > 0 ? ` ${min % 60}분` : ''}`;
   return `${min}분`;
 }

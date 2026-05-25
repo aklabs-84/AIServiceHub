@@ -10,16 +10,26 @@ interface ClassCardProps {
   course: Course;
 }
 
-function formatDate(date: Date): string {
+function toDate(d: Date | string): Date {
+  if (d instanceof Date) return d;
+  return new Date(d);
+}
+
+function formatDate(date: Date | string): string {
+  const d = toDate(date);
+  if (isNaN(d.getTime())) return '날짜 미정';
   return new Intl.DateTimeFormat('ko-KR', {
     month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
     weekday: 'short',
-  }).format(date);
+  }).format(d);
 }
 
-function getDurationMinutes(start: Date, end: Date): number {
-  return Math.round((end.getTime() - start.getTime()) / 60000);
+function getDurationMinutes(start: Date | string, end: Date | string): number {
+  const s = toDate(start);
+  const e = toDate(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+  return Math.round((e.getTime() - s.getTime()) / 60000);
 }
 
 function courseTypeLabel(type: string) {
@@ -32,7 +42,7 @@ export default function ClassCard({ course }: ClassCardProps) {
   const isPaid = course.isPaid && course.price > 0;
   const typeInfo = courseTypeLabel(course.courseType);
   const durationMin = getDurationMinutes(course.startAt, course.endAt);
-  const isUpcoming = course.startAt > new Date();
+  const isUpcoming = toDate(course.startAt) > new Date();
 
   return (
     <Link

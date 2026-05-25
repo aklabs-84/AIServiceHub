@@ -8,8 +8,15 @@ import { useToast } from '@/contexts/ToastContext';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaQrcode, FaCheck, FaTimes, FaExpand, FaUsers } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 
-function formatDate(d: Date): string {
-  return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
+function toDate(d: Date | string): Date {
+  if (d instanceof Date) return d;
+  return new Date(d);
+}
+
+function formatDate(d: Date | string): string {
+  const date = toDate(d);
+  if (isNaN(date.getTime())) return '날짜 오류';
+  return new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
 }
 
 function courseTypeLabel(type: string) {
@@ -194,8 +201,16 @@ export default function ClassManagementPanel() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.ok) {
-        const { courses } = await res.json();
-        setCourses(courses ?? []);
+        const { courses: raw } = await res.json();
+        // JSON 파싱 시 Date가 string으로 오므로 Date 객체로 변환
+        const parsed = (raw ?? []).map((c: Course) => ({
+          ...c,
+          startAt: new Date(c.startAt as unknown as string),
+          endAt: new Date(c.endAt as unknown as string),
+          createdAt: new Date(c.createdAt as unknown as string),
+          updatedAt: new Date(c.updatedAt as unknown as string),
+        }));
+        setCourses(parsed);
       } else {
         const d = await res.json().catch(() => ({}));
         setLoadError(`클래스 목록 로드 실패 (${res.status}): ${d.error || '알 수 없는 오류'}`);
