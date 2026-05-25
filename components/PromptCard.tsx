@@ -244,15 +244,6 @@ export default function PromptCard({ prompt, onLikeChange, categoryInfo: provide
         </div>
 
         <div className="mt-auto pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/50">
-              {prompt.createdByName?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <span className="text-xs font-bold text-gray-600 dark:text-gray-400 truncate max-w-[100px]">
-              {prompt.createdByName}
-            </span>
-          </div>
-
           <div className="flex items-center space-x-3">
             {/* 무료/유료 배지 */}
             {isPaidAndLocked ? (
