@@ -57,7 +57,7 @@ export default function Header() {
           <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
             <NavLink href="/apps">바이브코딩</NavLink>
             <NavLink href="/prompts">프롬프트</NavLink>
-            <NavLink href="/content">콘텐츠</NavLink>
+            <NavLink href="/content">커뮤니티</NavLink>
             <NavLink href="/guide">Q&A</NavLink>
             <Link
               href="/request"
@@ -193,7 +193,7 @@ export default function Header() {
             <div className="grid grid-cols-2 gap-3">
               <MobileNavLink href="/apps" onClick={() => setMobileMenuOpen(false)}>바이브코딩</MobileNavLink>
               <MobileNavLink href="/prompts" onClick={() => setMobileMenuOpen(false)}>프롬프트</MobileNavLink>
-              <MobileNavLink href="/content" onClick={() => setMobileMenuOpen(false)}>콘텐츠</MobileNavLink>
+              <MobileNavLink href="/content" onClick={() => setMobileMenuOpen(false)}>커뮤니티</MobileNavLink>
               <MobileNavLink href="/guide" onClick={() => setMobileMenuOpen(false)}>Q&A</MobileNavLink>
               <MobileNavLink href="/request" onClick={() => setMobileMenuOpen(false)} highlight>제작 의뢰</MobileNavLink>
               <MobileNavLink href="/my" onClick={() => setMobileMenuOpen(false)}>마이페이지</MobileNavLink>

@@ -176,15 +176,11 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           </div>
         )}
 
-        {/* 유료/무료 배지 */}
-        {isPaidAndLocked ? (
+        {/* 유료 배지 (유료일 때만 표시) */}
+        {isPaidAndLocked && (
           <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
             <FaLock className="text-white text-[8px]" />
             <span className="text-white text-[10px] font-black">{app.price.toLocaleString()}원</span>
-          </div>
-        ) : (
-          <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/80 backdrop-blur-sm">
-            <span className="text-white text-[10px] font-black">🆓 무료</span>
           </div>
         )}
       </div>

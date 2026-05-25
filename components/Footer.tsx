@@ -55,7 +55,7 @@ export default function Footer() {
             <FooterLinkGroup title="Menu">
               <FooterLink href="/apps">바이브코딩</FooterLink>
               <FooterLink href="/prompts">프롬프트</FooterLink>
-              <FooterLink href="/content">콘텐츠</FooterLink>
+              <FooterLink href="/content">커뮤니티</FooterLink>
             </FooterLinkGroup>
             <FooterLinkGroup title="Support">
               <FooterLink href="/guide">Q&A</FooterLink>
