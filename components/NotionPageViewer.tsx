@@ -7,13 +7,14 @@ import { SiNotion } from 'react-icons/si';
 
 interface Props {
   url: string;
-  title?: string; // material 제목 (없으면 API로 가져옴)
+  title?: string;          // material 제목 (없으면 API로 가져옴)
   defaultOpen?: boolean;
+  showExternalLink?: boolean; // 외부 링크 버튼 표시 여부 (기본 false)
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
-export default function NotionPageViewer({ url, title: propTitle, defaultOpen = false }: Props) {
+export default function NotionPageViewer({ url, title: propTitle, defaultOpen = false, showExternalLink = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [status, setStatus] = useState<Status>('idle');
   const [markdown, setMarkdown] = useState('');
@@ -72,17 +73,19 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
           <p className="text-xs text-gray-400 truncate">{url}</p>
         </div>
 
-        {/* 외부 링크 */}
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
-          className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-none"
-          title="노션에서 열기"
-        >
-          <FaExternalLinkAlt className="text-xs text-gray-400" />
-        </a>
+        {/* 외부 링크 — 관리자만 표시 */}
+        {showExternalLink && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-none"
+            title="노션에서 열기"
+          >
+            <FaExternalLinkAlt className="text-xs text-gray-400" />
+          </a>
+        )}
 
         {/* 펼치기/접기 */}
         <div className="flex-none text-gray-400">

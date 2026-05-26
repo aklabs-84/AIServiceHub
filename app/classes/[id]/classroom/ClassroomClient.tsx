@@ -38,9 +38,9 @@ function tabIcon(type: string) {
 }
 
 // ── 탭 콘텐츠 렌더링 ──────────────────────────────────────────
-function TabContent({ tab }: { tab: Tab }) {
+function TabContent({ tab, isAdmin }: { tab: Tab; isAdmin: boolean }) {
   if (isNotionUrl(tab.url)) {
-    return <NotionPageViewer url={tab.url} defaultOpen={true} />;
+    return <NotionPageViewer url={tab.url} defaultOpen={true} showExternalLink={isAdmin} />;
   }
 
   return (
@@ -298,7 +298,7 @@ export default function ClassroomClient({ course }: Props) {
 
             {/* 탭 콘텐츠 — key로 탭 전환 시 컴포넌트 완전 리마운트 */}
             <div className="p-5 bg-white dark:bg-gray-950 min-h-[200px]">
-              {activeItem && <TabContent key={activeTab} tab={activeItem} />}
+              {activeItem && <TabContent key={activeTab} tab={activeItem} isAdmin={isAdmin} />}
             </div>
           </div>
         )}
