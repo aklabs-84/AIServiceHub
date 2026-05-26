@@ -30,11 +30,13 @@ const MAX_ATTACHMENT_SIZE_MB = 10;
 // ── HTML 미리보기 섹션 (편집 폼 내부) ──────────────────────────
 function HtmlPreviewSection({
   existingUrl,
+  previewHref,
   htmlCode,
   onChange,
   uploading,
 }: {
   existingUrl?: string;
+  previewHref: string;
   htmlCode: string;
   onChange: (v: string) => void;
   uploading: boolean;
@@ -71,7 +73,7 @@ function HtmlPreviewSection({
         <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
           <span className="text-emerald-600 dark:text-emerald-400 text-sm font-bold">✓ HTML 미리보기 등록됨</span>
           <a
-            href={existingUrl}
+            href={previewHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-emerald-600 dark:text-emerald-400 underline ml-auto"
@@ -1037,6 +1039,7 @@ export default function AppDetailClient({
                 {/* HTML 미리보기 코드 — 로그인 유저 누구나 */}
                 <HtmlPreviewSection
                   existingUrl={app.htmlPreviewUrl}
+                  previewHref={`/api/apps/${app.id}/html-preview`}
                   htmlCode={formData.htmlCode}
                   onChange={(v) => setFormData({ ...formData, htmlCode: v })}
                   uploading={htmlPreviewUploading}
@@ -1163,7 +1166,7 @@ export default function AppDetailClient({
                     {app.htmlPreviewUrl && (
                       <div>
                         <a
-                          href={app.htmlPreviewUrl}
+                          href={`/api/apps/${app.id}/html-preview`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/30 active:scale-95 transition-all"
