@@ -26,6 +26,8 @@ export default function TagInput({
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // 한글 IME 조합 중 Enter/쉼표 이중 실행 방지
+  const isComposing = useRef(false);
 
   // 기존 태그 목록 fetch
   useEffect(() => {
@@ -115,6 +117,8 @@ export default function TagInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 한글 IME 조합 중에는 Enter/쉼표 무시 (중복 태그 방지)
+    if (isComposing.current) return;
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       if (input.trim()) addTag(input);
@@ -159,6 +163,12 @@ export default function TagInput({
           onChange={(e) => {
             setInput(e.target.value);
             if (suggestions.length > 0) setShowDropdown(true);
+          }}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={(e) => {
+            isComposing.current = false;
+            // 조합 완료된 값으로 input 업데이트 (일부 브라우저 동기화)
+            setInput((e.target as HTMLInputElement).value);
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
