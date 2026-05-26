@@ -20,11 +20,51 @@ interface Props {
   course: Course;
 }
 
-function MaterialIcon({ type }: { type: string }) {
-  if (type === 'video') return <span className="text-2xl">🎥</span>;
-  if (type === 'file') return <span className="text-2xl">📁</span>;
-  if (type === 'embed') return <span className="text-2xl">📺</span>;
-  return <span className="text-2xl">🔗</span>;
+// ── 탭 타입 정의 ──────────────────────────────────────────────
+interface Tab {
+  id: string;
+  title: string;
+  url: string;
+  type: string;      // 'main' | 'video' | 'file' | 'embed' | 'link'
+  desc?: string;
+}
+
+function tabIcon(type: string) {
+  if (type === 'video')  return '🎥';
+  if (type === 'file')   return '📁';
+  if (type === 'embed')  return '📺';
+  if (type === 'main')   return '📖';
+  return '🔗';
+}
+
+// ── 탭 콘텐츠 렌더링 ──────────────────────────────────────────
+function TabContent({ tab }: { tab: Tab }) {
+  if (isNotionUrl(tab.url)) {
+    return <NotionPageViewer url={tab.url} defaultOpen={true} />;
+  }
+
+  return (
+    <a
+      href={tab.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-4 p-5 rounded-2xl border-2 border-violet-200 dark:border-violet-800
+        hover:border-violet-400 dark:hover:border-violet-600
+        bg-violet-50 dark:bg-violet-900/20 transition-all group"
+    >
+      <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center flex-none text-xl">
+        {tabIcon(tab.type)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-black text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+          {tab.title}
+        </p>
+        {tab.desc && <p className="text-xs text-gray-500 mt-0.5">{tab.desc}</p>}
+        <p className="text-xs text-gray-400 truncate mt-0.5">{tab.url}</p>
+      </div>
+      <FaExternalLinkAlt className="text-violet-400 text-sm flex-none" />
+    </a>
+  );
 }
 
 export default function ClassroomClient({ course }: Props) {
@@ -37,6 +77,22 @@ export default function ClassroomClient({ course }: Props) {
   const [showCode, setShowCode] = useState(false);
   const [validatingCode, setValidatingCode] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
+
+  // ── 탭 목록 구성 ──
+  const tabs: Tab[] = [
+    ...(course.materialUrl
+      ? [{ id: 'main', title: '수업 자료', url: course.materialUrl, type: 'main' }]
+      : []),
+    ...course.materials.map((m, idx) => ({
+      id: `m-${idx}`,
+      title: m.title || `자료 ${idx + 1}`,
+      url: m.url,
+      type: m.type,
+      desc: m.desc,
+    })),
+  ];
+
+  const [activeTab, setActiveTab] = useState<string>(() => tabs[0]?.id ?? '');
 
   // 게스트 접근 복원 (sessionStorage — 탭 닫기 전까지 유지)
   useEffect(() => {
@@ -169,9 +225,12 @@ export default function ClassroomClient({ course }: Props) {
     );
   }
 
+  const activeItem = tabs.find(t => t.id === activeTab);
+
   // 교실 내용
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
+      {/* 상단 네비게이션 */}
       <div className="sticky top-16 md:top-20 z-20 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800">
         <div className="container mx-auto max-w-4xl px-4 py-3 flex items-center gap-3">
           <Link href={`/classes/${course.id}`} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -197,74 +256,53 @@ export default function ClassroomClient({ course }: Props) {
         )}
       </div>
 
-      <article className="container mx-auto max-w-4xl px-4 py-10 space-y-10">
-        {/* 환영 */}
+      <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
+        {/* 환영 배너 */}
         <div className="p-6 rounded-3xl bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white">
           <HiAcademicCap className="text-3xl mb-3" />
           <h1 className="text-2xl font-black mb-1">{course.title}</h1>
           <p className="text-sm text-white/80">수강 교실에 오신 걸 환영합니다!</p>
         </div>
 
-        {/* 메인 자료 링크 */}
-        {course.materialUrl && (
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">수업 자료 페이지</h2>
-            {isNotionUrl(course.materialUrl) ? (
-              <NotionPageViewer url={course.materialUrl} defaultOpen={true} />
-            ) : (
-              <a href={course.materialUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-5 rounded-2xl border-2 border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50 dark:bg-violet-900/20 transition-all group">
-                <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center flex-none">
-                  <FaExternalLinkAlt className="text-white text-lg" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-black text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">자료 페이지 열기</p>
-                  <p className="text-xs text-gray-500 truncate">{course.materialUrl}</p>
-                </div>
-                <FaExternalLinkAlt className="text-violet-400 text-sm flex-none" />
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* materials 목록 */}
-        {course.materials.length > 0 && (
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">수업 자료 ({course.materials.length}개)</h2>
-            <div className="space-y-3">
-              {course.materials.map((m, idx) => (
-                isNotionUrl(m.url) ? (
-                  // Notion 링크 → 인라인 뷰어
-                  <div key={idx}>
-                    {m.desc && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 pl-1">{m.desc}</p>
-                    )}
-                    <NotionPageViewer url={m.url} title={m.title || `자료 ${idx + 1}`} />
-                  </div>
-                ) : (
-                  // 일반 링크 → 기존 방식
-                  <a key={idx} href={m.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all group">
-                    <MaterialIcon type={m.type} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{m.title || `자료 ${idx + 1}`}</p>
-                      {m.desc && <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>}
-                      <p className="text-xs text-gray-400 truncate">{m.url}</p>
-                    </div>
-                    <FaExternalLinkAlt className="text-gray-300 text-xs flex-none" />
-                  </a>
-                )
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* 자료 없음 */}
-        {!course.materialUrl && course.materials.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
+        {tabs.length === 0 && (
+          <div className="text-center py-20 text-gray-400">
             <HiAcademicCap className="text-6xl mx-auto mb-4 opacity-30" />
             <p className="text-sm font-bold">수업 자료가 준비 중입니다.</p>
           </div>
         )}
-      </article>
+
+        {/* 탭 영역 */}
+        {tabs.length > 0 && (
+          <div className="rounded-3xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+            {/* 탭 바 */}
+            <div className="flex overflow-x-auto bg-gray-50 dark:bg-gray-900/60 border-b border-gray-100 dark:border-gray-800 scrollbar-none">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-5 py-3.5 text-sm font-bold whitespace-nowrap
+                    border-b-2 transition-all flex-none
+                    ${activeTab === tab.id
+                      ? 'border-violet-500 text-violet-600 dark:text-violet-400 bg-white dark:bg-gray-950'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-white/60 dark:hover:bg-gray-800/40'
+                    }
+                  `}
+                >
+                  <span>{tabIcon(tab.type)}</span>
+                  <span className="max-w-[120px] sm:max-w-[180px] truncate">{tab.title}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* 탭 콘텐츠 */}
+            <div className="p-5 bg-white dark:bg-gray-950 min-h-[200px]">
+              {activeItem && <TabContent tab={activeItem} />}
+            </div>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

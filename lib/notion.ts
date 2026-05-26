@@ -52,6 +52,7 @@ export async function getNotionPageTitle(pageId: string): Promise<string> {
     const notion = getNotionClient();
     const page = await notion.pages.retrieve({ page_id: pageId });
     // properties.title 또는 Name
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const props = (page as any).properties;
     for (const key of ['title', 'Title', 'Name', '이름', '제목']) {
       const prop = props?.[key];
@@ -63,10 +64,64 @@ export async function getNotionPageTitle(pageId: string): Promise<string> {
   }
 }
 
+// ── 테이블 블록 → GFM Markdown 변환 ────────────────────────────
+async function tableBlockToMarkdown(
+  notion: Client,
+  blockId: string,
+  hasColumnHeader: boolean
+): Promise<string> {
+  try {
+    const { results } = await notion.blocks.children.list({ block_id: blockId });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = results.filter((b: any) => b.type === 'table_row') as any[];
+
+    if (rows.length === 0) return '';
+
+    // 셀 내용 추출 (rich_text 배열 → 문자열, | 이스케이프)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parseCell = (cell: any[]): string =>
+      (cell ?? [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((t: any) => (t.plain_text ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' '))
+        .join('')
+        .trim() || ' ';
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rowToMd = (row: any): string => {
+      const cells: unknown[][] = row.table_row?.cells ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return '| ' + cells.map((c: any) => parseCell(c)).join(' | ') + ' |';
+    };
+
+    const colCount: number = rows[0].table_row?.cells?.length ?? 1;
+    const separator = '| ' + Array(colCount).fill('---').join(' | ') + ' |';
+    const markdownRows = rows.map(rowToMd);
+
+    if (hasColumnHeader) {
+      // 첫 행이 헤더
+      return [markdownRows[0], separator, ...markdownRows.slice(1)].join('\n');
+    } else {
+      // 헤더 없음 — 빈 헤더 행 삽입 (GFM 테이블은 헤더 필수)
+      const emptyHeader = '| ' + Array(colCount).fill(' ').join(' | ') + ' |';
+      return [emptyHeader, separator, ...markdownRows].join('\n');
+    }
+  } catch (err) {
+    console.error('[notion/table] 변환 오류:', err);
+    return '';
+  }
+}
+
 // ── 페이지 내용 → Markdown 변환 ────────────────────────────────
 export async function notionPageToMarkdown(pageId: string): Promise<string> {
   const notion = getNotionClient();
   const n2m = new NotionToMarkdown({ notionClient: notion });
+
+  // 테이블 블록 커스텀 변환기
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  n2m.setCustomTransformer('table', async (block: any) => {
+    const hasColumnHeader = block?.table?.has_column_header ?? false;
+    return tableBlockToMarkdown(notion, block.id, hasColumnHeader);
+  });
 
   const mdBlocks = await n2m.pageToMarkdown(pageId);
   const { parent } = n2m.toMarkdownString(mdBlocks);

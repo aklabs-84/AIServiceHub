@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useContext, createContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
@@ -10,6 +10,9 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
 }
+
+// ── pre 블록 컨텍스트 (인라인 코드 vs 블록 코드 구분) ────────
+const InsidePreContext = createContext(false);
 
 // ── 코드 내용 추출 (React 노드 → 순수 문자열) ─────────────────
 function extractText(node: React.ReactNode): string {
@@ -23,8 +26,8 @@ function extractText(node: React.ReactNode): string {
   return '';
 }
 
-// ── 블록 코드 (언어 클래스가 있는 경우) ──────────────────────
-function CodeBlock({ children, className }: { children: React.ReactNode; className?: string }) {
+// ── 블록 코드 래퍼 (pre + 복사 버튼) ──────────────────────────
+function CodeBlock({ children }: { children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -41,9 +44,7 @@ function CodeBlock({ children, className }: { children: React.ReactNode; classNa
   return (
     <div className="relative group my-4">
       <pre className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 overflow-x-auto">
-        <code className={`text-sm font-mono text-gray-800 dark:text-gray-200 ${className ?? ''}`}>
-          {children}
-        </code>
+        {children}
       </pre>
       {/* 호버 시 우상단 복사 버튼 */}
       <button
@@ -73,6 +74,27 @@ function CodeBlock({ children, className }: { children: React.ReactNode; classNa
   );
 }
 
+// ── code 컴포넌트: InsidePreContext로 블록/인라인 자동 구분 ─────
+function CodeComponent({ children, className }: { children?: React.ReactNode; className?: string }) {
+  const insidePre = useContext(InsidePreContext);
+
+  if (insidePre) {
+    // 블록 코드 — CodeBlock 안에 위치, pre는 CodeBlock이 렌더링
+    return (
+      <code className={`text-sm font-mono text-gray-800 dark:text-gray-200 ${className ?? ''}`}>
+        {children}
+      </code>
+    );
+  }
+
+  // 인라인 코드
+  return (
+    <code className="bg-gray-100 dark:bg-gray-800 text-sm font-mono px-1.5 py-0.5 rounded text-gray-800 dark:text-gray-200">
+      {children}
+    </code>
+  );
+}
+
 const components: Components = {
   p: ({ children }) => (
     <p className="mb-4 leading-relaxed text-gray-700 dark:text-gray-300 last:mb-0">{children}</p>
@@ -98,20 +120,14 @@ const components: Components = {
   blockquote: ({ children }) => (
     <blockquote className="border-l-4 border-violet-400 dark:border-violet-600 pl-4 my-4 text-gray-500 dark:text-gray-400 italic">{children}</blockquote>
   ),
-  code: ({ children, className }) => {
-    const isBlock = className?.includes('language-');
-    if (isBlock) {
-      return <CodeBlock className={className}>{children}</CodeBlock>;
-    }
-    // 인라인 코드
-    return (
-      <code className="bg-gray-100 dark:bg-gray-800 text-sm font-mono px-1.5 py-0.5 rounded text-gray-800 dark:text-gray-200">
-        {children}
-      </code>
-    );
-  },
-  // pre는 CodeBlock 안에서 직접 렌더링하므로 여기선 그냥 통과
-  pre: ({ children }) => <>{children}</>,
+  // pre → InsidePreContext 주입 + CodeBlock 래핑 (언어 없는 코드블록도 처리)
+  pre: ({ children }) => (
+    <InsidePreContext.Provider value={true}>
+      <CodeBlock>{children}</CodeBlock>
+    </InsidePreContext.Provider>
+  ),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  code: CodeComponent as any,
   img: ({ src, alt }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt={alt ?? ''} className="rounded-xl max-w-full my-4" />
@@ -123,6 +139,30 @@ const components: Components = {
     <strong className="font-bold text-gray-900 dark:text-white">{children}</strong>
   ),
   hr: () => <hr className="my-6 border-gray-200 dark:border-gray-700" />,
+
+  // ── 테이블 ──────────────────────────────────────────────────
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-4 rounded-xl border border-gray-200 dark:border-gray-700">
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-gray-50 dark:bg-gray-800/70">{children}</thead>
+  ),
+  tbody: ({ children }) => <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{children}</tbody>,
+  tr: ({ children }) => (
+    <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="px-4 py-2.5 text-left text-xs font-black uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 whitespace-nowrap">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800/60 last:border-b-0">
+      {children}
+    </td>
+  ),
 };
 
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
