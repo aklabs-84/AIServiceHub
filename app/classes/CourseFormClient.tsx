@@ -6,8 +6,27 @@ import type { Course, CourseMaterial, CourseType } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import TagInput from '@/components/TagInput';
 import MarkdownEditor from '@/components/MarkdownEditor';
-import { FaArrowLeft, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaTrash, FaGripVertical } from 'react-icons/fa';
 import Link from 'next/link';
+
+// ── @dnd-kit ─────────────────────────────────────────────────
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Props {
   mode: 'new' | 'edit';
@@ -25,7 +44,7 @@ interface FormData {
   materials: CourseMaterial[];
   materialUrl: string;
   tags: string[];
-  maxParticipants: string; // 빈 문자열 = 무제한
+  maxParticipants: string;
   price: number;
   isPaid: boolean;
   isPublished: boolean;
@@ -52,6 +71,104 @@ function toDatetimeLocal(date: Date): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
 
+// ── 드래그 가능한 자료 행 ────────────────────────────────────
+interface SortableMaterialRowProps {
+  id: string;
+  material: CourseMaterial;
+  idx: number;
+  onUpdate: (idx: number, field: keyof CourseMaterial, value: string) => void;
+  onRemove: (idx: number) => void;
+}
+
+function SortableMaterialRow({ id, material, idx, onUpdate, onRemove }: SortableMaterialRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-2 rounded-xl transition-shadow ${
+        isDragging ? 'shadow-lg ring-2 ring-violet-300 dark:ring-violet-700 bg-white dark:bg-gray-900' : ''
+      }`}
+    >
+      {/* 드래그 핸들 */}
+      <button
+        type="button"
+        className="flex-none mt-2 p-1.5 rounded-lg text-gray-300 dark:text-gray-600 cursor-grab active:cursor-grabbing
+          hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        title="드래그하여 순서 변경"
+        {...attributes}
+        {...listeners}
+      >
+        <FaGripVertical className="text-sm" />
+      </button>
+
+      {/* 타입 선택 */}
+      <select
+        value={material.type}
+        onChange={e => onUpdate(idx, 'type', e.target.value)}
+        className="px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-300 outline-none focus:ring-1 focus:ring-violet-500"
+      >
+        <option value="video">🎥 동영상</option>
+        <option value="link">🔗 링크</option>
+        <option value="file">📁 파일</option>
+        <option value="embed">📺 임베드</option>
+      </select>
+
+      {/* 제목 */}
+      <input
+        type="text"
+        value={material.title}
+        onChange={e => onUpdate(idx, 'title', e.target.value)}
+        placeholder="제목"
+        className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+      />
+
+      {/* URL */}
+      <input
+        type="url"
+        value={material.url}
+        onChange={e => onUpdate(idx, 'url', e.target.value)}
+        placeholder="URL"
+        className="flex-[2] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+      />
+
+      {/* 설명 */}
+      <input
+        type="text"
+        value={material.desc ?? ''}
+        onChange={e => onUpdate(idx, 'desc', e.target.value)}
+        placeholder="설명 (선택)"
+        className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+      />
+
+      {/* 삭제 */}
+      <button
+        type="button"
+        onClick={() => onRemove(idx)}
+        className="flex-none p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors mt-0.5"
+      >
+        <FaTrash className="text-xs" />
+      </button>
+    </div>
+  );
+}
+
+// ── 메인 폼 ─────────────────────────────────────────────────
 export default function CourseFormPage({ mode, initialData }: Props) {
   const router = useRouter();
   const { user, session, isAdmin, loading } = useAuth();
@@ -60,12 +177,22 @@ export default function CourseFormPage({ mode, initialData }: Props) {
   const [error, setError] = useState('');
   const formInitialized = useRef(false);
 
+  // dnd-kit 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 }, // 5px 이상 이동 시 드래그 시작 (클릭과 구분)
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // 관리자 아니면 리다이렉트
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.replace('/classes');
   }, [loading, user, isAdmin, router]);
 
-  // 수정 모드: 초기값 세팅 (최초 1회만 — initialData 참조 변경 시 재초기화 방지)
+  // 수정 모드: 초기값 세팅 (최초 1회만)
   useEffect(() => {
     if (initialData && !formInitialized.current) {
       formInitialized.current = true;
@@ -105,6 +232,19 @@ export default function CourseFormPage({ mode, initialData }: Props) {
 
   const removeMaterial = (idx: number) => {
     setForm(f => ({ ...f, materials: f.materials.filter((_, i) => i !== idx) }));
+  };
+
+  // 드래그 종료 — 순서 업데이트
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setForm(f => {
+      const oldIndex = f.materials.findIndex((_, i) => `material-${i}` === active.id);
+      const newIndex = f.materials.findIndex((_, i) => `material-${i}` === over.id);
+      if (oldIndex === -1 || newIndex === -1) return f;
+      return { ...f, materials: arrayMove(f.materials, oldIndex, newIndex) };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -153,6 +293,9 @@ export default function CourseFormPage({ mode, initialData }: Props) {
   if (loading || !isAdmin) {
     return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400 font-bold">로딩 중...</p></div>;
   }
+
+  // 드래그 ID 목록 (인덱스 기반)
+  const materialIds = form.materials.map((_, i) => `material-${i}`);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
@@ -255,32 +398,43 @@ export default function CourseFormPage({ mode, initialData }: Props) {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-black uppercase tracking-widest text-gray-500">자료 목록</label>
+              <label className="text-xs font-black uppercase tracking-widest text-gray-500">
+                자료 목록
+                {form.materials.length > 1 && (
+                  <span className="ml-2 text-[10px] font-normal text-gray-400 normal-case tracking-normal">
+                    ⠿ 드래그로 순서 변경
+                  </span>
+                )}
+              </label>
               <button type="button" onClick={addMaterial} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold">
                 <FaPlus className="text-[10px]" /> 추가
               </button>
             </div>
-            <div className="space-y-3">
-              {form.materials.map((m, idx) => (
-                <div key={idx} className="flex items-start gap-2">
-                  <select value={m.type} onChange={e => updateMaterial(idx, 'type', e.target.value)} className="px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-700 dark:text-gray-300 outline-none focus:ring-1 focus:ring-violet-500">
-                    <option value="video">🎥 동영상</option>
-                    <option value="link">🔗 링크</option>
-                    <option value="file">📁 파일</option>
-                    <option value="embed">📺 임베드</option>
-                  </select>
-                  <input type="text" value={m.title} onChange={e => updateMaterial(idx, 'title', e.target.value)} placeholder="제목" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500" />
-                  <input type="url" value={m.url} onChange={e => updateMaterial(idx, 'url', e.target.value)} placeholder="URL" className="flex-[2] px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500" />
-                  <input type="text" value={m.desc ?? ''} onChange={e => updateMaterial(idx, 'desc', e.target.value)} placeholder="설명 (선택)" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500" />
-                  <button type="button" onClick={() => removeMaterial(idx)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-none">
-                    <FaTrash className="text-xs" />
-                  </button>
-                </div>
-              ))}
-              {form.materials.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-3">자료를 추가하세요. 승인된 수강자만 볼 수 있습니다.</p>
-              )}
-            </div>
+
+            {form.materials.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">자료를 추가하세요. 승인된 수강자만 볼 수 있습니다.</p>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={materialIds} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {form.materials.map((m, idx) => (
+                      <SortableMaterialRow
+                        key={`material-${idx}`}
+                        id={`material-${idx}`}
+                        material={m}
+                        idx={idx}
+                        onUpdate={updateMaterial}
+                        onRemove={removeMaterial}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
         </section>
 
