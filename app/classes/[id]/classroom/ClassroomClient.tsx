@@ -7,8 +7,14 @@ import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaArrowLeft, FaLock, FaKey, FaExternalLinkAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import NotionPageViewer from '@/components/NotionPageViewer';
+
+function isNotionUrl(url: string) {
+  try {
+    const { hostname } = new URL(url);
+    return hostname.includes('notion.so') || hostname.includes('notion.site');
+  } catch { return false; }
+}
 
 interface Props {
   course: Course;
@@ -203,16 +209,20 @@ export default function ClassroomClient({ course }: Props) {
         {course.materialUrl && (
           <div>
             <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">수업 자료 페이지</h2>
-            <a href={course.materialUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-5 rounded-2xl border-2 border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50 dark:bg-violet-900/20 transition-all group">
-              <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center flex-none">
-                <FaExternalLinkAlt className="text-white text-lg" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">자료 페이지 열기</p>
-                <p className="text-xs text-gray-500 truncate">{course.materialUrl}</p>
-              </div>
-              <FaExternalLinkAlt className="text-violet-400 text-sm flex-none" />
-            </a>
+            {isNotionUrl(course.materialUrl) ? (
+              <NotionPageViewer url={course.materialUrl} defaultOpen={true} />
+            ) : (
+              <a href={course.materialUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-5 rounded-2xl border-2 border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50 dark:bg-violet-900/20 transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center flex-none">
+                  <FaExternalLinkAlt className="text-white text-lg" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">자료 페이지 열기</p>
+                  <p className="text-xs text-gray-500 truncate">{course.materialUrl}</p>
+                </div>
+                <FaExternalLinkAlt className="text-violet-400 text-sm flex-none" />
+              </a>
+            )}
           </div>
         )}
 
@@ -222,15 +232,26 @@ export default function ClassroomClient({ course }: Props) {
             <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">수업 자료 ({course.materials.length}개)</h2>
             <div className="space-y-3">
               {course.materials.map((m, idx) => (
-                <a key={idx} href={m.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all group">
-                  <MaterialIcon type={m.type} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{m.title || `자료 ${idx + 1}`}</p>
-                    {m.desc && <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>}
-                    <p className="text-xs text-gray-400 truncate">{m.url}</p>
+                isNotionUrl(m.url) ? (
+                  // Notion 링크 → 인라인 뷰어
+                  <div key={idx}>
+                    {m.desc && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 pl-1">{m.desc}</p>
+                    )}
+                    <NotionPageViewer url={m.url} title={m.title || `자료 ${idx + 1}`} />
                   </div>
-                  <FaExternalLinkAlt className="text-gray-300 text-xs flex-none" />
-                </a>
+                ) : (
+                  // 일반 링크 → 기존 방식
+                  <a key={idx} href={m.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-violet-300 dark:hover:border-violet-700 transition-all group">
+                    <MaterialIcon type={m.type} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">{m.title || `자료 ${idx + 1}`}</p>
+                      {m.desc && <p className="text-xs text-gray-500 mt-0.5">{m.desc}</p>}
+                      <p className="text-xs text-gray-400 truncate">{m.url}</p>
+                    </div>
+                    <FaExternalLinkAlt className="text-gray-300 text-xs flex-none" />
+                  </a>
+                )
               ))}
             </div>
           </div>
