@@ -296,9 +296,9 @@ export default function ClassroomClient({ course }: Props) {
               ))}
             </div>
 
-            {/* 탭 콘텐츠 */}
+            {/* 탭 콘텐츠 — key로 탭 전환 시 컴포넌트 완전 리마운트 */}
             <div className="p-5 bg-white dark:bg-gray-950 min-h-[200px]">
-              {activeItem && <TabContent tab={activeItem} />}
+              {activeItem && <TabContent key={activeTab} tab={activeItem} />}
             </div>
           </div>
         )}
