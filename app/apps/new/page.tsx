@@ -39,6 +39,75 @@ const ALLOWED_ATTACHMENT_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 
+// ── HTML 코드 입력 (신규 등록) ──────────────────────────────────
+function HtmlCodeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => onChange((ev.target?.result as string) ?? '');
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  };
+
+  return (
+    <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-900/10">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">▶</span>
+          <label className="text-sm font-bold text-violet-800 dark:text-violet-300">
+            HTML 미리보기 <span className="text-xs font-normal text-violet-600 dark:text-violet-500">(선택)</span>
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".html,.htm,text/html"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-900 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 text-xs font-bold hover:bg-violet-50 dark:hover:bg-violet-900/30 transition-colors"
+          >
+            📎 파일 업로드
+          </button>
+          {value.trim() && (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </div>
+      <textarea
+        rows={8}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono text-xs resize-y"
+        placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
+      />
+      {value.trim() && (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+          ✓ HTML 코드 {new TextEncoder().encode(value).length.toLocaleString()} bytes · 저장 시 자동 업로드됩니다
+        </p>
+      )}
+      {!value.trim() && (
+        <p className="text-xs text-violet-600 dark:text-violet-500 mt-2">
+          .html 파일을 업로드하거나 코드를 붙여넣으세요 · 사용자가 새 탭에서 실행할 수 있습니다 (최대 2MB)
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function NewAppPage() {
   const router = useRouter();
   const { user, session, isAdmin, signInWithGoogle } = useAuth();
@@ -300,8 +369,8 @@ export default function NewAppPage() {
           );
         }
 
-        // HTML 미리보기 업로드 (관리자 + 코드 입력 시)
-        if (isAdmin && formData.htmlCode.trim()) {
+        // HTML 미리보기 업로드 (로그인 유저 + 코드 입력 시)
+        if (formData.htmlCode.trim()) {
           try {
             const res = await fetch('/api/apps/html-preview', {
               method: 'POST',
@@ -782,27 +851,11 @@ export default function NewAppPage() {
             </div>
           )}
 
-          {/* HTML 미리보기 (관리자 전용) */}
-          {isAdmin && (
-            <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-900/10">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-base">▶</span>
-                <label className="text-sm font-bold text-violet-800 dark:text-violet-300">
-                  HTML 미리보기 <span className="text-xs font-normal text-violet-600 dark:text-violet-500">(관리자 전용 · 선택)</span>
-                </label>
-              </div>
-              <textarea
-                rows={8}
-                value={formData.htmlCode}
-                onChange={(e) => setFormData({ ...formData, htmlCode: e.target.value })}
-                className="w-full px-4 py-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono text-xs resize-y"
-                placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
-              />
-              <p className="text-xs text-violet-600 dark:text-violet-500 mt-2">
-                HTML 코드를 붙여넣으면 사용자가 새 탭에서 바로 실행할 수 있습니다. (최대 2MB)
-              </p>
-            </div>
-          )}
+          {/* HTML 미리보기 — 로그인 유저 누구나 */}
+          <HtmlCodeInput
+            value={formData.htmlCode}
+            onChange={(v) => setFormData({ ...formData, htmlCode: v })}
+          />
 
           {/* 작성자 이름 */}
           <div className="mb-6">

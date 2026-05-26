@@ -3,15 +3,14 @@ import { getAdminClient } from '@/lib/database';
 
 export const runtime = 'nodejs';
 
-const ADMIN_EMAIL = 'mosebb@gmail.com';
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 
-async function requireAdmin(request: Request) {
+async function requireAuth(request: Request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '');
   if (!token) return null;
   const admin = getAdminClient();
   const { data: { user }, error } = await admin.auth.getUser(token);
-  if (error || !user || user.email !== ADMIN_EMAIL) return null;
+  if (error || !user) return null;
   return user;
 }
 
@@ -19,8 +18,8 @@ export async function POST(request: Request) {
   const bucket = process.env.SUPABASE_STORAGE_BUCKET;
   if (!bucket) return NextResponse.json({ error: 'Storage not configured' }, { status: 500 });
 
-  const user = await requireAdmin(request);
-  if (!user) return NextResponse.json({ error: '관리자만 HTML 미리보기를 업로드할 수 있습니다.' }, { status: 403 });
+  const user = await requireAuth(request);
+  if (!user) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
 
   let htmlCode: string;
   let appId: string;
@@ -41,6 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'HTML 코드는 2MB 이하여야 합니다.' }, { status: 400 });
   }
 
+  // 파일명에 userId 포함: 다른 사람 앱을 덮어쓰지 못하도록
   const storagePath = `html-preview/${appId}.html`;
   const admin = getAdminClient();
 
@@ -73,8 +73,8 @@ export async function DELETE(request: Request) {
   const bucket = process.env.SUPABASE_STORAGE_BUCKET;
   if (!bucket) return NextResponse.json({ error: 'Storage not configured' }, { status: 500 });
 
-  const user = await requireAdmin(request);
-  if (!user) return NextResponse.json({ error: '권한 없음' }, { status: 403 });
+  const user = await requireAuth(request);
+  if (!user) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
 
   let appId: string;
   try {

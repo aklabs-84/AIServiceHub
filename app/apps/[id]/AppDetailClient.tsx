@@ -26,6 +26,114 @@ import {
 
 const COMMENTS_PER_PAGE = 5;
 const MAX_ATTACHMENT_SIZE_MB = 10;
+
+// ── HTML 미리보기 섹션 (편집 폼 내부) ──────────────────────────
+function HtmlPreviewSection({
+  existingUrl,
+  htmlCode,
+  onChange,
+  uploading,
+}: {
+  existingUrl?: string;
+  htmlCode: string;
+  onChange: (v: string) => void;
+  uploading: boolean;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      onChange(text ?? '');
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  };
+
+  return (
+    <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border-2 border-dashed border-violet-300 dark:border-violet-700 shadow-sm space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-lg leading-none">
+          ▶
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">HTML 미리보기</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            HTML 파일을 업로드하거나 코드를 붙여넣으면 새 탭에서 실행할 수 있습니다
+          </p>
+        </div>
+      </div>
+
+      {existingUrl && !htmlCode.trim() && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+          <span className="text-emerald-600 dark:text-emerald-400 text-sm font-bold">✓ HTML 미리보기 등록됨</span>
+          <a
+            href={existingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-emerald-600 dark:text-emerald-400 underline ml-auto"
+          >
+            미리보기 열기 ↗
+          </a>
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
+            {existingUrl ? 'HTML 코드 교체 (비워두면 기존 유지)' : 'HTML 코드 입력'}
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".html,.htm,text/html"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300 text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+            >
+              <FaPaperclip className="text-[10px]" />
+              파일 업로드
+            </button>
+            {htmlCode.trim() && (
+              <button
+                type="button"
+                onClick={() => onChange('')}
+                className="px-2 py-1.5 rounded-lg text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                초기화
+              </button>
+            )}
+          </div>
+        </div>
+        <textarea
+          value={htmlCode}
+          onChange={(e) => onChange(e.target.value)}
+          rows={10}
+          className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-violet-500 outline-none font-mono text-xs text-gray-800 dark:text-gray-200 resize-y"
+          placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
+        />
+        <p className="mt-2 text-xs text-gray-400">
+          최대 2MB · 저장 시 자동 업로드됩니다 · 파일 선택 또는 직접 붙여넣기 모두 가능
+        </p>
+      </div>
+
+      {uploading && (
+        <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 text-sm">
+          <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <span>HTML 업로드 중...</span>
+        </div>
+      )}
+    </section>
+  );
+}
 const MAX_ATTACHMENT_SIZE_BYTES = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = [
   'application/pdf',
@@ -447,9 +555,9 @@ export default function AppDetailClient({
         ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
         : [];
 
-      // HTML 미리보기 업로드 (관리자 + 코드 입력 시)
+      // HTML 미리보기 업로드 (로그인 유저 + 코드 입력 시)
       let htmlPreviewUrl: string | null | undefined = undefined;
-      if (isAdmin && formData.htmlCode.trim()) {
+      if (formData.htmlCode.trim()) {
         setHtmlPreviewUploading(true);
         try {
           const res = await fetch('/api/apps/html-preview', {
@@ -926,52 +1034,13 @@ export default function AppDetailClient({
                   />
                 </section>
 
-                {/* HTML 미리보기 코드 — 관리자 전용 */}
-                {isAdmin && (
-                  <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border-2 border-dashed border-violet-300 dark:border-violet-700 shadow-sm space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
-                        <span className="text-lg">▶</span>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">HTML 미리보기</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">관리자 전용 · HTML 코드를 붙여넣으면 사용자가 새 탭에서 실행할 수 있습니다</p>
-                      </div>
-                    </div>
-                    {app.htmlPreviewUrl && !formData.htmlCode.trim() && (
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                        <span className="text-emerald-600 dark:text-emerald-400 text-sm font-bold">✓ HTML 미리보기 등록됨</span>
-                        <a
-                          href={app.htmlPreviewUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-emerald-600 dark:text-emerald-400 underline ml-auto"
-                        >
-                          미리보기 열기 ↗
-                        </a>
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                        {app.htmlPreviewUrl ? 'HTML 코드 교체 (비워두면 기존 유지)' : 'HTML 코드 입력'}
-                      </label>
-                      <textarea
-                        value={formData.htmlCode}
-                        onChange={(e) => setFormData({ ...formData, htmlCode: e.target.value })}
-                        rows={10}
-                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-violet-500 outline-none font-mono text-xs text-gray-800 dark:text-gray-200 resize-y"
-                        placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
-                      />
-                      <p className="mt-2 text-xs text-gray-400">최대 2MB · 저장 시 Supabase Storage에 자동 업로드됩니다</p>
-                    </div>
-                    {htmlPreviewUploading && (
-                      <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 text-sm">
-                        <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                        <span>HTML 업로드 중...</span>
-                      </div>
-                    )}
-                  </section>
-                )}
+                {/* HTML 미리보기 코드 — 로그인 유저 누구나 */}
+                <HtmlPreviewSection
+                  existingUrl={app.htmlPreviewUrl}
+                  htmlCode={formData.htmlCode}
+                  onChange={(v) => setFormData({ ...formData, htmlCode: v })}
+                  uploading={htmlPreviewUploading}
+                />
               </div>
 
               <div className="space-y-8">
