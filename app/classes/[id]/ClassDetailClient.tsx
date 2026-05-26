@@ -211,7 +211,7 @@ export default function ClassDetailClient({ course }: Props) {
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">{course.title}</h1>
 
             {course.description && (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-black prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400">
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-black prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-img:rounded-xl prose-img:max-w-full">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{course.description}</ReactMarkdown>
               </div>
             )}

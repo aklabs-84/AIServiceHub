@@ -1034,7 +1034,7 @@ export default function AppDetailClient({
 
                   <div className="mt-10 space-y-10">
                     {app.description && (
-                      <div className="prose dark:prose-invert max-w-none">
+                      <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-img:rounded-xl prose-img:max-w-full">
                         <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
                           {app.description}
                         </ReactMarkdown>
