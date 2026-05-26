@@ -70,7 +70,9 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
           <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
             {pageTitle || '노션 페이지'}
           </p>
-          <p className="text-xs text-gray-400 truncate">{url}</p>
+          {showExternalLink && (
+            <p className="text-xs text-gray-400 truncate">{url}</p>
+          )}
         </div>
 
         {/* 외부 링크 — 관리자만 표시 */}
