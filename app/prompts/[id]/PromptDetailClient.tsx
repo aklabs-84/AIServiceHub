@@ -17,9 +17,7 @@ import {
   FaSave, FaPlus, FaGlobe, FaGripVertical, FaShoppingCart
 } from 'react-icons/fa';
 import PurchaseModal from '@/components/PurchaseModal';
-import ReactMarkdown from 'react-markdown';
-import type { Components } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import type { Comment } from '@/types/database';
 import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize, getProxiedImageUrl } from '@/lib/format';
@@ -39,59 +37,6 @@ export default function PromptDetailClient({
   initialComments,
   initialCommentsLoaded = true,
 }: PromptDetailClientProps) {
-  const [copiedBlock, setCopiedBlock] = useState<string | null>(null);
-  type CodeProps = React.ComponentPropsWithoutRef<'code'> & { inline?: boolean };
-
-  const markdownComponents: Components = {
-    h1: (props) => <h1 className="text-3xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h2: (props) => <h2 className="text-2xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h3: (props) => <h3 className="text-xl font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
-    p: (props) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
-    ul: (props) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    ol: (props) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    li: (props) => <li className="leading-relaxed" {...props} />,
-    img: ({ src, alt, ...props }) => {
-      if (!src) return null;
-      const imageUrl = typeof src === 'string' ? getProxiedImageUrl(src) : '';
-      if (!imageUrl) return null;
-      return <img src={imageUrl} alt={alt} className="rounded-lg max-w-full h-auto mb-4" {...props} />;
-    },
-    code: ({ inline, className, children, ...props }: CodeProps) => {
-      if (inline) {
-        return (
-          <code className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs" {...props} />
-        );
-      }
-      const raw = String(children || '');
-      const trimmed = raw.replace(/\n$/, '');
-      const blockId = `${trimmed.slice(0, 48)}-${trimmed.length}`;
-      const isCopied = copiedBlock === blockId;
-      return (
-        <div className="relative group">
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(trimmed);
-                setCopiedBlock(blockId);
-                setTimeout(() => setCopiedBlock((prev) => (prev === blockId ? null : prev)), 1200);
-              } catch (error) {
-                console.error('Failed to copy code:', error);
-              }
-            }}
-            className="absolute top-3 right-3 flex items-center gap-1 rounded-md bg-gray-900/80 text-white text-xs px-2.5 py-1.5 opacity-0 group-hover:opacity-100 transition"
-          >
-            {isCopied ? <FaCheck /> : <FaCopy />}
-            <span>{isCopied ? '복사됨' : '복사'}</span>
-          </button>
-          <pre className="overflow-x-auto rounded-xl bg-gray-900 text-gray-100 text-sm p-4 border border-gray-800">
-            <code className={className}>{trimmed}</code>
-          </pre>
-        </div>
-      );
-    },
-  };
-
   const params = useParams();
   const router = useRouter();
   const { user, isAdmin, session, signInWithGoogle, signInWithKakao } = useAuth();
@@ -821,9 +766,7 @@ export default function PromptDetailClient({
                     <div className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
                       <div className="w-1 h-4 bg-emerald-500 rounded-full" /> 프롬프트 소개
                     </div>
-                    <div className="prose prose-emerald dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-black prose-img:rounded-2xl">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{prompt.description || ''}</ReactMarkdown>
-                    </div>
+                    <MarkdownRenderer content={prompt.description || ''} />
                     {prompt.tags && prompt.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-4">
                         {prompt.tags.map(t => (

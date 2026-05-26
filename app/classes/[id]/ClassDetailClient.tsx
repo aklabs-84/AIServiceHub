@@ -8,8 +8,7 @@ import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface Props {
   course: Course;
@@ -211,9 +210,7 @@ export default function ClassDetailClient({ course }: Props) {
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">{course.title}</h1>
 
             {course.description && (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:font-black prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-img:rounded-xl prose-img:max-w-full">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{course.description}</ReactMarkdown>
-              </div>
+              <MarkdownRenderer content={course.description} />
             )}
 
             {/* 공개 자료 미리보기 (입장코드 없이도 볼 수 있는 정보) */}

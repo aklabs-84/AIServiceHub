@@ -5,9 +5,7 @@ import LoadingDots from '@/components/LoadingDots';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import type { Components } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { db, getBrowserClient } from '@/lib/database';
 import type { AIApp, Comment, Attachment, AppUrlItem } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,22 +61,6 @@ export default function AppDetailClient({
   initialComments,
   initialCommentsLoaded = true,
 }: AppDetailClientProps) {
-  const markdownComponents: Components = {
-    h1: (props) => <h1 className="text-2xl font-bold mt-6 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h2: (props) => <h2 className="text-xl font-semibold mt-5 mb-3 text-gray-900 dark:text-gray-100" {...props} />,
-    h3: (props) => <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900 dark:text-gray-100" {...props} />,
-    p: (props) => <p className="leading-relaxed mb-3 last:mb-0" {...props} />,
-    ul: (props) => <ul className="list-disc list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    ol: (props) => <ol className="list-decimal list-outside pl-5 space-y-1 mb-3 last:mb-0" {...props} />,
-    li: (props) => <li className="leading-relaxed" {...props} />,
-    img: ({ src, alt, ...props }) => {
-      if (!src) return null;
-      const imageUrl = typeof src === 'string' ? getProxiedImageUrl(src) : '';
-      if (!imageUrl) return null;
-      return <img src={imageUrl} alt={alt} className="rounded-lg max-w-full h-auto mb-4" {...props} />;
-    },
-  };
-
   const params = useParams();
   const router = useRouter();
   const { user, session, isAdmin, signInWithGoogle, signInWithKakao } = useAuth();
@@ -1034,11 +1016,7 @@ export default function AppDetailClient({
 
                   <div className="mt-10 space-y-10">
                     {app.description && (
-                      <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-img:rounded-xl prose-img:max-w-full">
-                        <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
-                          {app.description}
-                        </ReactMarkdown>
-                      </div>
+                      <MarkdownRenderer content={app.description} />
                     )}
                     {app.tags && app.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2">
