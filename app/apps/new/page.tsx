@@ -67,6 +67,7 @@ export default function NewAppPage() {
     tags: string[];
     isPaid: boolean;
     price: number;
+    htmlCode: string; // 관리자 전용: HTML 미리보기 코드
   }
 
   const [formData, setFormData] = useState<AppFormData>({
@@ -82,6 +83,7 @@ export default function NewAppPage() {
     tags: [],
     isPaid: false,
     price: 0,
+    htmlCode: '',
   });
   // tagInput 제거: formData.tags 배열로 직접 관리
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -296,6 +298,27 @@ export default function NewAppPage() {
             20000,
             '첨부 파일 메타데이터 저장 시간이 초과되었습니다.'
           );
+        }
+
+        // HTML 미리보기 업로드 (관리자 + 코드 입력 시)
+        if (isAdmin && formData.htmlCode.trim()) {
+          try {
+            const res = await fetch('/api/apps/html-preview', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({ htmlCode: formData.htmlCode, appId }),
+            });
+            const data = await res.json();
+            if (res.ok && data.url) {
+              await db.apps.update(supabase, { id: appId, htmlPreviewUrl: data.url });
+            }
+          } catch (e) {
+            console.error('[new app] HTML preview upload failed:', e);
+            // HTML 업로드 실패는 앱 등록 자체를 막지 않음
+          }
         }
 
         return appId;
@@ -756,6 +779,28 @@ export default function NewAppPage() {
                   <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">100원 단위로 입력하세요</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* HTML 미리보기 (관리자 전용) */}
+          {isAdmin && (
+            <div className="mb-6 p-5 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-violet-50/50 dark:bg-violet-900/10">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">▶</span>
+                <label className="text-sm font-bold text-violet-800 dark:text-violet-300">
+                  HTML 미리보기 <span className="text-xs font-normal text-violet-600 dark:text-violet-500">(관리자 전용 · 선택)</span>
+                </label>
+              </div>
+              <textarea
+                rows={8}
+                value={formData.htmlCode}
+                onChange={(e) => setFormData({ ...formData, htmlCode: e.target.value })}
+                className="w-full px-4 py-3 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono text-xs resize-y"
+                placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
+              />
+              <p className="text-xs text-violet-600 dark:text-violet-500 mt-2">
+                HTML 코드를 붙여넣으면 사용자가 새 탭에서 바로 실행할 수 있습니다. (최대 2MB)
+              </p>
             </div>
           )}
 

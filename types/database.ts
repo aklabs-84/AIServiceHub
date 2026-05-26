@@ -78,6 +78,7 @@ export interface AppRow {
   created_by_name: string | null;
   created_at: string;
   updated_at: string;
+  html_preview_url?: string | null;
   // Joined data
   app_likes?: { user_id: string }[];
 }
@@ -182,6 +183,7 @@ export interface AIApp {
   tags: string[];
   price: number;
   isPaid: boolean;
+  htmlPreviewUrl?: string;
 }
 
 export interface Prompt {
@@ -486,6 +488,7 @@ export interface CreateAppInput {
 
 export interface UpdateAppInput extends Partial<CreateAppInput> {
   id: string;
+  htmlPreviewUrl?: string | null;
 }
 
 export interface CreatePromptInput {

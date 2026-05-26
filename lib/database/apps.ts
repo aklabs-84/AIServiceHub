@@ -26,6 +26,7 @@ function mapAppFromDB(data: AppRow): AIApp {
     tags: data.tags || [],
     price: data.price ?? 0,
     isPaid: data.is_paid ?? false,
+    htmlPreviewUrl: data.html_preview_url || undefined,
   };
 }
 
@@ -191,6 +192,7 @@ export async function update(client: SupabaseClient, input: UpdateAppInput): Pro
     }
   }
   if (fields.tags !== undefined) payload.tags = fields.tags;
+  if (fields.htmlPreviewUrl !== undefined) payload.html_preview_url = fields.htmlPreviewUrl || null;
   if (fields.thumbnailPositionX !== undefined || fields.thumbnailPositionY !== undefined) {
     if (fields.thumbnailPositionX !== null && fields.thumbnailPositionY !== null) {
       payload.thumbnail_pos = { x: fields.thumbnailPositionX, y: fields.thumbnailPositionY };

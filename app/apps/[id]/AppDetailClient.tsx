@@ -99,6 +99,7 @@ export default function AppDetailClient({
     thumbnailPositionX: number;
     thumbnailPositionY: number;
     tags: string[];
+    htmlCode: string; // 새로 업로드할 HTML 코드 (비어있으면 기존 유지)
   } | null>(null);
   // tagInput 제거: formData.tags 배열로 직접 관리
   const [snsForm, setSnsForm] = useState({
@@ -110,6 +111,7 @@ export default function AppDetailClient({
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [htmlPreviewUploading, setHtmlPreviewUploading] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const urlDragIndexRef = useRef<number | null>(null);
 
@@ -276,6 +278,7 @@ export default function AppDetailClient({
         thumbnailPositionX: typeof app.thumbnailPositionX === 'number' ? app.thumbnailPositionX : 50,
         thumbnailPositionY: typeof app.thumbnailPositionY === 'number' ? app.thumbnailPositionY : 50,
         tags: app.tags || [],
+        htmlCode: '', // 수정 시 비워두면 기존 URL 유지
       });
       // tags는 formData.tags에 이미 설정됨
       hydrateSnsForm(app.snsUrls || []);
@@ -444,6 +447,27 @@ export default function AppDetailClient({
         ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
         : [];
 
+      // HTML 미리보기 업로드 (관리자 + 코드 입력 시)
+      let htmlPreviewUrl: string | null | undefined = undefined;
+      if (isAdmin && formData.htmlCode.trim()) {
+        setHtmlPreviewUploading(true);
+        try {
+          const res = await fetch('/api/apps/html-preview', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ htmlCode: formData.htmlCode, appId: app.id }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'HTML 업로드 실패');
+          htmlPreviewUrl = data.url;
+        } finally {
+          setHtmlPreviewUploading(false);
+        }
+      }
+
       const hasThumbnail = !!formData.thumbnailUrl?.trim();
       const validAppUrls = formData.appUrls.filter((u) => u.url.trim().length > 0);
 
@@ -461,6 +485,7 @@ export default function AppDetailClient({
         thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
         thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
         tags: formData.tags,
+        ...(htmlPreviewUrl !== undefined && { htmlPreviewUrl }),
       });
 
       if (uploadedAttachments.length > 0) {
@@ -900,6 +925,53 @@ export default function AppDetailClient({
                     minHeight={280}
                   />
                 </section>
+
+                {/* HTML 미리보기 코드 — 관리자 전용 */}
+                {isAdmin && (
+                  <section className="bg-white dark:bg-gray-800 rounded-3xl p-6 sm:p-8 border-2 border-dashed border-violet-300 dark:border-violet-700 shadow-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                        <span className="text-lg">▶</span>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">HTML 미리보기</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">관리자 전용 · HTML 코드를 붙여넣으면 사용자가 새 탭에서 실행할 수 있습니다</p>
+                      </div>
+                    </div>
+                    {app.htmlPreviewUrl && !formData.htmlCode.trim() && (
+                      <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                        <span className="text-emerald-600 dark:text-emerald-400 text-sm font-bold">✓ HTML 미리보기 등록됨</span>
+                        <a
+                          href={app.htmlPreviewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-600 dark:text-emerald-400 underline ml-auto"
+                        >
+                          미리보기 열기 ↗
+                        </a>
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
+                        {app.htmlPreviewUrl ? 'HTML 코드 교체 (비워두면 기존 유지)' : 'HTML 코드 입력'}
+                      </label>
+                      <textarea
+                        value={formData.htmlCode}
+                        onChange={(e) => setFormData({ ...formData, htmlCode: e.target.value })}
+                        rows={10}
+                        className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-violet-500 outline-none font-mono text-xs text-gray-800 dark:text-gray-200 resize-y"
+                        placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
+                      />
+                      <p className="mt-2 text-xs text-gray-400">최대 2MB · 저장 시 Supabase Storage에 자동 업로드됩니다</p>
+                    </div>
+                    {htmlPreviewUploading && (
+                      <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 text-sm">
+                        <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                        <span>HTML 업로드 중...</span>
+                      </div>
+                    )}
+                  </section>
+                )}
               </div>
 
               <div className="space-y-8">
@@ -1017,6 +1089,22 @@ export default function AppDetailClient({
                   <div className="mt-10 space-y-10">
                     {app.description && (
                       <MarkdownRenderer content={app.description} />
+                    )}
+                    {/* HTML 미리보기 실행 버튼 */}
+                    {app.htmlPreviewUrl && (
+                      <div>
+                        <a
+                          href={app.htmlPreviewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-violet-500/30 active:scale-95 transition-all"
+                        >
+                          <span className="text-base">▶</span>
+                          <span>앱 실행하기</span>
+                          <FaExternalLinkAlt className="text-xs opacity-70" />
+                        </a>
+                        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">새 탭에서 HTML 앱이 실행됩니다</p>
+                      </div>
                     )}
                     {app.tags && app.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2">
