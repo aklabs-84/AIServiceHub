@@ -4,7 +4,7 @@ import { useState, useContext, createContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
-import { FaCopy, FaCheck, FaDownload } from 'react-icons/fa';
+import { FaCopy, FaCheck, FaDownload, FaExternalLinkAlt } from 'react-icons/fa';
 
 interface MarkdownRendererProps {
   content: string;
@@ -134,7 +134,8 @@ const components: Components = {
   ),
   a: ({ href, children }) => {
     const text = extractText(children as React.ReactNode);
-    // 📎로 시작하는 링크 → 파일 다운로드 카드
+
+    // 📎 파일 다운로드 카드
     if (text.startsWith('📎')) {
       const filename = text.replace(/^📎\s*/, '') || '파일 다운로드';
       return (
@@ -157,6 +158,31 @@ const components: Components = {
         </a>
       );
     }
+
+    // 🔖 북마크 카드
+    if (text.startsWith('🔖')) {
+      const label = text.replace(/^🔖\s*/, '') || href || '링크';
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2.5 px-3.5 py-2.5 my-1 rounded-xl
+            border border-gray-200 dark:border-gray-700
+            bg-gray-50 dark:bg-gray-800/60
+            text-sm font-bold text-gray-700 dark:text-gray-200
+            hover:border-blue-400 dark:hover:border-blue-600
+            hover:bg-blue-50 dark:hover:bg-blue-900/20
+            hover:text-blue-700 dark:hover:text-blue-300
+            transition-all no-underline group max-w-full"
+        >
+          <span className="text-base flex-none">🔖</span>
+          <span className="truncate">{label}</span>
+          <FaExternalLinkAlt className="text-xs text-gray-400 group-hover:text-blue-500 transition-colors flex-none" />
+        </a>
+      );
+    }
+
     // 일반 링크
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 underline hover:opacity-80 transition-opacity">
