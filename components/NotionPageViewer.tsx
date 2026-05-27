@@ -21,11 +21,14 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
   const [pageTitle, setPageTitle] = useState(propTitle || '');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const fetchContent = async () => {
+  // fresh=true → 서버 캐시 무시하고 Notion에서 직접 재요청
+  const fetchContent = async (fresh = false) => {
     setStatus('loading');
     setErrorMsg('');
     try {
-      const res = await fetch(`/api/notion/page?url=${encodeURIComponent(url)}`);
+      const params = new URLSearchParams({ url });
+      if (fresh) params.set('fresh', '1');
+      const res = await fetch(`/api/notion/page?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error || '페이지를 불러오지 못했습니다.');
@@ -119,7 +122,7 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
                 </div>
               )}
               <button
-                onClick={() => { setStatus('idle'); fetchContent(); }}
+                onClick={() => { setStatus('idle'); fetchContent(true); }}
                 className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 hover:underline font-bold"
               >
                 <FaSyncAlt className="text-[10px]" /> 다시 시도
@@ -138,7 +141,7 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
               <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <span className="text-[10px] text-gray-300 dark:text-gray-600">노션 페이지 내용 (10분 캐시)</span>
                 <button
-                  onClick={() => { setStatus('idle'); setMarkdown(''); fetchContent(); }}
+                  onClick={() => { setStatus('idle'); setMarkdown(''); fetchContent(true); }}
                   className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-violet-500 transition-colors"
                 >
                   <FaSyncAlt className="text-[8px]" /> 새로고침
