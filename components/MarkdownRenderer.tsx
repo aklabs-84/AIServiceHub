@@ -4,7 +4,7 @@ import { useState, useContext, createContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
-import { FaCopy, FaCheck } from 'react-icons/fa';
+import { FaCopy, FaCheck, FaDownload } from 'react-icons/fa';
 
 interface MarkdownRendererProps {
   content: string;
@@ -132,9 +132,38 @@ const components: Components = {
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt={alt ?? ''} className="rounded-xl max-w-full my-4" />
   ),
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 underline hover:opacity-80 transition-opacity">{children}</a>
-  ),
+  a: ({ href, children }) => {
+    const text = extractText(children as React.ReactNode);
+    // 📎로 시작하는 링크 → 파일 다운로드 카드
+    if (text.startsWith('📎')) {
+      const filename = text.replace(/^📎\s*/, '') || '파일 다운로드';
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2.5 px-3.5 py-2.5 my-1 rounded-xl
+            border border-gray-200 dark:border-gray-700
+            bg-gray-50 dark:bg-gray-800/60
+            text-sm font-bold text-gray-700 dark:text-gray-200
+            hover:border-violet-400 dark:hover:border-violet-600
+            hover:bg-violet-50 dark:hover:bg-violet-900/20
+            hover:text-violet-700 dark:hover:text-violet-300
+            transition-all no-underline group max-w-full"
+        >
+          <span className="text-base flex-none">📎</span>
+          <span className="truncate">{filename}</span>
+          <FaDownload className="text-xs text-gray-400 group-hover:text-violet-500 transition-colors flex-none" />
+        </a>
+      );
+    }
+    // 일반 링크
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-violet-600 dark:text-violet-400 underline hover:opacity-80 transition-opacity">
+        {children}
+      </a>
+    );
+  },
   strong: ({ children }) => (
     <strong className="font-bold text-gray-900 dark:text-white">{children}</strong>
   ),

@@ -9,24 +9,16 @@ function getNotionClient() {
 }
 
 // ── Notion URL → Page ID 추출 ───────────────────────────────────
-// 지원 형식:
-//   https://www.notion.so/Page-Title-{32hex}
-//   https://www.notion.so/{workspace}/Page-Title-{32hex}
-//   https://{workspace}.notion.site/{32hex}
-//   https://www.notion.so/{32hex-with-dashes}
 export function extractNotionPageId(url: string): string | null {
   try {
     const { hostname, pathname } = new URL(url);
     if (!hostname.includes('notion')) return null;
 
-    // 경로 맨 끝 세그먼트에서 32자리 hex 추출
     const segments = pathname.split('/').filter(Boolean);
     for (let i = segments.length - 1; i >= 0; i--) {
       const seg = segments[i];
-      // UUID 형식(하이픈 포함): xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
       const uuidMatch = seg.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
       if (uuidMatch) return uuidMatch[1];
-      // 마지막 32자리 hex (제목 뒤에 붙는 경우)
       const hexMatch = seg.match(/([0-9a-f]{32})$/i);
       if (hexMatch) return hexMatch[1];
     }
@@ -51,7 +43,6 @@ export async function getNotionPageTitle(pageId: string): Promise<string> {
   try {
     const notion = getNotionClient();
     const page = await notion.pages.retrieve({ page_id: pageId });
-    // properties.title 또는 Name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const props = (page as any).properties;
     for (const key of ['title', 'Title', 'Name', '이름', '제목']) {
@@ -77,7 +68,6 @@ async function tableBlockToMarkdown(
 
     if (rows.length === 0) return '';
 
-    // 셀 내용 추출 (rich_text 배열 → 문자열, | 이스케이프)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parseCell = (cell: any[]): string =>
       (cell ?? [])
@@ -98,10 +88,8 @@ async function tableBlockToMarkdown(
     const markdownRows = rows.map(rowToMd);
 
     if (hasColumnHeader) {
-      // 첫 행이 헤더
       return [markdownRows[0], separator, ...markdownRows.slice(1)].join('\n');
     } else {
-      // 헤더 없음 — 빈 헤더 행 삽입 (GFM 테이블은 헤더 필수)
       const emptyHeader = '| ' + Array(colCount).fill(' ').join(' | ') + ' |';
       return [emptyHeader, separator, ...markdownRows].join('\n');
     }
@@ -111,19 +99,58 @@ async function tableBlockToMarkdown(
   }
 }
 
+// ── 파일 블록 → Markdown 링크 변환 ────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fileBlockToMarkdown(fileInfo: any): string {
+  if (!fileInfo) return '';
+
+  // 파일명: name 필드 우선, 없으면 URL에서 추출
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawName: string = fileInfo?.name || '';
+  const url: string =
+    fileInfo?.type === 'file'
+      ? (fileInfo?.file?.url ?? '')
+      : (fileInfo?.external?.url ?? '');
+
+  if (!url) return '';
+
+  // URL에서 파일명 추출 (S3 signed URL 등은 경로 마지막 세그먼트 사용)
+  const nameFromUrl = decodeURIComponent(url.split('?')[0].split('/').pop() ?? '');
+  const filename = rawName || nameFromUrl || '첨부파일';
+
+  return `[📎 ${filename}](${url})`;
+}
+
 // ── 페이지 내용 → Markdown 변환 ────────────────────────────────
 export async function notionPageToMarkdown(pageId: string): Promise<string> {
   const notion = getNotionClient();
   const n2m = new NotionToMarkdown({ notionClient: notion });
 
-  // 테이블 블록 커스텀 변환기
+  // ── 테이블 블록 변환기 ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   n2m.setCustomTransformer('table', async (block: any) => {
     const hasColumnHeader = block?.table?.has_column_header ?? false;
     return tableBlockToMarkdown(notion, block.id, hasColumnHeader);
   });
 
+  // ── 첨부파일(file) 블록 변환기 ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  n2m.setCustomTransformer('file', async (block: any) => {
+    return fileBlockToMarkdown(block?.file);
+  });
+
+  // ── PDF 블록 변환기 ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  n2m.setCustomTransformer('pdf', async (block: any) => {
+    return fileBlockToMarkdown(block?.pdf);
+  });
+
   const mdBlocks = await n2m.pageToMarkdown(pageId);
   const { parent } = n2m.toMarkdownString(mdBlocks);
-  return parent;
+
+  // ── 연속 코드블록 사이 빈 줄 보정 ──
+  // notion-to-md가 코드 펜스 사이에 \n만 넣는 경우 \n\n으로 교정
+  const fixedMarkdown = parent.replace(/```\n```/g, '```\n\n```');
+
+  return fixedMarkdown;
 }
