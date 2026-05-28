@@ -169,28 +169,68 @@ export async function notionPageToMarkdown(pageId: string): Promise<string> {
     return `\`\`\`${lang}\n${text}\n\`\`\``;
   });
 
-  // ── 토글 블록 ──
-  // 자식 블록들을 재귀적으로 마크다운 변환 후 <details>/<summary> HTML로 감쌈.
-  // MarkdownRenderer 에 rehype-raw 가 있어야 실제 HTML로 렌더링됨.
+  // ── 토글 공통 헬퍼: rich_text → HTML 이스케이프 문자열 ──────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const richTextToHtml = (richText: any[]): string =>
+    richText
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((t: any) => {
+        let text = (t.plain_text ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        if (t.annotations?.bold)   text = `<strong>${text}</strong>`;
+        if (t.annotations?.italic) text = `<em>${text}</em>`;
+        if (t.annotations?.code)   text = `<code>${text}</code>`;
+        return text;
+      })
+      .join('');
+
+  // ── 토글 자식 → Markdown (들여쓰기 없이 평탄하게) ───────────────
+  const toggleChildrenToMd = async (blockId: string): Promise<string> => {
+    const childBlocks = await n2m.pageToMarkdown(blockId);
+    const { parent } = n2m.toMarkdownString(childBlocks);
+    return fixCodeBlockSeparation(parent.trim());
+  };
+
+  // ── 토글 HTML 조립 ──────────────────────────────────────────────
+  const buildToggleHtml = (summary: string, inner: string): string => {
+    if (!inner) return `<details>\n<summary>${summary}</summary>\n</details>`;
+    return `<details>\n<summary>${summary}</summary>\n\n${inner}\n\n</details>`;
+  };
+
+  // ── 일반 toggle 블록 ──────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   n2m.setCustomTransformer('toggle', async (block: any) => {
-    const richText: string = (block?.toggle?.rich_text ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((t: any) => t.plain_text ?? '')
-      .join('');
+    const summary = richTextToHtml(block?.toggle?.rich_text ?? []);
     try {
-      const childBlocks = await n2m.pageToMarkdown(block.id);
-      const { parent: childMd } = n2m.toMarkdownString(childBlocks);
-      const inner = childMd.trim();
-      if (!inner) {
-        return `<details>\n<summary>${richText}</summary>\n</details>`;
-      }
-      return `<details>\n<summary>${richText}</summary>\n\n${inner}\n\n</details>`;
+      const inner = await toggleChildrenToMd(block.id);
+      return buildToggleHtml(summary, inner);
     } catch {
-      // 자식 fetch 실패 시 제목만 표시
-      return `<details>\n<summary>${richText}</summary>\n</details>`;
+      return buildToggleHtml(summary, '');
     }
   });
+
+  // ── 토글 헤딩 (heading_1/2/3 with is_toggleable: true) ──────────
+  // 노션의 "토글 헤딩"은 type이 heading_N 이지만 is_toggleable: true.
+  // notion-to-md 기본 처리 시 자식 블록을 탭 들여쓰기로 출력해
+  // 마크다운 파서가 코드펜스를 잘못 파싱하는 문제가 생김.
+  // → is_toggleable 이면 <details>/<summary> 로 변환, 아니면 기본 처리.
+  for (const hType of ['heading_1', 'heading_2', 'heading_3']) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    n2m.setCustomTransformer(hType, async (block: any) => {
+      const headingData = block?.[hType];
+      if (!headingData?.is_toggleable) return false; // 일반 헤딩 → 기본 처리
+
+      const summary = richTextToHtml(headingData?.rich_text ?? []);
+      try {
+        const inner = await toggleChildrenToMd(block.id);
+        return buildToggleHtml(summary, inner);
+      } catch {
+        return buildToggleHtml(summary, '');
+      }
+    });
+  }
 
   // ── 테이블 블록 ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
