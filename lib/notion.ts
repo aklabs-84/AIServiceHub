@@ -153,6 +153,22 @@ export async function notionPageToMarkdown(pageId: string): Promise<string> {
   const notion = getNotionClient();
   const n2m = new NotionToMarkdown({ notionClient: notion });
 
+  // ── 코드 블록 ──
+  // notion-to-md 는 언어를 Notion API 그대로 쓰는데, 일반 텍스트 코드는
+  // "plain text"(공백 포함) 로 내려와 remark 가 언어 태그로 오인할 수 있음.
+  // 언어 없음으로 정규화하고, 블록 경계를 명확히 \n\n 으로 구분.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  n2m.setCustomTransformer('code', async (block: any) => {
+    const rawLang: string = block?.code?.language ?? '';
+    // "plain text", "plaintext", "plain_text" → 언어 없음
+    const lang = /^plain[\s_-]?text$/i.test(rawLang.trim()) ? '' : rawLang.trim();
+    const text: string = (block?.code?.rich_text ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((t: any) => t.plain_text ?? '')
+      .join('');
+    return `\`\`\`${lang}\n${text}\n\`\`\``;
+  });
+
   // ── 테이블 블록 ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   n2m.setCustomTransformer('table', async (block: any) => {

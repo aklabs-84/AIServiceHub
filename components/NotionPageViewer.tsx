@@ -28,7 +28,7 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
     try {
       const params = new URLSearchParams({ url });
       if (fresh) params.set('fresh', '1');
-      const res = await fetch(`/api/notion/page?${params.toString()}`);
+      const res = await fetch(`/api/notion/page?${params.toString()}`, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error || '페이지를 불러오지 못했습니다.');
@@ -139,7 +139,7 @@ export default function NotionPageViewer({ url, title: propTitle, defaultOpen = 
                 <p className="text-sm text-gray-400 italic">페이지 내용이 없습니다.</p>
               )}
               <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                <span className="text-[10px] text-gray-300 dark:text-gray-600">노션 페이지 내용 (10분 캐시)</span>
+                <span className="text-[10px] text-gray-300 dark:text-gray-600">노션 페이지 내용</span>
                 <button
                   onClick={() => { setStatus('idle'); setMarkdown(''); fetchContent(true); }}
                   className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-violet-500 transition-colors"

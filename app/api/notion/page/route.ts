@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 // ── 서버 인메모리 캐시 (3분) ─────────────────────────────────────
 const cache = new Map<string, { md: string; title: string; cachedAt: number }>();
-const CACHE_TTL = 3 * 60 * 1000; // 3분
+const CACHE_TTL = 60 * 1000; // 1분 (서버 인스턴스 내 중복 요청 방지용)
 
 /**
  * GET /api/notion/page?url={notionUrl}&fresh=1
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     if (cached && Date.now() - cached.cachedAt < CACHE_TTL) {
       return NextResponse.json(
         { markdown: cached.md, title: cached.title, cached: true },
-        { headers: { 'Cache-Control': 'private, max-age=180' } }
+        { headers: { 'Cache-Control': 'no-store' } }
       );
     }
   }
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { markdown: md, title, cached: false },
-      { headers: { 'Cache-Control': 'private, max-age=180' } }
+      { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (err: unknown) {
     console.error('[notion/page] fetch error:', err);
