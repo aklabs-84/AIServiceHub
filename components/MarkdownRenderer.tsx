@@ -3,6 +3,7 @@
 import { useState, useContext, createContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import type { Components } from 'react-markdown';
 import { FaCopy, FaCheck, FaDownload, FaExternalLinkAlt } from 'react-icons/fa';
 
@@ -195,6 +196,32 @@ const components: Components = {
   ),
   hr: () => <hr className="my-6 border-gray-200 dark:border-gray-700" />,
 
+  // ── 토글 (Notion toggle block → <details>/<summary>) ──────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  details: ({ children, ...props }: any) => (
+    <details
+      {...props}
+      className="group my-3 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+    >
+      {children}
+    </details>
+  ),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  summary: ({ children, ...props }: any) => (
+    <summary
+      {...props}
+      className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none
+        bg-gray-50 dark:bg-gray-800/60
+        hover:bg-gray-100 dark:hover:bg-gray-800
+        text-sm font-bold text-gray-800 dark:text-gray-200
+        list-none transition-colors
+        [&::-webkit-details-marker]:hidden"
+    >
+      <span className="text-gray-400 dark:text-gray-500 text-xs transition-transform group-open:rotate-90">▶</span>
+      {children}
+    </summary>
+  ),
+
   // ── 테이블 ──────────────────────────────────────────────────
   table: ({ children }) => (
     <div className="overflow-x-auto my-4 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -223,7 +250,11 @@ const components: Components = {
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
   return (
     <div className={className}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={components}
+      >
         {content}
       </ReactMarkdown>
     </div>

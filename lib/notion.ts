@@ -169,6 +169,29 @@ export async function notionPageToMarkdown(pageId: string): Promise<string> {
     return `\`\`\`${lang}\n${text}\n\`\`\``;
   });
 
+  // ── 토글 블록 ──
+  // 자식 블록들을 재귀적으로 마크다운 변환 후 <details>/<summary> HTML로 감쌈.
+  // MarkdownRenderer 에 rehype-raw 가 있어야 실제 HTML로 렌더링됨.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  n2m.setCustomTransformer('toggle', async (block: any) => {
+    const richText: string = (block?.toggle?.rich_text ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((t: any) => t.plain_text ?? '')
+      .join('');
+    try {
+      const childBlocks = await n2m.pageToMarkdown(block.id);
+      const { parent: childMd } = n2m.toMarkdownString(childBlocks);
+      const inner = childMd.trim();
+      if (!inner) {
+        return `<details>\n<summary>${richText}</summary>\n</details>`;
+      }
+      return `<details>\n<summary>${richText}</summary>\n\n${inner}\n\n</details>`;
+    } catch {
+      // 자식 fetch 실패 시 제목만 표시
+      return `<details>\n<summary>${richText}</summary>\n</details>`;
+    }
+  });
+
   // ── 테이블 블록 ──
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   n2m.setCustomTransformer('table', async (block: any) => {
