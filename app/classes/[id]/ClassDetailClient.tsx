@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit } from 'react-icons/fa';
+import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit, FaTimesCircle } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 
@@ -64,6 +64,9 @@ export default function ClassDetailClient({ course }: Props) {
   const isPaid = course.isPaid && course.price > 0;
   const loc = courseTypeLabel(course.courseType);
   const durationLabel = getDurationLabel(course.startAt, course.endAt);
+  const now = new Date();
+  const isEnded = toDate(course.endAt) < now;
+  const isOngoing = !isEnded && toDate(course.startAt) <= now;
 
   useEffect(() => {
     if (!user || !session) { setCheckingEnrollment(false); return; }
@@ -185,7 +188,7 @@ export default function ClassDetailClient({ course }: Props) {
 
       <article className="container mx-auto max-w-4xl px-4 py-10">
         {/* 썸네일 */}
-        <div className="relative aspect-[21/9] rounded-3xl overflow-hidden mb-8 bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600">
+        <div className={`relative aspect-[21/9] rounded-3xl overflow-hidden mb-8 bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600 ${isEnded ? 'grayscale opacity-70' : ''}`}>
           {course.thumbnailUrl ? (
             <Image src={course.thumbnailUrl} alt={course.title} fill className="object-cover" sizes="(max-width: 896px) 100vw, 896px" style={{ objectPosition: `${course.thumbnailPositionX ?? 50}% ${course.thumbnailPositionY ?? 50}%` }} />
           ) : (
@@ -194,7 +197,33 @@ export default function ClassDetailClient({ course }: Props) {
               <HiAcademicCap className="relative text-8xl text-white drop-shadow-2xl" />
             </div>
           )}
+          {isEnded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/40">
+              <div className="px-6 py-3 rounded-2xl bg-gray-900/80 backdrop-blur-sm border border-gray-700/50">
+                <span className="text-white text-base font-black tracking-wider">클래스 종료</span>
+              </div>
+            </div>
+          )}
+          {isOngoing && (
+            <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/90 backdrop-blur-sm">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span className="text-white text-xs font-black">진행 중</span>
+            </div>
+          )}
         </div>
+
+        {/* 종료 안내 배너 */}
+        {isEnded && (
+          <div className="flex items-start gap-3 p-4 rounded-2xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 mb-8">
+            <FaTimesCircle className="text-red-500 text-xl flex-none mt-0.5" />
+            <div>
+              <p className="font-black text-red-700 dark:text-red-400 text-sm">이 클래스는 종료되었습니다</p>
+              <p className="text-xs text-red-600/70 dark:text-red-400/70 mt-0.5">
+                종료일: {formatDate(course.endAt, true)} · 수강 신청이 마감되었습니다.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 본문 */}
@@ -274,26 +303,37 @@ export default function ClassDetailClient({ course }: Props) {
 
             {enrollmentStatusUI()}
 
-            {!checkingEnrollment && !enrollment && (
-              <div className="space-y-2">
-                {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
-                {user ? (
-                  <button onClick={handleEnroll} disabled={enrolling} className="w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm shadow-lg shadow-violet-200 dark:shadow-violet-900/30 transition-all">
-                    {enrolling ? '처리 중...' : isPaid ? '💳 수강 신청 (계좌이체)' : '✅ 무료 수강 신청'}
-                  </button>
-                ) : (
-                  <p className="text-center py-4 text-sm text-gray-500">수강 신청은 로그인 후 가능합니다.</p>
-                )}
-                <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3 rounded-2xl border-2 border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 font-black text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all">
-                  🔑 입장코드로 입장하기
-                </Link>
+            {isEnded ? (
+              /* 종료된 클래스 — 신청 불가 안내 */
+              <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-center space-y-1">
+                <FaTimesCircle className="text-gray-400 text-2xl mx-auto" />
+                <p className="text-sm font-black text-gray-500 dark:text-gray-400">수강 신청 마감</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">이 클래스는 종료되어 신청할 수 없습니다.</p>
               </div>
-            )}
+            ) : (
+              <>
+                {!checkingEnrollment && !enrollment && (
+                  <div className="space-y-2">
+                    {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
+                    {user ? (
+                      <button onClick={handleEnroll} disabled={enrolling} className="w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black text-sm shadow-lg shadow-violet-200 dark:shadow-violet-900/30 transition-all">
+                        {enrolling ? '처리 중...' : isPaid ? '💳 수강 신청 (계좌이체)' : '✅ 무료 수강 신청'}
+                      </button>
+                    ) : (
+                      <p className="text-center py-4 text-sm text-gray-500">수강 신청은 로그인 후 가능합니다.</p>
+                    )}
+                    <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3 rounded-2xl border-2 border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 font-black text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all">
+                      🔑 입장코드로 입장하기
+                    </Link>
+                  </div>
+                )}
 
-            {enrollment?.status === 'confirmed' && (
-              <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-lg transition-all">
-                🚪 교실 입장하기
-              </Link>
+                {enrollment?.status === 'confirmed' && (
+                  <Link href={`/classes/${course.id}/classroom`} className="block w-full text-center py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-lg transition-all">
+                    🚪 교실 입장하기
+                  </Link>
+                )}
+              </>
             )}
           </div>
         </div>

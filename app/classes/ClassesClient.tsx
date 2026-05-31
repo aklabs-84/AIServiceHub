@@ -13,11 +13,21 @@ interface ClassesClientProps {
 
 type PricingFilter = 'all' | 'free' | 'paid';
 type TypeFilter = 'all' | 'online' | 'offline' | 'hybrid';
+type StatusFilter = 'all' | 'upcoming' | 'ongoing' | 'ended';
+
+function getCourseStatus(course: { startAt: Date | string; endAt: Date | string }, now: Date): StatusFilter {
+  const start = course.startAt instanceof Date ? course.startAt : new Date(course.startAt);
+  const end = course.endAt instanceof Date ? course.endAt : new Date(course.endAt);
+  if (end < now) return 'ended';
+  if (start <= now) return 'ongoing';
+  return 'upcoming';
+}
 
 export default function ClassesClient({ initialCourses }: ClassesClientProps) {
   const { isAdmin } = useAuth();
   const [pricing, setPricing] = useState<PricingFilter>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const allTags = useMemo(() => {
@@ -33,22 +43,36 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
   };
 
   const filtered = useMemo(() => {
+    const now = new Date();
     let result = initialCourses;
     if (pricing === 'free') result = result.filter(c => !c.isPaid || c.price === 0);
     if (pricing === 'paid') result = result.filter(c => c.isPaid && c.price > 0);
     if (typeFilter !== 'all') result = result.filter(c => c.courseType === typeFilter);
+    if (statusFilter !== 'all') result = result.filter(c => getCourseStatus(c, now) === statusFilter);
     if (selectedTags.length > 0) result = result.filter(c => selectedTags.every(t => c.tags?.includes(t)));
-    return result;
-  }, [initialCourses, pricing, typeFilter, selectedTags]);
+    // 종료된 클래스는 항상 하단
+    return [...result].sort((a, b) => {
+      const aEnded = getCourseStatus(a, now) === 'ended';
+      const bEnded = getCourseStatus(b, now) === 'ended';
+      if (aEnded === bEnded) return 0;
+      return aEnded ? 1 : -1;
+    });
+  }, [initialCourses, pricing, typeFilter, statusFilter, selectedTags]);
 
-  const counts = useMemo(() => ({
-    all: initialCourses.length,
-    free: initialCourses.filter(c => !c.isPaid || c.price === 0).length,
-    paid: initialCourses.filter(c => c.isPaid && c.price > 0).length,
-    online: initialCourses.filter(c => c.courseType === 'online').length,
-    offline: initialCourses.filter(c => c.courseType === 'offline').length,
-    hybrid: initialCourses.filter(c => c.courseType === 'hybrid').length,
-  }), [initialCourses]);
+  const counts = useMemo(() => {
+    const now = new Date();
+    return {
+      all: initialCourses.length,
+      free: initialCourses.filter(c => !c.isPaid || c.price === 0).length,
+      paid: initialCourses.filter(c => c.isPaid && c.price > 0).length,
+      online: initialCourses.filter(c => c.courseType === 'online').length,
+      offline: initialCourses.filter(c => c.courseType === 'offline').length,
+      hybrid: initialCourses.filter(c => c.courseType === 'hybrid').length,
+      upcoming: initialCourses.filter(c => getCourseStatus(c, now) === 'upcoming').length,
+      ongoing: initialCourses.filter(c => getCourseStatus(c, now) === 'ongoing').length,
+      ended: initialCourses.filter(c => getCourseStatus(c, now) === 'ended').length,
+    };
+  }, [initialCourses]);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
@@ -100,6 +124,25 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
               onClick={() => setTypeFilter(key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                 typeFilter === key
+                  ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white'
+                  : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 hover:border-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-800 self-center mx-1" />
+          {([
+            ['all', '전체 일정'],
+            ['upcoming', `📅 예정 ${counts.upcoming}`],
+            ['ongoing', `🟢 진행 중 ${counts.ongoing}`],
+            ['ended', `⬜ 종료됨 ${counts.ended}`],
+          ] as [StatusFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                statusFilter === key
                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white'
                   : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 hover:border-gray-300'
               }`}

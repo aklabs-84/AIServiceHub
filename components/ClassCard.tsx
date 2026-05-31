@@ -42,12 +42,18 @@ export default function ClassCard({ course }: ClassCardProps) {
   const isPaid = course.isPaid && course.price > 0;
   const typeInfo = courseTypeLabel(course.courseType);
   const durationMin = getDurationMinutes(course.startAt, course.endAt);
-  const isUpcoming = toDate(course.startAt) > new Date();
+  const now = new Date();
+  const isEnded = toDate(course.endAt) < now;
+  const isOngoing = !isEnded && toDate(course.startAt) <= now;
 
   return (
     <Link
       href={`/classes/${course.id}`}
-      className="group flex flex-col bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800 transition-all duration-500 hover:shadow-2xl hover:shadow-violet-500/10 hover:-translate-y-1"
+      className={`group flex flex-col bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border transition-all duration-500 ${
+        isEnded
+          ? 'border-gray-200 dark:border-gray-700 opacity-60 grayscale hover:opacity-80 hover:grayscale-0'
+          : 'border-gray-100 dark:border-gray-800 hover:shadow-2xl hover:shadow-violet-500/10 hover:-translate-y-1'
+      }`}
     >
       {/* 썸네일 */}
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-violet-500 via-purple-600 to-fuchsia-600">
@@ -83,10 +89,18 @@ export default function ClassCard({ course }: ClassCardProps) {
           </div>
         </div>
 
-        {/* 종료 배지 */}
-        {!isUpcoming && (
-          <div className="absolute bottom-3 left-3 z-20 px-2.5 py-1 rounded-full bg-gray-900/70 backdrop-blur-sm">
-            <span className="text-white text-[10px] font-black">종료됨</span>
+        {/* 상태 배지 */}
+        {isEnded && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
+            <div className="px-4 py-2 rounded-2xl bg-gray-900/80 backdrop-blur-sm border border-gray-700/50">
+              <span className="text-white text-xs font-black tracking-wider">클래스 종료</span>
+            </div>
+          </div>
+        )}
+        {isOngoing && (
+          <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/90 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-[10px] font-black">진행 중</span>
           </div>
         )}
       </div>
