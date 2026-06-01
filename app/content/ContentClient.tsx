@@ -1244,7 +1244,13 @@ function NewsLightbox({ posts, index, onClose, onNavigate }: {
       </button>
 
       {/* Card */}
-      <div className="relative z-10 w-full max-w-lg overflow-hidden">
+      <motion.div
+        className="relative z-10 w-full max-w-lg overflow-hidden"
+        onPanEnd={(_, info) => {
+          if (info.offset.x < -50 || info.velocity.x < -300) { if (canNext) navigate(index + 1); }
+          else if (info.offset.x > 50 || info.velocity.x > 300) { if (canPrev) navigate(index - 1); }
+        }}
+      >
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={post.id}
@@ -1321,7 +1327,7 @@ function NewsLightbox({ posts, index, onClose, onNavigate }: {
             </div>
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {/* Pagination */}
       <div className="relative z-10 flex items-center gap-2 mt-4">
