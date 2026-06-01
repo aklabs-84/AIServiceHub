@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, MessageCircle, Send, Trash2, Loader2,
   ImageIcon, X, Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare, LayoutGrid,
-  Pencil, Check,
+  Pencil, Check, Newspaper,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,21 +17,23 @@ import type { Post, PostTopic, Comment } from '@/types/database';
 
 const TOPICS = [
   { value: 'all' as const,       label: '전체',       Icon: LayoutGrid },
+  { value: 'news' as const,      label: 'AI 소식',    Icon: Newspaper },
   { value: 'showcase' as const,  label: '앱 자랑',    Icon: Rocket },
   { value: 'idea' as const,      label: '아이디어',   Icon: Lightbulb },
   { value: 'tip' as const,       label: '팁 & 노하우', Icon: Sparkles },
   { value: 'question' as const,  label: '질문',       Icon: HelpCircle },
-  { value: 'chat' as const,      label: '잡담',       Icon: MessageSquare },
+  { value: 'chat' as const,      label: '자유 토크',  Icon: MessageSquare },
 ] as const;
 
 type TopicFilter = 'all' | PostTopic;
 
 const TOPIC_LABELS: Record<PostTopic, string> = {
+  news: 'AI 소식',
   showcase: '앱 자랑',
   idea: '아이디어',
   tip: '팁 & 노하우',
   question: '질문',
-  chat: '잡담',
+  chat: '자유 토크',
 };
 
 // ─── Utilities ────────────────────────────────────────────────
@@ -901,6 +903,143 @@ function PostCard({ post, index, onDelete }: { post: Post; index: number; onDele
   );
 }
 
+// ─── NewsCard ─────────────────────────────────────────────────
+
+function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDelete: (id: string) => void }) {
+  const { user } = useAuth();
+  const { showError } = useToast();
+  const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [liking, setLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.commentCount);
+  const [deleting, setDeleting] = useState(false);
+  const isOwner = user?.id === post.authorId;
+  const coverImage = post.images[0] ?? null;
+
+  const handleLike = async () => {
+    if (!user || liking) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+    setLiking(true);
+    try {
+      const client = getBrowserClient();
+      wasLiked
+        ? await db.posts.unlike(client, post.id, user.id)
+        : await db.posts.like(client, post.id, user.id);
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+      showError('오류가 발생했습니다.');
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isOwner || deleting) return;
+    setDeleting(true);
+    try {
+      await db.posts.remove(getBrowserClient(), post.id);
+      onDelete(post.id);
+    } catch {
+      showError('삭제에 실패했습니다.');
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
+      className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden flex flex-col"
+    >
+      {/* Cover image */}
+      {coverImage ? (
+        <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+          <Image src={coverImage} alt="" fill className="object-cover" unoptimized />
+        </div>
+      ) : (
+        <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
+          <Newspaper className="w-10 h-10 text-blue-200 dark:text-gray-600" />
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="flex flex-col flex-1 p-4 gap-3">
+        <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-4 flex-1 whitespace-pre-wrap break-words">
+          <RichText text={post.content} />
+        </p>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
+              <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <motion.button
+              whileTap={{ scale: 0.8 }}
+              onClick={handleLike}
+              disabled={!user || liking}
+              className="flex items-center gap-1 group disabled:cursor-default"
+            >
+              <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600 dark:group-hover:text-red-500'}`} />
+              {likeCount > 0 && (
+                <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}>{likeCount}</span>
+              )}
+            </motion.button>
+
+            <button
+              onClick={() => setShowComments((v) => !v)}
+              className={`flex items-center gap-1 transition-colors ${
+                showComments || commentCount > 0
+                  ? 'text-blue-500 dark:text-blue-400'
+                  : 'text-gray-400 hover:text-blue-500 dark:text-gray-600'
+              }`}
+            >
+              <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
+              {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
+            </button>
+
+            {isOwner && (
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
+              >
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              </motion.button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Comments */}
+      <AnimatePresence>
+        {showComments && (
+          <div className="px-4 pb-4">
+            <CommentsSection
+              key={post.id}
+              postId={post.id}
+              onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
+            />
+          </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────
 
 function Sidebar({ active, onChange, counts }: {
@@ -1016,29 +1155,46 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
             <MobileTabs active={activeTopic} onChange={setActiveTopic} />
 
             {/* Posts */}
-            <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
-              <AnimatePresence initial mode="popLayout">
-                {filtered.length === 0 ? (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="py-20 text-center"
-                  >
-                    <p className="text-4xl mb-3">✨</p>
-                    <p className="text-sm text-gray-400 dark:text-gray-600">
-                      {activeTopic === 'all'
-                        ? '아직 포스트가 없습니다.\n첫 번째 이야기를 올려보세요!'
-                        : `${TOPIC_LABELS[activeTopic as PostTopic]} 카테고리에 아직 글이 없습니다.`}
-                    </p>
-                  </motion.div>
-                ) : (
-                  filtered.map((post, i) => (
-                    <PostCard key={post.id} post={post} index={i} onDelete={handleDelete} />
-                  ))
-                )}
-              </AnimatePresence>
-            </div>
+            {activeTopic === 'news' ? (
+              filtered.length === 0 ? (
+                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 py-20 text-center">
+                  <p className="text-4xl mb-3">📰</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-600">AI 소식 카테고리에 아직 글이 없습니다.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <AnimatePresence initial mode="popLayout">
+                    {filtered.map((post, i) => (
+                      <NewsCard key={post.id} post={post} index={i} onDelete={handleDelete} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )
+            ) : (
+              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+                <AnimatePresence initial mode="popLayout">
+                  {filtered.length === 0 ? (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="py-20 text-center"
+                    >
+                      <p className="text-4xl mb-3">✨</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-600">
+                        {activeTopic === 'all'
+                          ? '아직 포스트가 없습니다.\n첫 번째 이야기를 올려보세요!'
+                          : `${TOPIC_LABELS[activeTopic as PostTopic]} 카테고리에 아직 글이 없습니다.`}
+                      </p>
+                    </motion.div>
+                  ) : (
+                    filtered.map((post, i) => (
+                      <PostCard key={post.id} post={post} index={i} onDelete={handleDelete} />
+                    ))
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </div>
       </div>

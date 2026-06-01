@@ -524,7 +524,7 @@ export type CategoryType = 'app' | 'prompt';
 
 // --- Community Posts ---
 
-export type PostTopic = 'showcase' | 'idea' | 'tip' | 'question' | 'chat';
+export type PostTopic = 'showcase' | 'idea' | 'tip' | 'question' | 'chat' | 'news';
 
 export interface PostRow {
   id: string;
