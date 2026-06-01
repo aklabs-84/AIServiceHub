@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, MessageCircle, Send, Trash2, Loader2,
   ImageIcon, X, Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare, LayoutGrid,
-  Pencil, Check, Newspaper,
+  Pencil, Check, Newspaper, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -905,7 +905,7 @@ function PostCard({ post, index, onDelete }: { post: Post; index: number; onDele
 
 // ─── NewsCard ─────────────────────────────────────────────────
 
-function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDelete: (id: string) => void }) {
+function NewsCard({ post, index, onDelete, onOpen }: { post: Post; index: number; onDelete: (id: string) => void; onOpen: () => void }) {
   const { user, isAdmin } = useAuth();
   const { showError } = useToast();
   const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
@@ -980,7 +980,8 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
-      className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden flex flex-col"
+      className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden flex flex-col cursor-pointer"
+      onClick={() => { if (!isEditing) onOpen(); }}
     >
       {/* Cover image */}
       {!isEditing && (
@@ -1002,7 +1003,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
           <div className="flex justify-end gap-2">
             <motion.button
               whileTap={{ scale: 0.85 }}
-              onClick={startEdit}
+              onClick={(e) => { e.stopPropagation(); startEdit(); }}
               className="text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-400 transition-colors"
               title="수정"
             >
@@ -1010,7 +1011,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.85 }}
-              onClick={handleDelete}
+              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
               disabled={deleting}
               className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
               title="삭제"
@@ -1022,7 +1023,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
 
         {/* Edit mode */}
         {isEditing ? (
-          <div className="space-y-2">
+          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
@@ -1072,7 +1073,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
             <div className="flex items-center gap-3 flex-shrink-0">
               <motion.button
                 whileTap={{ scale: 0.8 }}
-                onClick={handleLike}
+                onClick={(e) => { e.stopPropagation(); handleLike(); }}
                 disabled={!user || liking}
                 className="flex items-center gap-1 group disabled:cursor-default"
               >
@@ -1083,7 +1084,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
               </motion.button>
 
               <button
-                onClick={() => setShowComments((v) => !v)}
+                onClick={(e) => { e.stopPropagation(); setShowComments((v) => !v); }}
                 className={`flex items-center gap-1 transition-colors ${
                   showComments || commentCount > 0
                     ? 'text-blue-500 dark:text-blue-400'
@@ -1101,7 +1102,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
       {/* Comments */}
       <AnimatePresence>
         {showComments && !isEditing && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4" onClick={(e) => e.stopPropagation()}>
             <CommentsSection
               key={post.id}
               postId={post.id}
@@ -1110,6 +1111,232 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
           </div>
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ─── NewsLightbox ─────────────────────────────────────────────
+
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? '55%' : '-55%', opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? '-55%' : '55%', opacity: 0 }),
+};
+
+function NewsLightbox({ posts, index, onClose, onNavigate }: {
+  posts: Post[];
+  index: number;
+  onClose: () => void;
+  onNavigate: (index: number) => void;
+}) {
+  const { user, isAdmin } = useAuth();
+  const { showError } = useToast();
+  const post = posts[index];
+  const canPrev = index > 0;
+  const canNext = index < posts.length - 1;
+  const [direction, setDirection] = useState(0);
+  const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [liking, setLiking] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.commentCount);
+  const [deleting, setDeleting] = useState(false);
+
+  const navigate = (newIndex: number) => {
+    setDirection(newIndex > index ? 1 : -1);
+    setShowComments(false);
+    onNavigate(newIndex);
+  };
+
+  useEffect(() => {
+    setLiked(post.likes.includes(user?.id || ''));
+    setLikeCount(post.likeCount);
+    setCommentCount(post.commentCount);
+  }, [post, user]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && canPrev) navigate(index - 1);
+      if (e.key === 'ArrowRight' && canNext) navigate(index + 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [index, canPrev, canNext]);
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || liking) return;
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+    setLiking(true);
+    try {
+      const client = getBrowserClient();
+      wasLiked
+        ? await db.posts.unlike(client, post.id, user.id)
+        : await db.posts.like(client, post.id, user.id);
+    } catch {
+      setLiked(wasLiked);
+      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+      showError('오류가 발생했습니다.');
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAdmin || deleting) return;
+    setDeleting(true);
+    try {
+      await db.posts.remove(getBrowserClient(), post.id);
+      onClose();
+    } catch {
+      showError('삭제에 실패했습니다.');
+      setDeleting(false);
+    }
+  };
+
+  const showDots = posts.length <= 9;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-4"
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      {/* Prev */}
+      <button
+        onClick={(e) => { e.stopPropagation(); if (canPrev) navigate(index - 1); }}
+        disabled={!canPrev}
+        className="absolute left-3 sm:left-6 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-colors"
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+
+      {/* Next */}
+      <button
+        onClick={(e) => { e.stopPropagation(); if (canNext) navigate(index + 1); }}
+        disabled={!canNext}
+        className="absolute right-3 sm:right-6 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-colors"
+      >
+        <ChevronRight className="w-6 h-6" />
+      </button>
+
+      {/* Card */}
+      <div className="relative z-10 w-full max-w-lg overflow-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={post.id}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.28, ease: 'easeInOut' }}
+            className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[85vh]"
+          >
+            {/* Images */}
+            {post.images.length > 0 && (
+              <div className="overflow-y-auto flex-shrink-0 max-h-[55vh]">
+                {post.images.map((src, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={src}
+                    alt={`이미지 ${i + 1}`}
+                    className="w-full block"
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
+                <RichText text={post.content} />
+              </p>
+
+              {/* Author */}
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
+                  <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <motion.button whileTap={{ scale: 0.8 }} onClick={handleLike} disabled={!user || liking} className="flex items-center gap-1 group disabled:cursor-default">
+                    <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600'}`} />
+                    {likeCount > 0 && <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400'}`}>{likeCount}</span>}
+                  </motion.button>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowComments((v) => !v); }}
+                    className={`flex items-center gap-1 transition-colors ${showComments || commentCount > 0 ? 'text-blue-500' : 'text-gray-400 hover:text-blue-500'}`}
+                  >
+                    <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
+                    {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
+                  </button>
+
+                  {isAdmin && (
+                    <motion.button whileTap={{ scale: 0.85 }} onClick={handleDelete} disabled={deleting} className="text-gray-300 hover:text-red-400 transition-colors">
+                      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+
+              {/* Comments */}
+              <AnimatePresence>
+                {showComments && (
+                  <CommentsSection
+                    key={post.id}
+                    postId={post.id}
+                    onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Pagination */}
+      <div className="relative z-10 flex items-center gap-2 mt-4">
+        {showDots ? (
+          posts.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => navigate(i)}
+              className={`rounded-full transition-all ${i === index ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/35 hover:bg-white/60'}`}
+            />
+          ))
+        ) : (
+          <span className="text-white/60 text-xs tabular-nums">{index + 1} / {posts.length}</span>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -1184,6 +1411,7 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
   const { isAdmin } = useAuth();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [activeTopic, setActiveTopic] = useState<TopicFilter>('all');
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const filtered = activeTopic === 'all' ? posts : posts.filter((p) => p.topic === activeTopic);
 
@@ -1247,7 +1475,7 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <AnimatePresence initial mode="popLayout">
                     {filtered.map((post, i) => (
-                      <NewsCard key={post.id} post={post} index={i} onDelete={handleDelete} />
+                      <NewsCard key={post.id} post={post} index={i} onDelete={handleDelete} onOpen={() => setLightboxIndex(i)} />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -1280,6 +1508,18 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
           </div>
         </div>
       </div>
+
+      {/* News Lightbox */}
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <NewsLightbox
+            posts={filtered}
+            index={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onNavigate={setLightboxIndex}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
