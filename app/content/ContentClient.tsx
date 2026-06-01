@@ -230,7 +230,7 @@ async function uploadImage(file: File): Promise<string> {
   return url;
 }
 
-function PostComposer({ onPost }: { onPost: (post: Post) => void }) {
+function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdmin: boolean }) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState<PostTopic>('chat');
@@ -418,7 +418,7 @@ function PostComposer({ onPost }: { onPost: (post: Post) => void }) {
               onChange={(e) => setTopic(e.target.value as PostTopic)}
               className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2.5 py-1 outline-none cursor-pointer"
             >
-              {TOPICS.filter((t) => t.value !== 'all').map((t) => (
+              {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || t.value !== 'news')).map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
@@ -906,7 +906,7 @@ function PostCard({ post, index, onDelete }: { post: Post; index: number; onDele
 // ─── NewsCard ─────────────────────────────────────────────────
 
 function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDelete: (id: string) => void }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { showError } = useToast();
   const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -914,7 +914,10 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState(post.commentCount);
   const [deleting, setDeleting] = useState(false);
-  const isOwner = user?.id === post.authorId;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
+  const [saving, setSaving] = useState(false);
+  const [displayContent, setDisplayContent] = useState(post.content);
   const coverImage = post.images[0] ?? null;
 
   const handleLike = async () => {
@@ -938,7 +941,7 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
   };
 
   const handleDelete = async () => {
-    if (!isOwner || deleting) return;
+    if (!isAdmin || deleting) return;
     setDeleting(true);
     try {
       await db.posts.remove(getBrowserClient(), post.id);
@@ -946,6 +949,27 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
     } catch {
       showError('삭제에 실패했습니다.');
       setDeleting(false);
+    }
+  };
+
+  const startEdit = () => {
+    setEditContent(displayContent);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => setIsEditing(false);
+
+  const handleSave = async () => {
+    if (!editContent.trim() || saving) return;
+    setSaving(true);
+    try {
+      await db.posts.update(getBrowserClient(), post.id, editContent.trim(), 'news');
+      setDisplayContent(editContent.trim());
+      setIsEditing(false);
+    } catch {
+      showError('수정에 실패했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -959,74 +983,124 @@ function NewsCard({ post, index, onDelete }: { post: Post; index: number; onDele
       className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden flex flex-col"
     >
       {/* Cover image */}
-      {coverImage ? (
-        <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 flex-shrink-0">
-          <Image src={coverImage} alt="" fill className="object-cover" unoptimized />
-        </div>
-      ) : (
-        <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
-          <Newspaper className="w-10 h-10 text-blue-200 dark:text-gray-600" />
-        </div>
+      {!isEditing && (
+        coverImage ? (
+          <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+            <Image src={coverImage} alt="" fill className="object-cover" unoptimized />
+          </div>
+        ) : (
+          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
+            <Newspaper className="w-10 h-10 text-blue-200 dark:text-gray-600" />
+          </div>
+        )
       )}
 
       {/* Body */}
       <div className="flex flex-col flex-1 p-4 gap-3">
-        <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-4 flex-1 whitespace-pre-wrap break-words">
-          <RichText text={post.content} />
-        </p>
+        {/* Admin action buttons */}
+        {isAdmin && !isEditing && (
+          <div className="flex justify-end gap-2">
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={startEdit}
+              className="text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-400 transition-colors"
+              title="수정"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
+              title="삭제"
+            >
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </motion.button>
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
-          <div className="flex items-center gap-2 min-w-0">
-            <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
-              <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
+        {/* Edit mode */}
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              autoFocus
+              rows={5}
+              className="w-full resize-none bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none leading-relaxed border border-gray-200 dark:border-gray-700"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
+                if (e.key === 'Escape') cancelEdit();
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={cancelEdit}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-3 py-1.5 transition-colors"
+              >
+                취소
+              </button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSave}
+                disabled={!editContent.trim() || saving}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 disabled:opacity-30 transition-opacity"
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                저장
+              </motion.button>
             </div>
           </div>
+        ) : (
+          <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-4 flex-1 whitespace-pre-wrap break-words">
+            <RichText text={displayContent} />
+          </p>
+        )}
 
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              onClick={handleLike}
-              disabled={!user || liking}
-              className="flex items-center gap-1 group disabled:cursor-default"
-            >
-              <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600 dark:group-hover:text-red-500'}`} />
-              {likeCount > 0 && (
-                <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}>{likeCount}</span>
-              )}
-            </motion.button>
+        {/* Footer */}
+        {!isEditing && (
+          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
+                <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
+              </div>
+            </div>
 
-            <button
-              onClick={() => setShowComments((v) => !v)}
-              className={`flex items-center gap-1 transition-colors ${
-                showComments || commentCount > 0
-                  ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-gray-400 hover:text-blue-500 dark:text-gray-600'
-              }`}
-            >
-              <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
-              {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
-            </button>
-
-            {isOwner && (
+            <div className="flex items-center gap-3 flex-shrink-0">
               <motion.button
-                whileTap={{ scale: 0.85 }}
-                onClick={handleDelete}
-                disabled={deleting}
-                className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
+                whileTap={{ scale: 0.8 }}
+                onClick={handleLike}
+                disabled={!user || liking}
+                className="flex items-center gap-1 group disabled:cursor-default"
               >
-                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600 dark:group-hover:text-red-500'}`} />
+                {likeCount > 0 && (
+                  <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}>{likeCount}</span>
+                )}
               </motion.button>
-            )}
+
+              <button
+                onClick={() => setShowComments((v) => !v)}
+                className={`flex items-center gap-1 transition-colors ${
+                  showComments || commentCount > 0
+                    ? 'text-blue-500 dark:text-blue-400'
+                    : 'text-gray-400 hover:text-blue-500 dark:text-gray-600'
+                }`}
+              >
+                <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
+                {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Comments */}
       <AnimatePresence>
-        {showComments && (
+        {showComments && !isEditing && (
           <div className="px-4 pb-4">
             <CommentsSection
               key={post.id}
@@ -1107,6 +1181,7 @@ function MobileTabs({ active, onChange }: { active: TopicFilter; onChange: (t: T
 type ContentClientProps = { initialPosts: Post[] };
 
 export default function ContentClient({ initialPosts }: ContentClientProps) {
+  const { isAdmin } = useAuth();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [activeTopic, setActiveTopic] = useState<TopicFilter>('all');
 
@@ -1147,9 +1222,16 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
           {/* Feed */}
           <div className="flex-1 min-w-0">
             {/* Composer */}
-            <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 mb-4">
-              <PostComposer onPost={handleNewPost} />
-            </div>
+            {activeTopic === 'news' && !isAdmin ? (
+              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 mb-4 px-4 py-5 flex items-center gap-3 text-gray-400 dark:text-gray-600">
+                <Newspaper className="w-4 h-4 flex-shrink-0" />
+                <p className="text-sm">AI 소식은 관리자만 게시할 수 있습니다.</p>
+              </div>
+            ) : (
+              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 mb-4">
+                <PostComposer onPost={handleNewPost} isAdmin={isAdmin} />
+              </div>
+            )}
 
             {/* Mobile topic tabs */}
             <MobileTabs active={activeTopic} onChange={setActiveTopic} />
