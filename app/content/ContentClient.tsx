@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import {
   Heart, MessageCircle, Send, Trash2, Loader2,
   ImageIcon, X, Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare, LayoutGrid,
@@ -234,8 +234,9 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
   const { user } = useAuth();
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState<PostTopic>('chat');
-  const [previews, setPreviews] = useState<{ file: File; objectUrl: string; originalSize: number; compressing: boolean }[]>([]);
+  const [previews, setPreviews] = useState<{ uid: string; file: File; objectUrl: string; originalSize: number; compressing: boolean }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const maxImages = topic === 'news' ? 10 : 4;
   const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -253,10 +254,10 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
     const files = Array.from(e.target.files || []);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    const remaining = MAX_IMAGES - previews.length;
+    const remaining = maxImages - previews.length;
     const candidates = files.slice(0, remaining);
     if (files.length > remaining) {
-      showWarning(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`);
+      showWarning(`이미지는 최대 ${maxImages}장까지 첨부할 수 있습니다.`);
     }
 
     for (const file of candidates) {
@@ -269,8 +270,9 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
         continue;
       }
 
+      const uid = Math.random().toString(36).slice(2, 9);
       const originalSize = file.size;
-      const placeholder = { file, objectUrl: URL.createObjectURL(file), originalSize, compressing: true };
+      const placeholder = { uid, file, objectUrl: URL.createObjectURL(file), originalSize, compressing: true };
       setPreviews((prev) => [...prev, placeholder]);
 
       try {
@@ -278,24 +280,25 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
         const compressedUrl = URL.createObjectURL(compressed);
         setPreviews((prev) =>
           prev.map((p) =>
-            p.objectUrl === placeholder.objectUrl
-              ? { file: compressed, objectUrl: compressedUrl, originalSize, compressing: false }
+            p.uid === placeholder.uid
+              ? { ...p, file: compressed, objectUrl: compressedUrl, compressing: false }
               : p
           )
         );
         URL.revokeObjectURL(placeholder.objectUrl);
       } catch {
         showError(`${file.name}: 압축에 실패했습니다.`);
-        setPreviews((prev) => prev.filter((p) => p.objectUrl !== placeholder.objectUrl));
+        setPreviews((prev) => prev.filter((p) => p.uid !== placeholder.uid));
         URL.revokeObjectURL(placeholder.objectUrl);
       }
     }
   };
 
-  const removeImage = (i: number) => {
+  const removeImage = (uid: string) => {
     setPreviews((prev) => {
-      URL.revokeObjectURL(prev[i].objectUrl);
-      return prev.filter((_, idx) => idx !== i);
+      const target = prev.find((p) => p.uid === uid);
+      if (target) URL.revokeObjectURL(target.objectUrl);
+      return prev.filter((p) => p.uid !== uid);
     });
   };
 
@@ -380,9 +383,21 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
 
         {/* Image previews */}
         {previews.length > 0 && (
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {previews.map((p, i) => (
-              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+          <Reorder.Group
+            as="div"
+            axis="x"
+            values={previews}
+            onReorder={setPreviews}
+            className="flex gap-2 mt-2 overflow-x-auto pb-1"
+            style={{ listStyle: 'none', padding: 0, margin: 0 }}
+          >
+            {previews.map((p) => (
+              <Reorder.Item
+                key={p.uid}
+                value={p}
+                as="div"
+                className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0 cursor-grab active:cursor-grabbing"
+              >
                 {p.compressing ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
                     <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
@@ -391,7 +406,6 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
                 ) : (
                   <>
                     <Image src={p.objectUrl} alt="" fill className="object-cover" unoptimized />
-                    {/* 압축 크기 뱃지 */}
                     <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white text-center py-0.5">
                       {formatBytes(p.file.size)}
                     </div>
@@ -399,15 +413,16 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
                 )}
                 {!p.compressing && (
                   <button
-                    onClick={() => removeImage(i)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => removeImage(p.uid)}
                     className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
                   >
                     <X className="w-3 h-3 text-white" />
                   </button>
                 )}
-              </div>
+              </Reorder.Item>
             ))}
-          </div>
+          </Reorder.Group>
         )}
 
         <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
@@ -415,7 +430,16 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
           <div className="flex items-center gap-2">
             <select
               value={topic}
-              onChange={(e) => setTopic(e.target.value as PostTopic)}
+              onChange={(e) => {
+                const next = e.target.value as PostTopic;
+                setTopic(next);
+                if (next !== 'news' && previews.length > 4) {
+                  setPreviews((prev) => {
+                    prev.slice(4).forEach((p) => URL.revokeObjectURL(p.objectUrl));
+                    return prev.slice(0, 4);
+                  });
+                }
+              }}
               className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2.5 py-1 outline-none cursor-pointer"
             >
               {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || t.value !== 'news')).map((t) => (
@@ -431,15 +455,15 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
               className="hidden"
               onChange={handleFileChange}
             />
-            {previews.length < MAX_IMAGES && (
+            {previews.length < maxImages && (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center gap-1 text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 transition-colors"
-                title={`이미지 첨부 (최대 ${MAX_IMAGES}장, 자동 WebP 압축)`}
+                title={`이미지 첨부 (최대 ${maxImages}장, 자동 WebP 압축)`}
               >
                 <ImageIcon className="w-4 h-4" />
                 <span className="text-xs hidden sm:inline">
-                  {previews.length > 0 ? `${previews.length}/${MAX_IMAGES}` : '이미지'}
+                  {previews.length > 0 ? `${previews.length}/${maxImages}` : '이미지'}
                 </span>
               </button>
             )}
