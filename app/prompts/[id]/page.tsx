@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import PromptDetailClient from './PromptDetailClient';
 import { getServerClient } from '@/lib/database/server';
 import { getAdminClient } from '@/lib/database';
@@ -9,10 +10,45 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'mosebb@gmail.com';
+const BASE_URL = 'https://ai-service-hub.vercel.app';
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) return { title: 'AI LABS' };
+
+  const client = await getServerClient();
+  const prompt = await db.prompts.getById(client, id);
+
+  if (!prompt) {
+    return { title: 'AI LABS - 프롬프트를 찾을 수 없습니다' };
+  }
+
+  const title = `${prompt.name} - AI LABS`;
+  const description = prompt.description || `${prompt.name}: AI LABS의 바이브코딩 AI 프롬프트`;
+  const image = prompt.thumbnailUrl || `${BASE_URL}/ai-labs-og.png`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${BASE_URL}/prompts/${id}`,
+      images: [{ url: image, width: 1200, height: 630, alt: prompt.name }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
+  };
+}
 
 export default async function PromptDetailPage({ params }: PageProps) {
   const { id } = await params;

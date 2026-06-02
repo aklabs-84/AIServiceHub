@@ -22,6 +22,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
   description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+  verification: {
+    google: "CrsqfluWvBwJIFib6iTgOLVt6vnAzq5R2LT17mz2sig",
+  },
   icons: {
     icon: [
       { url: "/favicon_io/favicon-32x32.png", sizes: "32x32", type: "image/png" },
