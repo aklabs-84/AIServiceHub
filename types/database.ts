@@ -108,7 +108,7 @@ export interface PromptRow {
 export interface AttachmentRow {
   id: string;
   target_id: string;
-  target_type: 'app' | 'prompt' | 'post';
+  target_type: 'app' | 'prompt' | 'post' | 'course';
   name: string;
   size: number;
   content_type: string;
@@ -120,7 +120,7 @@ export interface AttachmentRow {
 export interface CommentRow {
   id: string;
   target_id: string;
-  target_type: 'app' | 'prompt' | 'post';
+  target_type: 'app' | 'prompt' | 'post' | 'course';
   content: string;
   created_by: string | null;
   created_by_name: string | null;
@@ -395,7 +395,7 @@ export interface Subscription {
 export interface Attachment {
   id: string;
   targetId: string;
-  targetType: 'app' | 'prompt' | 'post';
+  targetType: 'app' | 'prompt' | 'post' | 'course';
   name: string;
   size: number;
   contentType: string;
@@ -407,7 +407,7 @@ export interface Attachment {
 export interface Comment {
   id: string;
   targetId: string;
-  targetType: 'app' | 'prompt' | 'post';
+  targetType: 'app' | 'prompt' | 'post' | 'course';
   content: string;
   createdBy: string;
   createdByName: string;
@@ -519,7 +519,7 @@ export interface CreateCategoryInput {
   icon: string;
 }
 
-export type CommentTargetType = 'app' | 'prompt' | 'post';
+export type CommentTargetType = 'app' | 'prompt' | 'post' | 'course';
 export type CategoryType = 'app' | 'prompt';
 
 // --- Community Posts ---

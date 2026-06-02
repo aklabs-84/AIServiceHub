@@ -70,6 +70,7 @@ export default function MarkdownEditor({
           commands.orderedListCommand,
           commands.divider,
           commands.link,
+          commands.image,
           commands.quote,
           commands.code,
           commands.divider,

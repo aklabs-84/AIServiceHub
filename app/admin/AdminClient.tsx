@@ -20,7 +20,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales' | 'classes';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales' | 'classes' | 'comments';
 
 interface OneTimeInfo {
   id: string;
@@ -71,7 +71,7 @@ function AdminPageContent({
   initialPromptCategories,
   initialDataLoaded,
 }: AdminClientProps) {
-  const { user, isAdmin, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, isAdmin, loading, session, signInWithGoogle, signOut } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
   const [apps, setApps] = useState<AIApp[]>(initialApps);
   const [prompts, setPrompts] = useState<Prompt[]>(initialPrompts);
@@ -106,6 +106,13 @@ function AdminPageContent({
     durationUnit: 'hour' as 'hour' | 'day' | 'week',
   });
   const [now, setNow] = useState<Date | null>(null);
+  const [allComments, setAllComments] = useState<Comment[]>([]);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [loadingAllComments, setLoadingAllComments] = useState(false);
+  const [commentFilterType, setCommentFilterType] = useState<string>('all');
+  const [commentPage, setCommentPage] = useState(1);
+  const [editingComment, setEditingComment] = useState<{ id: string; content: string } | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
   const [appCategoryForm, setAppCategoryForm] = useState({
     value: '',
     label: '',
@@ -277,6 +284,68 @@ function AdminPageContent({
       loadCollections();
     }
   }, [activeTab, collectionsLoaded, loadingCollections, loadCollections]);
+
+  useEffect(() => {
+    if (activeTab !== 'comments' || commentsLoaded || loadingAllComments || !session) return;
+    const load = async () => {
+      setLoadingAllComments(true);
+      try {
+        const res = await fetch('/api/admin/comments?limit=200', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const { comments: data } = await res.json();
+          setAllComments(data.map((c: { id: string; target_id: string; target_type: string; content: string; created_by: string; created_by_name: string; created_by_avatar_url: string | null; created_at: string }) => ({
+            id: c.id,
+            targetId: c.target_id,
+            targetType: c.target_type,
+            content: c.content,
+            createdBy: c.created_by,
+            createdByName: c.created_by_name,
+            createdByAvatarUrl: c.created_by_avatar_url,
+            createdAt: new Date(c.created_at),
+          })));
+          setCommentsLoaded(true);
+        }
+      } finally { setLoadingAllComments(false); }
+    };
+    load();
+  }, [activeTab, commentsLoaded, loadingAllComments, session]);
+
+  const handleAdminDeleteComment = async (id: string) => {
+    if (!session || !window.confirm('이 댓글을 삭제하시겠습니까?')) return;
+    const res = await fetch(`/api/admin/comments?id=${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (res.ok) {
+      setAllComments(prev => prev.filter(c => c.id !== id));
+      setComments(prev => prev.filter(c => c.id !== id));
+      showSuccess('댓글이 삭제되었습니다.');
+    } else {
+      showError('삭제에 실패했습니다.');
+    }
+  };
+
+  const handleAdminEditComment = async () => {
+    if (!editingComment || !session || !editCommentText.trim()) return;
+    const res = await fetch(`/api/admin/comments?id=${editingComment.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ content: editCommentText.trim() }),
+    });
+    if (res.ok) {
+      const updated = (prev: Comment[]) =>
+        prev.map(c => c.id === editingComment.id ? { ...c, content: editCommentText.trim() } : c);
+      setAllComments(updated);
+      setComments(updated);
+      setEditingComment(null);
+      setEditCommentText('');
+      showSuccess('댓글이 수정되었습니다.');
+    } else {
+      showError('수정에 실패했습니다.');
+    }
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -893,6 +962,7 @@ function AdminPageContent({
                 { key: 'collections', label: '기획 컬렉션' },
                 { key: 'sales', label: '판매 설정' },
                 { key: 'classes', label: '🎓 클래스 관리' },
+                { key: 'comments', label: '💬 댓글 관리' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1131,6 +1201,114 @@ function AdminPageContent({
             {activeTab === 'classes' && (
               <ClassManagementPanel />
             )}
+
+            {activeTab === 'comments' && (
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                    댓글 관리
+                    {commentsLoaded && <span className="ml-2 text-sm font-normal text-gray-400">({allComments.length}개)</span>}
+                  </h3>
+                  <div className="ml-auto flex gap-2">
+                    {(['all', 'app', 'prompt', 'post', 'course'] as const).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => { setCommentFilterType(type); setCommentPage(1); }}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${commentFilterType === type ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
+                      >
+                        {type === 'all' ? '전체' : type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {loadingAllComments ? (
+                  <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-800">
+                        <thead className="bg-gray-50 dark:bg-gray-800">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-24">구분</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">내용</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-28">작성자</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-28">날짜</th>
+                            <th className="px-3 py-2 w-20"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                          {paginated(
+                            allComments.filter(c => commentFilterType === 'all' || c.targetType === commentFilterType),
+                            commentPage
+                          ).map(c => (
+                            <tr key={c.id}>
+                              <td className="px-3 py-2">
+                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  c.targetType === 'course' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' :
+                                  c.targetType === 'post' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' :
+                                  'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                }`}>
+                                  {c.targetType}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 max-w-xs">
+                                {editingComment?.id === c.id ? (
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      value={editCommentText}
+                                      onChange={e => setEditCommentText(e.target.value)}
+                                      className="flex-1 px-2 py-1 text-xs rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 outline-none focus:ring-1 focus:ring-violet-500"
+                                      onKeyDown={e => { if (e.key === 'Enter') handleAdminEditComment(); if (e.key === 'Escape') setEditingComment(null); }}
+                                    />
+                                    <button onClick={handleAdminEditComment} className="px-2 py-1 rounded text-[10px] font-bold bg-violet-600 text-white">저장</button>
+                                    <button onClick={() => setEditingComment(null)} className="px-2 py-1 rounded text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">취소</button>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-700 dark:text-gray-300 line-clamp-2">{c.content}</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{c.createdByName}</td>
+                              <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                                {c.createdAt.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-1 justify-end">
+                                  <button
+                                    onClick={() => { setEditingComment({ id: c.id, content: c.content }); setEditCommentText(c.content); }}
+                                    className="p-1.5 rounded text-gray-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition"
+                                    title="수정"
+                                  >
+                                    <FaEdit className="text-xs" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleAdminDeleteComment(c.id)}
+                                    className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                                    title="삭제"
+                                  >
+                                    <FaTrash className="text-xs" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {allComments.filter(c => commentFilterType === 'all' || c.targetType === commentFilterType).length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">댓글이 없습니다.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pager
+                      page={commentPage}
+                      totalPages={Math.ceil(allComments.filter(c => commentFilterType === 'all' || c.targetType === commentFilterType).length / pageSize)}
+                      onPageChange={setCommentPage}
+                    />
+                  </>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -1140,15 +1318,26 @@ function AdminPageContent({
             </div>
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {comments.slice(0, 8).map((comment) => (
-                <div key={comment.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{comment.createdByName}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(comment.createdAt)}</div>
+                <div key={comment.id} className="px-4 py-3 flex gap-3 items-start">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{comment.createdByName}</span>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        comment.targetType === 'course' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600' :
+                        comment.targetType === 'post' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                      }`}>{comment.targetType}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">{formatDate(comment.createdAt)}</span>
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-200 mt-1 line-clamp-2">{comment.content}</div>
                   </div>
-                  <div className="text-sm text-gray-700 dark:text-gray-200 mt-1 line-clamp-2">{comment.content}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    대상: {comment.targetType} / {comment.targetId}
-                  </div>
+                  <button
+                    onClick={() => handleAdminDeleteComment(comment.id)}
+                    className="flex-none p-1.5 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                    title="삭제"
+                  >
+                    <FaTrash className="text-xs" />
+                  </button>
                 </div>
               ))}
               {comments.length === 0 && (

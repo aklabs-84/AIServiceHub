@@ -1,14 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit, FaTimesCircle } from 'react-icons/fa';
+import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit, FaTimesCircle, FaTrash, FaCommentAlt } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+
+interface CourseComment {
+  id: string;
+  content: string;
+  created_at: string;
+  created_by: string;
+  created_by_name: string;
+  created_by_avatar_url: string | null;
+}
 
 interface Props {
   course: Course;
@@ -61,6 +70,12 @@ export default function ClassDetailClient({ course }: Props) {
   const [bankResult, setBankResult] = useState<{ bankInfo: { bankName: string; accountNumber: string; accountHolder: string }; amount: number } | null>(null);
   const [error, setError] = useState('');
 
+  const [comments, setComments] = useState<CourseComment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState('');
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
   const isPaid = course.isPaid && course.price > 0;
   const loc = courseTypeLabel(course.courseType);
   const durationLabel = getDurationLabel(course.startAt, course.endAt);
@@ -83,6 +98,41 @@ export default function ClassDetailClient({ course }: Props) {
     }
     check();
   }, [user, session, course.id]);
+
+  useEffect(() => {
+    async function loadComments() {
+      const res = await fetch(`/api/course-comments?courseId=${course.id}`);
+      if (res.ok) setComments(await res.json());
+    }
+    loadComments();
+  }, [course.id]);
+
+  const handleCommentSubmit = async () => {
+    if (!user || !session || !commentText.trim()) return;
+    setSubmittingComment(true);
+    setCommentError('');
+    try {
+      const res = await fetch('/api/course-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ courseId: course.id, content: commentText.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCommentError(data.error || '댓글 등록 실패'); return; }
+      setComments(prev => [...prev, data]);
+      setCommentText('');
+    } catch { setCommentError('네트워크 오류가 발생했습니다'); }
+    finally { setSubmittingComment(false); }
+  };
+
+  const handleCommentDelete = async (id: string) => {
+    if (!session) return;
+    const res = await fetch(`/api/course-comments?id=${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (res.ok) setComments(prev => prev.filter(c => c.id !== id));
+  };
 
   const handleEnroll = async () => {
     if (!user || !session) return;
@@ -337,6 +387,81 @@ export default function ClassDetailClient({ course }: Props) {
             )}
           </div>
         </div>
+
+        {/* 댓글 섹션 */}
+        <section className="mt-12 border-t border-gray-100 dark:border-gray-800 pt-10">
+          <h2 className="flex items-center gap-2 text-lg font-black text-gray-900 dark:text-white mb-6">
+            <FaCommentAlt className="text-violet-500 text-base" />
+            댓글
+            {comments.length > 0 && (
+              <span className="text-sm font-bold text-gray-400">{comments.length}</span>
+            )}
+          </h2>
+
+          {/* 댓글 목록 */}
+          <div className="space-y-4 mb-8">
+            {comments.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-8">첫 번째 댓글을 남겨보세요!</p>
+            )}
+            {comments.map(c => (
+              <div key={c.id} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full flex-none overflow-hidden bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                  {c.created_by_avatar_url ? (
+                    <img src={c.created_by_avatar_url} alt={c.created_by_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-xs font-black text-violet-600 dark:text-violet-400">{c.created_by_name[0] ?? '?'}</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-black text-gray-700 dark:text-gray-300">{c.created_by_name}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {new Date(c.created_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {(user?.id === c.created_by || isAdmin) && (
+                      <button
+                        onClick={() => handleCommentDelete(c.id)}
+                        className="ml-auto p-1 rounded text-gray-300 hover:text-red-400 transition-colors"
+                        title="삭제"
+                      >
+                        <FaTrash className="text-[10px]" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{c.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 댓글 입력 */}
+          {user ? (
+            <div className="space-y-2">
+              {commentError && <p className="text-xs text-red-500 font-bold">{commentError}</p>}
+              <textarea
+                ref={commentInputRef}
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleCommentSubmit(); }}
+                placeholder="댓글을 입력하세요... (Cmd+Enter로 등록)"
+                rows={3}
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-gray-400">{commentText.length}/500</span>
+                <button
+                  onClick={handleCommentSubmit}
+                  disabled={submittingComment || !commentText.trim() || commentText.length > 500}
+                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-xs font-black transition-colors"
+                >
+                  {submittingComment ? '등록 중...' : '댓글 등록'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-sm text-gray-400 py-4">댓글은 로그인 후 작성 가능합니다.</p>
+          )}
+        </section>
       </article>
 
       {/* 계좌이체 신청 모달 */}
