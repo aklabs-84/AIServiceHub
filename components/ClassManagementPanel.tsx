@@ -22,6 +22,7 @@ function formatDate(d: Date | string): string {
 function courseTypeLabel(type: string) {
   if (type === 'online') return '🖥️ 온라인';
   if (type === 'offline') return '🏫 오프라인';
+  if (type === 'content') return '📚 콘텐츠';
   return '🔀 혼합';
 }
 
@@ -666,7 +667,12 @@ export default function ClassManagementPanel() {
                     {courseTypeLabel(course.courseType)}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">{formatDate(course.startAt)} ~ {formatDate(course.endAt)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {course.courseType === 'content'
+                    ? '언제든지 수강 가능'
+                    : `${course.startAt ? formatDate(course.startAt) : '-'} ~ ${course.endAt ? formatDate(course.endAt) : '-'}`
+                  }
+                </p>
                 {course.location && <p className="text-xs text-gray-400">{course.location}</p>}
                 {course.maxParticipants && <p className="text-xs text-gray-400">정원 {course.maxParticipants}명</p>}
               </div>

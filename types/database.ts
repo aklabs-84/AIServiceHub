@@ -211,7 +211,7 @@ export interface Prompt {
 
 // --- Education / Class 타입 ---
 
-export type CourseType = 'online' | 'offline' | 'hybrid';
+export type CourseType = 'online' | 'offline' | 'hybrid' | 'content';
 export type EnrollmentStatus = 'pending' | 'waitlist' | 'confirmed' | 'cancelled';
 
 /** materials JSONB 배열의 각 항목 */
@@ -229,8 +229,8 @@ export interface CourseRow {
   thumbnail_url: string | null;
   thumbnail_pos: { x: number; y: number } | null;
   course_type: CourseType;
-  start_at: string;
-  end_at: string;
+  start_at: string | null;
+  end_at: string | null;
   location: string | null;
   materials: CourseMaterial[] | null;
   material_url: string | null;
@@ -255,8 +255,8 @@ export interface Course {
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
   courseType: CourseType;
-  startAt: Date;
-  endAt: Date;
+  startAt: Date | null;
+  endAt: Date | null;
   location: string;
   materials: CourseMaterial[];
   materialUrl: string;
@@ -312,8 +312,8 @@ export interface CreateCourseInput {
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
   courseType?: CourseType;
-  startAt: string;
-  endAt: string;
+  startAt?: string | null;
+  endAt?: string | null;
   location?: string;
   materials?: CourseMaterial[];
   materialUrl?: string;

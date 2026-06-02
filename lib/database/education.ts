@@ -17,8 +17,8 @@ function mapCourseFromDB(row: CourseRow): Course {
     thumbnailPositionX: row.thumbnail_pos?.x ?? 50,
     thumbnailPositionY: row.thumbnail_pos?.y ?? 50,
     courseType: row.course_type,
-    startAt: new Date(row.start_at),
-    endAt: new Date(row.end_at),
+    startAt: row.start_at ? new Date(row.start_at) : null,
+    endAt: row.end_at ? new Date(row.end_at) : null,
     location: row.location ?? '',
     materials: row.materials ?? [],
     materialUrl: row.material_url ?? '',
@@ -63,7 +63,7 @@ async function getPublishedCourses(client: SupabaseClient): Promise<Course[]> {
     .from('education_courses')
     .select('*')
     .eq('is_published', true)
-    .order('start_at', { ascending: true });
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return (data as CourseRow[]).map(mapCourseFromDB);
 }

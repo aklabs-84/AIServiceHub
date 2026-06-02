@@ -201,8 +201,8 @@ export default function CourseFormPage({ mode, initialData }: Props) {
         description: initialData.description,
         thumbnailUrl: initialData.thumbnailUrl ?? '',
         courseType: initialData.courseType,
-        startAt: toDatetimeLocal(initialData.startAt),
-        endAt: toDatetimeLocal(initialData.endAt),
+        startAt: initialData.startAt ? toDatetimeLocal(initialData.startAt) : '',
+        endAt: initialData.endAt ? toDatetimeLocal(initialData.endAt) : '',
         location: initialData.location,
         materials: initialData.materials,
         materialUrl: initialData.materialUrl,
@@ -247,12 +247,16 @@ export default function CourseFormPage({ mode, initialData }: Props) {
     });
   };
 
+  const isContent = form.courseType === 'content';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) { setError('제목을 입력해 주세요'); return; }
-    if (!form.startAt) { setError('시작 일시를 입력해 주세요'); return; }
-    if (!form.endAt) { setError('종료 일시를 입력해 주세요'); return; }
-    if (new Date(form.startAt) >= new Date(form.endAt)) { setError('종료 일시는 시작 일시보다 나중이어야 합니다'); return; }
+    if (!isContent) {
+      if (!form.startAt) { setError('시작 일시를 입력해 주세요'); return; }
+      if (!form.endAt) { setError('종료 일시를 입력해 주세요'); return; }
+      if (new Date(form.startAt) >= new Date(form.endAt)) { setError('종료 일시는 시작 일시보다 나중이어야 합니다'); return; }
+    }
     if (!session) { setError('로그인이 필요합니다'); return; }
 
     setSaving(true);
@@ -263,8 +267,8 @@ export default function CourseFormPage({ mode, initialData }: Props) {
       description: form.description.trim(),
       thumbnailUrl: form.thumbnailUrl || undefined,
       courseType: form.courseType,
-      startAt: new Date(form.startAt).toISOString(),
-      endAt: new Date(form.endAt).toISOString(),
+      startAt: isContent ? null : new Date(form.startAt).toISOString(),
+      endAt: isContent ? null : new Date(form.endAt).toISOString(),
       location: form.location,
       materials: form.materials.filter(m => m.url.trim()),
       materialUrl: form.materialUrl,
@@ -335,36 +339,57 @@ export default function CourseFormPage({ mode, initialData }: Props) {
           </div>
         </section>
 
-        {/* 일정 & 장소 */}
+        {/* 진행 방식 */}
         <section className="space-y-5 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">
-          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">일정 & 장소</h2>
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">진행 방식</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([
+              { type: 'online',  label: '🖥️ 온라인',  desc: '실시간 온라인' },
+              { type: 'offline', label: '🏫 오프라인', desc: '대면 수업' },
+              { type: 'hybrid',  label: '🔀 혼합',    desc: '온·오프 병행' },
+              { type: 'content', label: '📚 콘텐츠',  desc: '자기주도 학습' },
+            ] as { type: CourseType; label: string; desc: string }[]).map(({ type, label, desc }) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => set('courseType', type)}
+                className={`py-3 rounded-xl text-xs font-black border-2 transition-all flex flex-col items-center gap-0.5 ${
+                  form.courseType === type
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-gray-50 dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <span>{label}</span>
+                <span className={`text-[9px] font-normal ${form.courseType === type ? 'text-white/70' : 'text-gray-400'}`}>{desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* content 타입: 날짜 없음 안내 */}
+          {isContent ? (
+            <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
+              <p className="text-xs font-bold text-violet-600 dark:text-violet-400">📚 콘텐츠 클래스는 수강 확정 후 언제든지 입장할 수 있습니다. 시작·종료 일자가 없습니다.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">시작 일시 *</label>
+                <input type="datetime-local" value={form.startAt} onChange={e => set('startAt', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">종료 일시 *</label>
+                <input type="datetime-local" value={form.endAt} onChange={e => set('endAt', e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+              </div>
+            </div>
+          )}
+
+          {!isContent && (
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">시작 일시 *</label>
-              <input type="datetime-local" value={form.startAt} onChange={e => set('startAt', e.target.value)} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">장소 / 플랫폼</label>
+              <input type="text" value={form.location} onChange={e => set('location', e.target.value)} placeholder="예: Zoom, 강남구 XX빌딩 등" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
             </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">종료 일시 *</label>
-              <input type="datetime-local" value={form.endAt} onChange={e => set('endAt', e.target.value)} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">진행 방식</label>
-            <div className="flex gap-2">
-              {(['online', 'offline', 'hybrid'] as CourseType[]).map(type => (
-                <button key={type} type="button" onClick={() => set('courseType', type)} className={`flex-1 py-2.5 rounded-xl text-xs font-black border-2 transition-all ${form.courseType === type ? 'bg-violet-600 text-white border-violet-600' : 'bg-gray-50 dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700'}`}>
-                  {type === 'online' ? '🖥️ 온라인' : type === 'offline' ? '🏫 오프라인' : '🔀 혼합'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">장소 / 플랫폼</label>
-            <input type="text" value={form.location} onChange={e => set('location', e.target.value)} placeholder="예: Zoom, 강남구 XX빌딩 등" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">정원 (비워두면 무제한)</label>

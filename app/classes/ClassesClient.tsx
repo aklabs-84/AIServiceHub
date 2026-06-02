@@ -12,10 +12,11 @@ interface ClassesClientProps {
 }
 
 type PricingFilter = 'all' | 'free' | 'paid';
-type TypeFilter = 'all' | 'online' | 'offline' | 'hybrid';
+type TypeFilter = 'all' | 'online' | 'offline' | 'hybrid' | 'content';
 type StatusFilter = 'all' | 'upcoming' | 'ongoing' | 'ended';
 
-function getCourseStatus(course: { startAt: Date | string; endAt: Date | string }, now: Date): StatusFilter {
+function getCourseStatus(course: { startAt: Date | string | null; endAt: Date | string | null; courseType?: string }, now: Date): StatusFilter {
+  if (course.courseType === 'content' || !course.startAt || !course.endAt) return 'ongoing';
   const start = course.startAt instanceof Date ? course.startAt : new Date(course.startAt);
   const end = course.endAt instanceof Date ? course.endAt : new Date(course.endAt);
   if (end < now) return 'ended';
@@ -68,6 +69,7 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
       online: initialCourses.filter(c => c.courseType === 'online').length,
       offline: initialCourses.filter(c => c.courseType === 'offline').length,
       hybrid: initialCourses.filter(c => c.courseType === 'hybrid').length,
+      content: initialCourses.filter(c => c.courseType === 'content').length,
       upcoming: initialCourses.filter(c => getCourseStatus(c, now) === 'upcoming').length,
       ongoing: initialCourses.filter(c => getCourseStatus(c, now) === 'ongoing').length,
       ended: initialCourses.filter(c => getCourseStatus(c, now) === 'ended').length,
@@ -118,7 +120,7 @@ export default function ClassesClient({ initialCourses }: ClassesClientProps) {
             </button>
           ))}
           <div className="w-px h-6 bg-gray-200 dark:bg-gray-800 self-center mx-1" />
-          {([['all', '전체'], ['online', '🖥️ 온라인'], ['offline', '🏫 오프라인'], ['hybrid', '🔀 혼합']] as [TypeFilter, string][]).map(([key, label]) => (
+          {([['all', '전체'], ['online', '🖥️ 온라인'], ['offline', '🏫 오프라인'], ['hybrid', '🔀 혼합'], ['content', '📚 콘텐츠']] as [TypeFilter, string][]).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTypeFilter(key)}

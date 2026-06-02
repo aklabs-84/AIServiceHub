@@ -35,16 +35,18 @@ function getDurationMinutes(start: Date | string, end: Date | string): number {
 function courseTypeLabel(type: string) {
   if (type === 'online') return { emoji: '🖥️', text: '온라인' };
   if (type === 'offline') return { emoji: '🏫', text: '오프라인' };
+  if (type === 'content') return { emoji: '📚', text: '콘텐츠' };
   return { emoji: '🔀', text: '혼합' };
 }
 
 export default function ClassCard({ course }: ClassCardProps) {
   const isPaid = course.isPaid && course.price > 0;
+  const isContent = course.courseType === 'content';
   const typeInfo = courseTypeLabel(course.courseType);
-  const durationMin = getDurationMinutes(course.startAt, course.endAt);
+  const durationMin = (!isContent && course.startAt && course.endAt) ? getDurationMinutes(course.startAt, course.endAt) : 0;
   const now = new Date();
-  const isEnded = toDate(course.endAt) < now;
-  const isOngoing = !isEnded && toDate(course.startAt) <= now;
+  const isEnded = !isContent && course.endAt ? toDate(course.endAt) < now : false;
+  const isOngoing = !isContent && !isEnded && course.startAt ? toDate(course.startAt) <= now : false;
 
   return (
     <Link
@@ -97,6 +99,11 @@ export default function ClassCard({ course }: ClassCardProps) {
             </div>
           </div>
         )}
+        {isContent && (
+          <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-600/90 backdrop-blur-sm">
+            <span className="text-white text-[10px] font-black">📚 자기주도 학습</span>
+          </div>
+        )}
         {isOngoing && (
           <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/90 backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -129,10 +136,12 @@ export default function ClassCard({ course }: ClassCardProps) {
         )}
 
         <div className="mt-auto space-y-2 pt-3 border-t border-gray-50 dark:border-gray-800">
-          {/* 시작 일시 */}
+          {/* 시작 일시 or 콘텐츠 안내 */}
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <FaCalendarAlt className="text-violet-500 text-[10px] flex-none" />
-            <span className="font-medium">{formatDate(course.startAt)}</span>
+            <span className="font-medium">
+              {isContent ? '언제든지 수강 가능' : (course.startAt ? formatDate(course.startAt) : '날짜 미정')}
+            </span>
           </div>
 
           <div className="flex items-center justify-between">
@@ -145,7 +154,7 @@ export default function ClassCard({ course }: ClassCardProps) {
                 </div>
               )}
               {/* 장소 */}
-              {course.location && (
+              {!isContent && course.location && (
                 <div className="flex items-center gap-1 text-xs text-gray-400 max-w-[80px]">
                   <FaMapMarkerAlt className="text-[10px] flex-none" />
                   <span className="font-medium truncate">{course.location}</span>

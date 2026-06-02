@@ -49,6 +49,7 @@ function getDurationLabel(start: Date | string, end: Date | string): string {
 function courseTypeLabel(type: string) {
   if (type === 'online') return { emoji: '🖥️', text: '온라인' };
   if (type === 'offline') return { emoji: '🏫', text: '오프라인' };
+  if (type === 'content') return { emoji: '📚', text: '콘텐츠' };
   return { emoji: '🔀', text: '온·오프라인 혼합' };
 }
 
@@ -77,11 +78,12 @@ export default function ClassDetailClient({ course }: Props) {
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   const isPaid = course.isPaid && course.price > 0;
+  const isContent = course.courseType === 'content';
   const loc = courseTypeLabel(course.courseType);
-  const durationLabel = getDurationLabel(course.startAt, course.endAt);
+  const durationLabel = (!isContent && course.startAt && course.endAt) ? getDurationLabel(course.startAt, course.endAt) : null;
   const now = new Date();
-  const isEnded = toDate(course.endAt) < now;
-  const isOngoing = !isEnded && toDate(course.startAt) <= now;
+  const isEnded = !isContent && course.endAt ? toDate(course.endAt) < now : false;
+  const isOngoing = !isContent && !isEnded && course.startAt ? toDate(course.startAt) <= now : false;
 
   useEffect(() => {
     if (!user || !session) { setCheckingEnrollment(false); return; }
@@ -269,7 +271,7 @@ export default function ClassDetailClient({ course }: Props) {
             <div>
               <p className="font-black text-red-700 dark:text-red-400 text-sm">이 클래스는 종료되었습니다</p>
               <p className="text-xs text-red-600/70 dark:text-red-400/70 mt-0.5">
-                종료일: {formatDate(course.endAt, true)} · 수강 신청이 마감되었습니다.
+                종료일: {course.endAt ? formatDate(course.endAt, true) : '-'} · 수강 신청이 마감되었습니다.
               </p>
             </div>
           </div>
@@ -312,28 +314,43 @@ export default function ClassDetailClient({ course }: Props) {
           {/* 사이드바 */}
           <div className="space-y-4">
             <div className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4">
-              <div className="flex items-start gap-3">
-                <FaCalendarAlt className="text-violet-500 text-sm flex-none mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">시작</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{formatDate(course.startAt, true)}</p>
+              {isContent ? (
+                <div className="flex items-start gap-3">
+                  <span className="text-sm flex-none mt-0.5">📚</span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">진행 방식</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">콘텐츠 · 자기주도 학습</p>
+                    <p className="text-xs text-violet-500 dark:text-violet-400 mt-0.5">수강 확정 후 언제든지 열람</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <FaClock className="text-violet-500 text-sm flex-none mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">소요 시간</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{durationLabel}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-sm flex-none mt-0.5">{loc.emoji}</span>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">진행 방식</p>
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{loc.text}</p>
-                  {course.location && <p className="text-xs text-gray-400 mt-0.5">{course.location}</p>}
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-start gap-3">
+                    <FaCalendarAlt className="text-violet-500 text-sm flex-none mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">시작</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{course.startAt ? formatDate(course.startAt, true) : '-'}</p>
+                    </div>
+                  </div>
+                  {durationLabel && (
+                    <div className="flex items-start gap-3">
+                      <FaClock className="text-violet-500 text-sm flex-none mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">소요 시간</p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{durationLabel}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <span className="text-sm flex-none mt-0.5">{loc.emoji}</span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">진행 방식</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{loc.text}</p>
+                      {course.location && <p className="text-xs text-gray-400 mt-0.5">{course.location}</p>}
+                    </div>
+                  </div>
+                </>
+              )}
               {course.maxParticipants && (
                 <div className="flex items-center gap-3">
                   <FaUsers className="text-violet-500 text-sm flex-none" />
