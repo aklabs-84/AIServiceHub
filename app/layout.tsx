@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
   verification: {
     google: "CrsqfluWvBwJIFib6iTgOLVt6vnAzq5R2LT17mz2sig",
+    other: {
+      "naver-site-verification": "6f37bb3ab40f93f02c850efec98ce0b6ef0dc410",
+    },
   },
   icons: {
     icon: [
