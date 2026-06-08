@@ -22,7 +22,7 @@ export default function Home() {
             <div className="relative z-20 space-y-8 text-center lg:text-left">
               <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 text-xs sm:text-sm font-bold tracking-tight border border-blue-100 dark:border-blue-800">
                 <FaRocket className="animate-pulse" />
-                <span>AI LABS - EXPLORE THE FUTURE</span>
+                <span>아크의실험실 · 바이브코딩 연구소</span>
               </div>
 
               <div className="space-y-6">
@@ -36,8 +36,8 @@ export default function Home() {
                   </span>
                 </h1>
                 <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
-                  바이브코딩으로 만든 AI 앱과 프롬프트를 보관하고 실험하는 공간입니다.
-                  당신의 창의력을 팀과 공유하고 함께 성장시키세요.
+                  바이브코딩으로 AI 앱을 만들고 실험하는 공간, 아크의실험실입니다.
+                  AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지 — 아이디어를 실제 서비스로 연결하세요.
                 </p>
               </div>
 

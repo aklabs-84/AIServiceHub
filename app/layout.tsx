@@ -20,8 +20,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
-  description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+  title: "아크의실험실 | 바이브코딩 연구소",
+  description: "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
+  keywords: ["아크의실험실", "바이브코딩 연구소", "AI 교육", "바이브코딩 강의", "프롬프트 아카이브", "AI 앱 제작", "Claude 바이브코딩", "AI 도구 활용", "바이브코딩 앱", "AI 활용 교육"],
   verification: {
     google: "CrsqfluWvBwJIFib6iTgOLVt6vnAzq5R2LT17mz2sig",
     other: {
@@ -38,21 +39,21 @@ export const metadata: Metadata = {
   },
   manifest: "/favicon_io/site.webmanifest",
   openGraph: {
-    title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
-    description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+    title: "아크의실험실 | 바이브코딩 연구소",
+    description: "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
     images: [
       {
         url: "/ai-labs-og.png",
         width: 1200,
         height: 630,
-        alt: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
+        alt: "아크의실험실 | 바이브코딩 연구소",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI LABS - 바이브코딩 AI 앱 & 프롬프트 랩",
-    description: "바이브코딩으로 만든 AI 앱과 프롬프트를 실험, 보관, 공유하는 AI LABS",
+    title: "아크의실험실 | 바이브코딩 연구소",
+    description: "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
     images: ["/ai-labs-og.png"],
   },
 };
@@ -66,6 +67,48 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Organization",
+                  "@id": "https://ai-service-hub.vercel.app/#organization",
+                  "name": "아크의실험실",
+                  "alternateName": ["바이브코딩 연구소", "AK LABS"],
+                  "url": "https://ai-service-hub.vercel.app",
+                  "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://ai-service-hub.vercel.app/favicon_io/apple-touch-icon.png"
+                  },
+                  "description": "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
+                  "sameAs": [
+                    "https://www.youtube.com/@아크의실험실"
+                  ]
+                },
+                {
+                  "@type": "WebSite",
+                  "@id": "https://ai-service-hub.vercel.app/#website",
+                  "url": "https://ai-service-hub.vercel.app",
+                  "name": "아크의실험실 | 바이브코딩 연구소",
+                  "publisher": {
+                    "@id": "https://ai-service-hub.vercel.app/#organization"
+                  },
+                  "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://ai-service-hub.vercel.app/apps?q={search_term_string}"
+                    },
+                    "query-input": "required name=search_term_string"
+                  }
+                }
+              ]
+            })
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
