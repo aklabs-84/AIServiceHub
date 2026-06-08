@@ -41,15 +41,15 @@ export default function Header() {
             <div className="w-10 h-10 rounded-xl overflow-hidden transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-sm border border-gray-200 dark:border-gray-700 bg-white p-1.5 font-bold flex items-center justify-center">
               <Image
                 src="/favicon_io/android-chrome-192x192.png"
-                alt="AI LABS"
+                alt="아크의실험실"
                 width={48}
                 height={48}
                 className="w-full h-full object-contain"
                 priority
               />
             </div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tighter text-gray-900 dark:text-white hidden sm:block font-sans">
-              AI LABS
+            <h1 className="text-lg md:text-xl font-black tracking-tighter text-gray-900 dark:text-white hidden sm:block font-sans">
+              아크의실험실
             </h1>
           </Link>
 
