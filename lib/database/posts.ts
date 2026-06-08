@@ -22,6 +22,18 @@ function mapPostFromDB(data: PostRow): Post {
 
 const POST_SELECT = '*, post_likes(user_id)';
 
+export async function getById(client: SupabaseClient, id: string): Promise<Post | null> {
+  const { data, error } = await client
+    .from('posts')
+    .select(POST_SELECT)
+    .eq('id', id)
+    .eq('is_public', true)
+    .single();
+
+  if (error || !data) return null;
+  return mapPostFromDB(data as PostRow);
+}
+
 export async function getAll(client: SupabaseClient): Promise<Post[]> {
   const { data, error } = await client
     .from('posts')

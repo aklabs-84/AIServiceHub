@@ -19,17 +19,17 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-  if (!isUuid) return { title: 'AI LABS' };
+  if (!isUuid) return { title: '아크의실험실' };
 
   const client = await getServerClient();
   const prompt = await db.prompts.getById(client, id);
 
   if (!prompt) {
-    return { title: 'AI LABS - 프롬프트를 찾을 수 없습니다' };
+    return { title: '아크의실험실 - 프롬프트를 찾을 수 없습니다' };
   }
 
-  const title = `${prompt.name} - AI LABS`;
-  const description = prompt.description || `${prompt.name}: AI LABS의 바이브코딩 AI 프롬프트`;
+  const title = `${prompt.name} | 아크의실험실`;
+  const description = prompt.description || `${prompt.name}: 아크의실험실 바이브코딩 연구소의 AI 프롬프트`;
   const image = prompt.thumbnailUrl || `${BASE_URL}/ai-labs-og.png`;
 
   return {
@@ -89,5 +89,27 @@ export default async function PromptDetailPage({ params }: PageProps) {
     }
   }
 
-  return <PromptDetailClient initialPrompt={prompt} initialComments={comments} />;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: prompt.name,
+    description: prompt.description || `${prompt.name}: 아크의실험실 바이브코딩 연구소의 AI 프롬프트`,
+    url: `${BASE_URL}/prompts/${prompt.id}`,
+    author: {
+      '@type': 'Organization',
+      name: '아크의실험실',
+      url: BASE_URL,
+    },
+    ...(prompt.thumbnailUrl && { image: prompt.thumbnailUrl }),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PromptDetailClient initialPrompt={prompt} initialComments={comments} />
+    </>
+  );
 }

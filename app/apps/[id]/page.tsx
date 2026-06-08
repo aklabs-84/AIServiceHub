@@ -19,11 +19,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const app = await db.apps.getById(client, id);
 
   if (!app) {
-    return { title: 'AI LABS - 앱을 찾을 수 없습니다' };
+    return { title: '아크의실험실 - 앱을 찾을 수 없습니다' };
   }
 
-  const title = `${app.name} - AI LABS`;
-  const description = app.description || `${app.name}: AI LABS에서 만든 바이브코딩 AI 앱`;
+  const title = `${app.name} | 아크의실험실`;
+  const description = app.description || `${app.name}: 아크의실험실 바이브코딩 연구소에서 만든 AI 앱`;
   const image = app.thumbnailUrl || `${BASE_URL}/ai-labs-og.png`;
 
   return {
@@ -56,5 +56,29 @@ export default async function AppDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  return <AppDetailClient initialApp={app} initialComments={comments} />;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: app.name,
+    description: app.description || `${app.name}: 아크의실험실 바이브코딩 연구소에서 만든 AI 앱`,
+    url: `${BASE_URL}/apps/${app.id}`,
+    applicationCategory: 'WebApplication',
+    operatingSystem: 'Web',
+    author: {
+      '@type': 'Organization',
+      name: '아크의실험실',
+      url: BASE_URL,
+    },
+    ...(app.thumbnailUrl && { image: app.thumbnailUrl }),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <AppDetailClient initialApp={app} initialComments={comments} />
+    </>
+  );
 }

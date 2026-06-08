@@ -6,9 +6,10 @@ const BASE_URL = 'https://ai-service-hub.vercel.app';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const client = getAdminClient();
 
-  const [appsResult, promptsResult] = await Promise.all([
+  const [appsResult, promptsResult, postsResult] = await Promise.all([
     client.from('apps').select('id, updated_at').eq('is_public', true),
     client.from('prompts').select('id, updated_at').eq('is_public', true),
+    client.from('posts').select('id, updated_at').eq('is_public', true),
   ]);
 
   const appEntries: MetadataRoute.Sitemap = (appsResult.data ?? []).map((app) => ({
@@ -23,6 +24,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: new Date(prompt.updated_at),
     changeFrequency: 'weekly',
     priority: 0.8,
+  }));
+
+  const postEntries: MetadataRoute.Sitemap = (postsResult.data ?? []).map((post) => ({
+    url: `${BASE_URL}/content/${post.id}`,
+    lastModified: new Date(post.updated_at),
+    changeFrequency: 'weekly',
+    priority: 0.6,
   }));
 
   return [
@@ -50,7 +58,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.9,
     },
+    {
+      url: `${BASE_URL}/content`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
     ...appEntries,
     ...promptEntries,
+    ...postEntries,
   ];
 }
