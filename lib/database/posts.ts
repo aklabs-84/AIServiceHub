@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Post, PostRow, PostTopic, CreatePostInput } from '@/types/database';
 
+export interface CreatePostInputWithTitle extends CreatePostInput {
+  title?: string;
+}
+
 function mapPostFromDB(data: PostRow): Post {
   const likes = data.post_likes?.map((l) => l.user_id) || [];
   return {
@@ -8,6 +12,7 @@ function mapPostFromDB(data: PostRow): Post {
     authorId: data.author_id || '',
     authorName: data.author_name || 'Anonymous',
     authorAvatarUrl: data.author_avatar_url || undefined,
+    title: data.title || undefined,
     content: data.content,
     images: data.images || [],
     topic: data.topic || 'chat',
@@ -47,7 +52,7 @@ export async function getAll(client: SupabaseClient): Promise<Post[]> {
 
 export async function create(
   client: SupabaseClient,
-  input: CreatePostInput,
+  input: CreatePostInputWithTitle,
   userId: string,
   userName: string,
   avatarUrl?: string
@@ -55,6 +60,7 @@ export async function create(
   const { data, error } = await client
     .from('posts')
     .insert({
+      title: input.title?.trim() || null,
       content: input.content,
       images: input.images || [],
       topic: input.topic || 'chat',
@@ -74,11 +80,12 @@ export async function update(
   client: SupabaseClient,
   id: string,
   content: string,
-  topic: PostTopic
+  topic: PostTopic,
+  title?: string
 ): Promise<void> {
   const { error } = await client
     .from('posts')
-    .update({ content, topic, updated_at: new Date().toISOString() })
+    .update({ title: title?.trim() || null, content, topic, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
 }

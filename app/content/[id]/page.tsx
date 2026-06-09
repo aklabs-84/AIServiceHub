@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { getServerClient } from '@/lib/database/server';
 import { db } from '@/lib/database';
 import { ArrowLeft } from 'lucide-react';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
+import ContentDetailClient from './ContentDetailClient';
 
 const BASE_URL = 'https://ai-service-hub.vercel.app';
 
@@ -17,10 +19,19 @@ const TOPIC_LABELS: Record<string, string> = {
   chat: '자유 토크',
 };
 
+const TOPIC_COLORS: Record<string, string> = {
+  news:     'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  showcase: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  idea:     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  tip:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  question: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  chat:     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+};
+
 type PageProps = { params: Promise<{ id: string }> };
 
 function getExcerpt(text: string, len: number) {
-  const plain = text.replace(/[#*`>_~\[\]]/g, '').trim();
+  const plain = text.replace(/[#*`>_~\[\]()!-]/g, '').replace(/\s+/g, ' ').trim();
   return plain.length > len ? plain.slice(0, len) + '…' : plain;
 }
 
@@ -31,7 +42,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!post) return { title: '아크의실험실' };
 
-  const title = `${getExcerpt(post.content, 40)} | 아크의실험실`;
+  const rawTitle = post.title || getExcerpt(post.content, 40);
+  const title = `${rawTitle} | 아크의실험실`;
   const description = getExcerpt(post.content, 120);
   const image = post.images?.[0] || `${BASE_URL}/ai-labs-og.png`;
 
@@ -51,29 +63,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ContentDetailPage({ params }: PageProps) {
   const { id } = await params;
   const client = await getServerClient();
-  const post = await db.posts.getById(client, id);
+  const [post, comments] = await Promise.all([
+    db.posts.getById(client, id),
+    db.comments.getByTarget(client, id, 'post'),
+  ]);
 
   if (!post) notFound();
+
+  const rawTitle = post.title || getExcerpt(post.content, 110);
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
-    headline: getExcerpt(post.content, 110),
+    headline: rawTitle,
     description: getExcerpt(post.content, 200),
     url: `${BASE_URL}/content/${post.id}`,
     datePublished: post.createdAt.toISOString(),
     dateModified: post.updatedAt.toISOString(),
-    author: {
-      '@type': 'Person',
-      name: post.authorName,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: '아크의실험실',
-      url: BASE_URL,
-    },
+    author: { '@type': 'Person', name: post.authorName },
+    publisher: { '@type': 'Organization', name: '아크의실험실', url: BASE_URL },
     ...(post.images?.[0] && { image: post.images[0] }),
   };
+
+  const topicColorClass = TOPIC_COLORS[post.topic] ?? TOPIC_COLORS.chat;
 
   return (
     <>
@@ -92,9 +104,9 @@ export default async function ContentDetailPage({ params }: PageProps) {
           </Link>
 
           <article>
-            {/* 토픽 + 날짜 */}
+            {/* 토픽 배지 */}
             <div className="flex items-center gap-3 mb-4">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${topicColorClass}`}>
                 {TOPIC_LABELS[post.topic] ?? post.topic}
               </span>
               <time
@@ -107,16 +119,35 @@ export default async function ContentDetailPage({ params }: PageProps) {
               </time>
             </div>
 
-            {/* 본문 */}
-            <div className="text-gray-800 dark:text-gray-200 text-base leading-relaxed whitespace-pre-wrap break-words mb-6">
-              {post.content}
+            {/* 제목 */}
+            {post.title && (
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-5 leading-snug">
+                {post.title}
+              </h1>
+            )}
+
+            {/* 작성자 */}
+            <div className="flex items-center gap-2.5 mb-6">
+              <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {post.authorName?.[0] ?? '?'}
+              </div>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {post.authorName}
+              </span>
+            </div>
+
+            <hr className="border-gray-100 dark:border-gray-800 mb-6" />
+
+            {/* 본문 (마크다운) */}
+            <div className="prose prose-sm dark:prose-invert max-w-none mb-6">
+              <MarkdownRenderer content={post.content} />
             </div>
 
             {/* 이미지 */}
             {post.images.length > 0 && (
               <div className="space-y-3 mb-6">
                 {post.images.map((src, i) => (
-                  <div key={i} className="relative w-full rounded-2xl overflow-hidden">
+                  <div key={i} className="relative w-full rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-900">
                     <Image
                       src={src}
                       alt={`이미지 ${i + 1}`}
@@ -129,15 +160,8 @@ export default async function ContentDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* 작성자 */}
-            <div className="pt-6 border-t border-gray-100 dark:border-gray-800 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">
-                {post.authorName?.[0] ?? '?'}
-              </div>
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                {post.authorName}
-              </span>
-            </div>
+            {/* 인터랙션: 좋아요 + 댓글 */}
+            <ContentDetailClient post={post} initialComments={comments} />
           </article>
         </div>
       </div>

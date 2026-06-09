@@ -531,6 +531,7 @@ export interface PostRow {
   author_id: string | null;
   author_name: string | null;
   author_avatar_url: string | null;
+  title: string | null;
   content: string;
   images: string[];
   topic: PostTopic;
@@ -547,6 +548,7 @@ export interface Post {
   authorId: string;
   authorName: string;
   authorAvatarUrl?: string;
+  title?: string;
   content: string;
   images: string[];
   topic: PostTopic;

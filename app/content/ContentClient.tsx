@@ -1,28 +1,30 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import {
-  Heart, MessageCircle, Send, Trash2, Loader2,
-  ImageIcon, X, Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare, LayoutGrid,
-  Pencil, Check, Newspaper, ChevronLeft, ChevronRight,
-} from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import {
+  Heart, MessageCircle, Loader2, ImageIcon, X,
+  Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare,
+  LayoutGrid, Newspaper, PenLine, ChevronRight,
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getBrowserClient, db } from '@/lib/database';
-import type { Post, PostTopic, Comment } from '@/types/database';
+import type { Post, PostTopic } from '@/types/database';
+import type { CreatePostInputWithTitle } from '@/lib/database/posts';
+import MarkdownEditor from '@/components/MarkdownEditor';
 
-// ─── Topics ───────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────
 
 const TOPICS = [
-  { value: 'all' as const,       label: '전체',       Icon: LayoutGrid },
-  { value: 'news' as const,      label: 'AI 소식',    Icon: Newspaper },
-  { value: 'showcase' as const,  label: '앱 자랑',    Icon: Rocket },
-  { value: 'idea' as const,      label: '아이디어',   Icon: Lightbulb },
-  { value: 'tip' as const,       label: '팁 & 노하우', Icon: Sparkles },
-  { value: 'question' as const,  label: '질문',       Icon: HelpCircle },
-  { value: 'chat' as const,      label: '자유 토크',  Icon: MessageSquare },
+  { value: 'all' as const,      label: '전체',        Icon: LayoutGrid },
+  { value: 'news' as const,     label: 'AI 소식',     Icon: Newspaper },
+  { value: 'showcase' as const, label: '앱 자랑',     Icon: Rocket },
+  { value: 'idea' as const,     label: '아이디어',    Icon: Lightbulb },
+  { value: 'tip' as const,      label: '팁 & 노하우', Icon: Sparkles },
+  { value: 'question' as const, label: '질문',        Icon: HelpCircle },
+  { value: 'chat' as const,     label: '자유 토크',   Icon: MessageSquare },
 ] as const;
 
 type TopicFilter = 'all' | PostTopic;
@@ -36,30 +38,29 @@ const TOPIC_LABELS: Record<PostTopic, string> = {
   chat: '자유 토크',
 };
 
+const TOPIC_COLORS: Record<PostTopic, string> = {
+  news:     'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  showcase: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  idea:     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  tip:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  question: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  chat:     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+};
+
 // ─── Utilities ────────────────────────────────────────────────
 
-function formatRelativeTime(date: Date): string {
+function formatDate(date: Date): string {
   const diff = Date.now() - date.getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return '방금 전';
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}분 전`;
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return m <= 0 ? '방금 전' : `${m}분 전`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}시간 전`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}일 전`;
-  return date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+  return date.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
 }
 
-const AVATAR_COLORS = [
-  'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
-  'bg-rose-500', 'bg-amber-500', 'bg-cyan-500',
-  'bg-indigo-500', 'bg-pink-500',
-];
-function getAvatarColor(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+function getExcerpt(text: string, len = 80): string {
+  const plain = text.replace(/[#*`>\-_~\[\]()!]/g, '').replace(/\s+/g, ' ').trim();
+  return plain.length > len ? plain.slice(0, len) + '…' : plain;
 }
 
 function getUserName(user: { user_metadata?: { full_name?: string; name?: string }; email?: string } | null) {
@@ -68,27 +69,16 @@ function getUserName(user: { user_metadata?: { full_name?: string; name?: string
 }
 
 function getUserAvatar(user: { user_metadata?: { avatar_url?: string; picture?: string } } | null) {
-  if (!user) return undefined;
-  return user.user_metadata?.avatar_url || user.user_metadata?.picture || undefined;
+  return user?.user_metadata?.avatar_url || user?.user_metadata?.picture || undefined;
 }
 
-// ─── Image Compression ────────────────────────────────────────
-
-const MAX_ORIGINAL_SIZE = 20 * 1024 * 1024; // 20MB (원본 제한)
+const MAX_ORIGINAL_SIZE = 20 * 1024 * 1024;
 const MAX_IMAGES = 4;
 const COMPRESS_MAX_PX = 1200;
 const COMPRESS_QUALITY = 0.82;
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
-}
-
 async function compressToWebP(file: File): Promise<File> {
-  // GIF는 애니메이션 유지를 위해 압축하지 않음
   if (file.type === 'image/gif') return file;
-
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     const objectUrl = URL.createObjectURL(file);
@@ -96,125 +86,28 @@ async function compressToWebP(file: File): Promise<File> {
       URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
       if (width > COMPRESS_MAX_PX || height > COMPRESS_MAX_PX) {
-        if (width >= height) {
-          height = Math.round(height * COMPRESS_MAX_PX / width);
-          width = COMPRESS_MAX_PX;
-        } else {
-          width = Math.round(width * COMPRESS_MAX_PX / height);
-          height = COMPRESS_MAX_PX;
-        }
+        if (width >= height) { height = Math.round(height * COMPRESS_MAX_PX / width); width = COMPRESS_MAX_PX; }
+        else { width = Math.round(width * COMPRESS_MAX_PX / height); height = COMPRESS_MAX_PX; }
       }
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = width; canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) return reject(new Error('Canvas not supported'));
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return reject(new Error('Compression failed'));
-          const name = file.name.replace(/\.[^.]+$/, '.webp');
-          resolve(new File([blob], name, { type: 'image/webp' }));
-        },
-        'image/webp',
-        COMPRESS_QUALITY
-      );
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('Compression failed'));
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
+      }, 'image/webp', COMPRESS_QUALITY);
     };
     img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Image load failed')); };
     img.src = objectUrl;
   });
 }
 
-// URL을 클릭 가능한 링크로 변환
-function RichText({ text }: { text: string }) {
-  const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(URL_REGEX);
-  return (
-    <span>
-      {parts.map((part, i) =>
-        /^https?:\/\//.test(part) ? (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline underline-offset-2 break-all"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {part}
-          </a>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </span>
-  );
-}
-
-// ─── Avatar ───────────────────────────────────────────────────
-
-function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: string; size?: 'sm' | 'md' }) {
-  const [imgError, setImgError] = useState(false);
-  const color = getAvatarColor(name);
-  const cls = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-10 h-10 text-sm';
-
-  if (avatarUrl && !imgError) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={avatarUrl}
-        alt={name}
-        className={`${cls} rounded-full object-cover flex-shrink-0`}
-        onError={() => setImgError(true)}
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
-
-  return (
-    <div className={`${cls} rounded-full ${color} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-      {name[0]?.toUpperCase() || '?'}
-    </div>
-  );
-}
-
-// ─── Image Grid ───────────────────────────────────────────────
-
-function PostImages({ images }: { images: string[] }) {
-  if (!images.length) return null;
-  const count = images.length;
-  return (
-    <div className={`mt-3 grid gap-1 rounded-xl overflow-hidden ${count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : 'grid-cols-2'}`}>
-      {images.slice(0, 4).map((src, i) => (
-        <div
-          key={i}
-          className={`relative bg-gray-100 dark:bg-gray-800 ${count === 1 ? 'aspect-video' : 'aspect-square'} ${count === 3 && i === 0 ? 'row-span-2' : ''}`}
-        >
-          <Image
-            src={src}
-            alt={`이미지 ${i + 1}`}
-            fill
-            className="object-cover"
-            unoptimized
-          />
-          {count > 4 && i === 3 && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">+{count - 4}</span>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── PostComposer ─────────────────────────────────────────────
-
 async function uploadImage(file: File): Promise<string> {
   const client = getBrowserClient();
   const { data: { session } } = await client.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
-
   const form = new FormData();
   form.append('file', file);
   const res = await fetch('/api/posts/upload-image', {
@@ -222,135 +115,85 @@ async function uploadImage(file: File): Promise<string> {
     headers: { Authorization: `Bearer ${session.access_token}` },
     body: form,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Upload failed');
-  }
-  const { url } = await res.json();
-  return url;
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Upload failed');
+  return (await res.json()).url;
 }
 
-function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdmin: boolean }) {
+// ─── BlogComposer ─────────────────────────────────────────────
+
+function BlogComposer({ onPost, onCancel, isAdmin }: {
+  onPost: (post: Post) => void;
+  onCancel: () => void;
+  isAdmin: boolean;
+}) {
   const { user } = useAuth();
+  const { showError, showWarning } = useToast();
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState<PostTopic>('chat');
-  const [previews, setPreviews] = useState<{ uid: string; file: File; objectUrl: string; originalSize: number; compressing: boolean }[]>([]);
+  const [previews, setPreviews] = useState<{ uid: string; file: File; objectUrl: string; compressing: boolean }[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const maxImages = topic === 'news' ? 10 : 4;
-  const [uploading, setUploading] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const autoResize = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  };
-
-  const { showError, showWarning } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (fileInputRef.current) fileInputRef.current.value = '';
-
-    const remaining = maxImages - previews.length;
+    const remaining = MAX_IMAGES - previews.length;
     const candidates = files.slice(0, remaining);
-    if (files.length > remaining) {
-      showWarning(`이미지는 최대 ${maxImages}장까지 첨부할 수 있습니다.`);
-    }
+    if (files.length > remaining) showWarning(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`);
 
     for (const file of candidates) {
       if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-        showError(`${file.name}: JPG, PNG, GIF, WebP 파일만 업로드 가능합니다.`);
-        continue;
+        showError(`${file.name}: JPG, PNG, GIF, WebP만 가능합니다.`); continue;
       }
       if (file.size > MAX_ORIGINAL_SIZE) {
-        showError(`${file.name}: 원본 파일은 20MB 이하여야 합니다.`);
-        continue;
+        showError(`${file.name}: 20MB 이하여야 합니다.`); continue;
       }
-
       const uid = Math.random().toString(36).slice(2, 9);
-      const originalSize = file.size;
-      const placeholder = { uid, file, objectUrl: URL.createObjectURL(file), originalSize, compressing: true };
+      const placeholder = { uid, file, objectUrl: URL.createObjectURL(file), compressing: true };
       setPreviews((prev) => [...prev, placeholder]);
-
       try {
         const compressed = await compressToWebP(file);
-        const compressedUrl = URL.createObjectURL(compressed);
-        setPreviews((prev) =>
-          prev.map((p) =>
-            p.uid === placeholder.uid
-              ? { ...p, file: compressed, objectUrl: compressedUrl, compressing: false }
-              : p
-          )
-        );
+        setPreviews((prev) => prev.map((p) =>
+          p.uid === uid ? { ...p, file: compressed, objectUrl: URL.createObjectURL(compressed), compressing: false } : p
+        ));
         URL.revokeObjectURL(placeholder.objectUrl);
       } catch {
-        showError(`${file.name}: 압축에 실패했습니다.`);
-        setPreviews((prev) => prev.filter((p) => p.uid !== placeholder.uid));
+        showError(`${file.name}: 압축 실패`);
+        setPreviews((prev) => prev.filter((p) => p.uid !== uid));
         URL.revokeObjectURL(placeholder.objectUrl);
       }
     }
   };
 
   const removeImage = (uid: string) => {
-    setPreviews((prev) => {
-      const target = prev.find((p) => p.uid === uid);
-      if (target) URL.revokeObjectURL(target.objectUrl);
-      return prev.filter((p) => p.uid !== uid);
-    });
+    setPreviews((prev) => { const t = prev.find((p) => p.uid === uid); if (t) URL.revokeObjectURL(t.objectUrl); return prev.filter((p) => p.uid !== uid); });
   };
 
   const handleSubmit = async () => {
     if (!content.trim() || submitting || !user) return;
-    if (previews.some((p) => p.compressing)) {
-      showWarning('이미지 압축이 완료될 때까지 잠시 기다려주세요.');
-      return;
-    }
+    if (previews.some((p) => p.compressing)) { showWarning('이미지 압축 중입니다. 잠시 기다려주세요.'); return; }
     setSubmitting(true);
     try {
       let imageUrls: string[] = [];
-      if (previews.length > 0) {
-        setUploading(true);
-        imageUrls = await Promise.all(previews.map((p) => uploadImage(p.file)));
-        setUploading(false);
-      }
-
+      if (previews.length > 0) imageUrls = await Promise.all(previews.map((p) => uploadImage(p.file)));
       const userName = getUserName(user);
       const avatarUrl = getUserAvatar(user);
       const client = getBrowserClient();
-      const id = await db.posts.create(
-        client,
-        { content: content.trim(), images: imageUrls, topic },
-        user.id,
-        userName,
-        avatarUrl
-      );
+      const input: CreatePostInputWithTitle = { title: title.trim() || undefined, content: content.trim(), images: imageUrls, topic };
+      const id = await db.posts.create(client, input, user.id, userName, avatarUrl);
       const newPost: Post = {
-        id,
-        authorId: user.id,
-        authorName: userName,
-        authorAvatarUrl: avatarUrl,
-        content: content.trim(),
-        images: imageUrls,
-        topic,
-        likes: [],
-        likeCount: 0,
-        commentCount: 0,
-        isPublic: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        id, authorId: user.id, authorName: userName, authorAvatarUrl: avatarUrl,
+        title: title.trim() || undefined, content: content.trim(), images: imageUrls, topic,
+        likes: [], likeCount: 0, commentCount: 0, isPublic: true,
+        createdAt: new Date(), updatedAt: new Date(),
       };
       onPost(newPost);
-      setContent('');
-      setTopic('chat');
+      setTitle(''); setContent(''); setTopic('chat');
       previews.forEach((p) => URL.revokeObjectURL(p.objectUrl));
       setPreviews([]);
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
     } catch (e) {
-      setUploading(false);
-      showError(e instanceof Error ? e.message : '포스트 작성에 실패했습니다.');
+      showError(e instanceof Error ? e.message : '게시 실패');
     } finally {
       setSubmitting(false);
     }
@@ -358,1031 +201,166 @@ function PostComposer({ onPost, isAdmin }: { onPost: (post: Post) => void; isAdm
 
   if (!user) {
     return (
-      <div className="px-4 py-5 text-center text-sm text-gray-400 dark:text-gray-600">
-        포스트를 작성하려면 로그인해주세요.
+      <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 p-8 text-center text-sm text-gray-400">
+        로그인 후 글을 작성할 수 있습니다.
       </div>
     );
   }
 
-  const userName = getUserName(user);
-  const userAvatar = getUserAvatar(user);
-
   return (
-    <div className="flex gap-3 px-4 py-5">
-      <Avatar name={userName} avatarUrl={userAvatar} />
-      <div className="flex-1 min-w-0">
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => { setContent(e.target.value); autoResize(); }}
-          placeholder="무엇을 만들었나요? 자유롭게 공유해보세요..."
-          rows={3}
-          className="w-full resize-none bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600 text-sm outline-none leading-relaxed"
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(); }}
-        />
+    <div className="border border-blue-200 dark:border-blue-800 rounded-2xl bg-white dark:bg-gray-900/50 p-6 mb-4 space-y-4">
+      <h2 className="text-base font-bold text-gray-900 dark:text-white">새 글 작성</h2>
 
-        {/* Image previews */}
-        {previews.length > 0 && (
-          <Reorder.Group
-            as="div"
-            axis="x"
-            values={previews}
-            onReorder={setPreviews}
-            className="flex gap-2 mt-2 overflow-x-auto pb-1"
-            style={{ listStyle: 'none', padding: 0, margin: 0 }}
-          >
-            {previews.map((p) => (
-              <Reorder.Item
-                key={p.uid}
-                value={p}
-                as="div"
-                className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0 cursor-grab active:cursor-grabbing"
-              >
-                {p.compressing ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                    <span className="text-[10px] text-gray-400">압축 중</span>
-                  </div>
-                ) : (
-                  <>
-                    <Image src={p.objectUrl} alt="" fill className="object-cover" unoptimized />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white text-center py-0.5">
-                      {formatBytes(p.file.size)}
-                    </div>
-                  </>
-                )}
-                {!p.compressing && (
-                  <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => removeImage(p.uid)}
-                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                  >
-                    <X className="w-3 h-3 text-white" />
-                  </button>
-                )}
-              </Reorder.Item>
-            ))}
-          </Reorder.Group>
-        )}
+      {/* 제목 */}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="제목을 입력하세요 (선택)"
+        className="w-full px-4 py-2.5 text-base font-medium border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
 
-        <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
-          {/* Left: topic + image */}
-          <div className="flex items-center gap-2">
-            <select
-              value={topic}
-              onChange={(e) => {
-                const next = e.target.value as PostTopic;
-                setTopic(next);
-                if (next !== 'news' && previews.length > 4) {
-                  setPreviews((prev) => {
-                    prev.slice(4).forEach((p) => URL.revokeObjectURL(p.objectUrl));
-                    return prev.slice(0, 4);
-                  });
-                }
-              }}
-              className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2.5 py-1 outline-none cursor-pointer"
-            >
-              {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || t.value !== 'news')).map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+      {/* 토픽 */}
+      <div className="flex items-center gap-3">
+        <label className="text-sm font-medium text-gray-600 dark:text-gray-400 shrink-0">게시판</label>
+        <select
+          value={topic}
+          onChange={(e) => setTopic(e.target.value as PostTopic)}
+          className="text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 outline-none text-gray-700 dark:text-gray-300"
+        >
+          {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || t.value !== 'news')).map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+      </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            {previews.length < maxImages && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 transition-colors"
-                title={`이미지 첨부 (최대 ${maxImages}장, 자동 WebP 압축)`}
-              >
-                <ImageIcon className="w-4 h-4" />
-                <span className="text-xs hidden sm:inline">
-                  {previews.length > 0 ? `${previews.length}/${maxImages}` : '이미지'}
-                </span>
-              </button>
-            )}
-          </div>
+      {/* 에디터 */}
+      <MarkdownEditor
+        value={content}
+        onChange={setContent}
+        placeholder="내용을 입력하세요. 마크다운을 지원합니다."
+      />
 
-          {/* Right: hint + post button */}
-          <div className="flex items-center gap-3">
-            <p className="text-xs text-gray-400 dark:text-gray-600 hidden sm:block">⌘+Enter 게시</p>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleSubmit}
-              disabled={!content.trim() || submitting}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold disabled:opacity-30 transition-opacity hover:opacity-80"
-            >
-              {submitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : uploading ? (
-                <span className="text-xs">업로드 중...</span>
+      {/* 이미지 미리보기 */}
+      {previews.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {previews.map((p) => (
+            <div key={p.uid} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+              {p.compressing ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                </div>
               ) : (
-                <Send className="w-3.5 h-3.5" />
+                <Image src={p.objectUrl} alt="" fill className="object-cover" unoptimized />
               )}
-              게시
-            </motion.button>
-          </div>
+              {!p.compressing && (
+                <button onClick={() => removeImage(p.uid)} className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 하단 버튼 */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-3">
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple className="hidden" onChange={handleFileChange} />
+          {previews.length < MAX_IMAGES && (
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+              <ImageIcon className="w-4 h-4" />
+              <span>이미지 {previews.length > 0 ? `(${previews.length}/${MAX_IMAGES})` : ''}</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">취소</button>
+          <button
+            onClick={handleSubmit}
+            disabled={!content.trim() || submitting}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-40 hover:bg-blue-700 transition-colors"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            게시하기
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── CommentsSection ──────────────────────────────────────────
+// ─── PostRow ──────────────────────────────────────────────────
 
-function CommentsSection({ postId, onCountChange }: { postId: string; onCountChange?: (delta: number) => void }) {
-  const { user } = useAuth();
-  const { showError } = useToast();
-  const [comments, setComments] = useState<Comment[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [input, setInput] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const client = getBrowserClient();
-    db.comments.getByTarget(client, postId, 'post')
-      .then((data) => setComments([...data].reverse()))
-      .catch(() => setComments([]))
-      .finally(() => setLoading(false));
-  }, [postId]);
-
-  const handleSubmit = async () => {
-    if (!input.trim() || submitting || !user) return;
-    setSubmitting(true);
-    const userName = getUserName(user);
-    const avatarUrl = getUserAvatar(user);
-    try {
-      const client = getBrowserClient();
-      const id = await db.comments.create(client, postId, 'post', input.trim(), user.id, userName, avatarUrl);
-      setComments((prev) => [
-        ...(prev || []),
-        { id, targetId: postId, targetType: 'post', content: input.trim(), createdBy: user.id, createdByName: userName, createdByAvatarUrl: avatarUrl, createdAt: new Date() },
-      ]);
-      onCountChange?.(+1);
-      setInput('');
-    } catch {
-      showError('댓글 작성에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const startEdit = (c: Comment) => {
-    setEditingId(c.id);
-    setEditContent(c.content);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditContent('');
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    if (deletingId) return;
-    setDeletingId(commentId);
-    try {
-      await db.comments.remove(getBrowserClient(), commentId);
-      setComments((prev) => prev?.filter((c) => c.id !== commentId) ?? prev);
-      onCountChange?.(-1);
-    } catch {
-      showError('댓글 삭제에 실패했습니다.');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleSaveEdit = async (commentId: string) => {
-    if (!editContent.trim() || savingEdit) return;
-    setSavingEdit(true);
-    try {
-      const client = getBrowserClient();
-      await db.comments.update(client, commentId, editContent.trim());
-      setComments((prev) =>
-        prev?.map((c) => c.id === commentId ? { ...c, content: editContent.trim() } : c) ?? prev
-      );
-      cancelEdit();
-    } catch {
-      showError('수정에 실패했습니다.');
-    } finally {
-      setSavingEdit(false);
-    }
-  };
+function PostRow({ post, onClick }: { post: Post; onClick: () => void }) {
+  const displayTitle = post.title || getExcerpt(post.content, 70);
+  const hasImages = post.images.length > 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="overflow-hidden"
+    <div
+      onClick={onClick}
+      className="group grid grid-cols-[1fr_auto] sm:grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 px-4 py-3.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0"
     >
-      <div className="mt-3 ml-1 pl-4 border-l-2 border-gray-100 dark:border-gray-800 space-y-3">
-        {loading ? (
-          <div className="flex justify-center py-3">
-            <Loader2 className="w-4 h-4 animate-spin text-gray-300 dark:text-gray-700" />
-          </div>
-        ) : (
-          comments?.map((c) => (
-            <div key={c.id} className="flex gap-2.5">
-              <Avatar name={c.createdByName} avatarUrl={c.createdByAvatarUrl} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{c.createdByName}</span>
-                  <span className="text-xs text-gray-400">{formatRelativeTime(c.createdAt)}</span>
-                </div>
+      {/* 토픽 배지 (sm 이상) */}
+      <span className={`hidden sm:inline-flex shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${TOPIC_COLORS[post.topic]}`}>
+        {TOPIC_LABELS[post.topic]}
+      </span>
 
-                {editingId === c.id ? (
-                  <div className="mt-1 space-y-1.5">
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      autoFocus
-                      rows={2}
-                      className="w-full resize-none bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-xs outline-none text-gray-900 dark:text-gray-100 leading-relaxed"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSaveEdit(c.id);
-                        if (e.key === 'Escape') cancelEdit();
-                      }}
-                    />
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        onClick={cancelEdit}
-                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                      >
-                        취소
-                      </button>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleSaveEdit(c.id)}
-                        disabled={!editContent.trim() || savingEdit}
-                        className="flex items-center gap-1 text-xs font-semibold text-blue-500 dark:text-blue-400 disabled:opacity-30"
-                      >
-                        {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                        저장
-                      </motion.button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2 group">
-                    <p className="flex-1 text-sm text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed break-words">
-                      <RichText text={c.content} />
-                    </p>
-                    {user?.id === c.createdBy && (
-                      <div className="flex items-center gap-1.5 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => startEdit(c)}
-                          className="text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-400 transition-colors"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteComment(c.id)}
-                          disabled={deletingId === c.id}
-                          className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors disabled:opacity-50"
-                        >
-                          {deletingId === c.id
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <Trash2 className="w-3 h-3" />}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-
-        {user && (
-          <div className="flex gap-2.5 pb-1">
-            <Avatar name={getUserName(user)} avatarUrl={getUserAvatar(user)} size="sm" />
-            <div className="flex-1 flex items-center gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="댓글 달기..."
-                className="flex-1 bg-gray-50 dark:bg-gray-800/60 rounded-full px-3 py-1.5 text-xs outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400"
-              />
-              <motion.button
-                whileTap={{ scale: 0.85 }}
-                onClick={handleSubmit}
-                disabled={!input.trim() || submitting}
-                className="text-blue-500 dark:text-blue-400 disabled:opacity-30"
-              >
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              </motion.button>
-            </div>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── PostCard ─────────────────────────────────────────────────
-
-function PostCard({ post, index, onDelete }: { post: Post; index: number; onDelete: (id: string) => void }) {
-  const { user } = useAuth();
-  const { showError } = useToast();
-  const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [liking, setLiking] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.commentCount);
-  const [deleting, setDeleting] = useState(false);
-  // 편집 상태
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
-  const [editTopic, setEditTopic] = useState<PostTopic>(post.topic);
-  const [saving, setSaving] = useState(false);
-  // 화면에 표시되는 값 (편집 후 반영)
-  const [displayContent, setDisplayContent] = useState(post.content);
-  const [displayTopic, setDisplayTopic] = useState<PostTopic>(post.topic);
-  const isOwner = user?.id === post.authorId;
-
-  const handleLike = async () => {
-    if (!user || liking) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    setLiking(true);
-    try {
-      const client = getBrowserClient();
-      wasLiked
-        ? await db.posts.unlike(client, post.id, user.id)
-        : await db.posts.like(client, post.id, user.id);
-    } catch {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-      showError('오류가 발생했습니다.');
-    } finally {
-      setLiking(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!isOwner || deleting) return;
-    setDeleting(true);
-    try {
-      await db.posts.remove(getBrowserClient(), post.id);
-      onDelete(post.id);
-    } catch {
-      showError('삭제에 실패했습니다.');
-      setDeleting(false);
-    }
-  };
-
-  const startEdit = () => {
-    setEditContent(displayContent);
-    setEditTopic(displayTopic);
-    setIsEditing(true);
-  };
-
-  const cancelEdit = () => setIsEditing(false);
-
-  const handleSave = async () => {
-    if (!editContent.trim() || saving) return;
-    setSaving(true);
-    try {
-      await db.posts.update(getBrowserClient(), post.id, editContent.trim(), editTopic);
-      setDisplayContent(editContent.trim());
-      setDisplayTopic(editTopic);
-      setIsEditing(false);
-    } catch {
-      showError('수정에 실패했습니다.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const topicLabel = TOPIC_LABELS[displayTopic];
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
-      className="px-4 py-5"
-    >
-      <div className="flex gap-3">
-        <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} />
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{post.authorName}</span>
-              <span className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</span>
-              {!isEditing && (
-                <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-                  {topicLabel}
-                </span>
-              )}
-            </div>
-            {isOwner && !isEditing && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={startEdit}
-                  className="text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-400 transition-colors"
-                  title="수정"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
-                  title="삭제"
-                >
-                  {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                </motion.button>
-              </div>
-            )}
-          </div>
-
-          {/* Content — normal or edit mode */}
-          {isEditing ? (
-            <div className="mt-2 space-y-2">
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                autoFocus
-                rows={4}
-                className="w-full resize-none bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none leading-relaxed border border-gray-200 dark:border-gray-700"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-              />
-              <div className="flex items-center gap-2">
-                <select
-                  value={editTopic}
-                  onChange={(e) => setEditTopic(e.target.value as PostTopic)}
-                  className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2.5 py-1 outline-none"
-                >
-                  {TOPICS.filter((t) => t.value !== 'all').map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-                <div className="flex-1" />
-                <button
-                  onClick={cancelEdit}
-                  className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-3 py-1.5 transition-colors"
-                >
-                  취소
-                </button>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSave}
-                  disabled={!editContent.trim() || saving}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 disabled:opacity-30 transition-opacity"
-                >
-                  {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                  저장
-                </motion.button>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-1.5 text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
-              <RichText text={displayContent} />
-            </p>
-          )}
-
-          {/* Images */}
-          {!isEditing && <PostImages images={post.images} />}
-
-          {/* Actions — 편집 중에는 숨김 */}
-          <div className={`flex items-center gap-5 mt-3 ${isEditing ? 'hidden' : ''}`}>
-            <motion.button
-              whileTap={{ scale: 0.8 }}
-              onClick={handleLike}
-              disabled={!user || liking}
-              className="flex items-center gap-1.5 group disabled:cursor-default"
-            >
-              <motion.div
-                animate={liked ? { scale: [1, 1.4, 1] } : { scale: 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600 dark:group-hover:text-red-500'}`} />
-              </motion.div>
-              <AnimatePresence mode="popLayout">
-                {likeCount > 0 && (
-                  <motion.span
-                    key={likeCount}
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.15 }}
-                    className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}
-                  >
-                    {likeCount}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-
-            <button
-              onClick={() => setShowComments((v) => !v)}
-              className={`flex items-center gap-1.5 transition-colors ${
-                showComments || commentCount > 0
-                  ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-gray-400 hover:text-blue-500 dark:text-gray-600 dark:hover:text-blue-400'
-              }`}
-            >
-              <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
-              <span className="text-xs">
-                {commentCount > 0 ? `댓글 ${commentCount}` : '댓글'}
-              </span>
-            </button>
-          </div>
-
-          {!isEditing && (
-            <AnimatePresence>
-              {showComments && (
-                <CommentsSection
-                  key={post.id}
-                  postId={post.id}
-                  onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
-                />
-              )}
-            </AnimatePresence>
-          )}
+      {/* 제목 영역 */}
+      <div className="min-w-0 col-span-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+            {displayTitle}
+          </span>
+          {hasImages && <ImageIcon className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />}
+        </div>
+        {/* 모바일: 토픽 + 메타 인라인 */}
+        <div className="sm:hidden flex items-center gap-2 mt-0.5">
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${TOPIC_COLORS[post.topic]}`}>
+            {TOPIC_LABELS[post.topic]}
+          </span>
+          <span className="text-xs text-gray-400">{post.authorName}</span>
+          <span className="text-xs text-gray-300 dark:text-gray-600">·</span>
+          <span className="text-xs text-gray-400">{formatDate(post.createdAt)}</span>
         </div>
       </div>
-    </motion.div>
-  );
-}
 
-// ─── NewsCard ─────────────────────────────────────────────────
+      {/* 작성자 (sm 이상) */}
+      <span className="hidden sm:block text-xs text-gray-500 dark:text-gray-400 shrink-0 w-20 text-right truncate">
+        {post.authorName}
+      </span>
 
-function NewsCard({ post, index, onDelete, onOpen }: { post: Post; index: number; onDelete: (id: string) => void; onOpen: () => void }) {
-  const { user, isAdmin } = useAuth();
-  const { showError } = useToast();
-  const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [liking, setLiking] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.commentCount);
-  const [deleting, setDeleting] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
-  const [saving, setSaving] = useState(false);
-  const [displayContent, setDisplayContent] = useState(post.content);
-  const coverImage = post.images[0] ?? null;
+      {/* 날짜 (sm 이상) */}
+      <span className="hidden sm:block text-xs text-gray-400 shrink-0 w-14 text-right">
+        {formatDate(post.createdAt)}
+      </span>
 
-  const handleLike = async () => {
-    if (!user || liking) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    setLiking(true);
-    try {
-      const client = getBrowserClient();
-      wasLiked
-        ? await db.posts.unlike(client, post.id, user.id)
-        : await db.posts.like(client, post.id, user.id);
-    } catch {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-      showError('오류가 발생했습니다.');
-    } finally {
-      setLiking(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!isAdmin || deleting) return;
-    setDeleting(true);
-    try {
-      await db.posts.remove(getBrowserClient(), post.id);
-      onDelete(post.id);
-    } catch {
-      showError('삭제에 실패했습니다.');
-      setDeleting(false);
-    }
-  };
-
-  const startEdit = () => {
-    setEditContent(displayContent);
-    setIsEditing(true);
-  };
-
-  const cancelEdit = () => setIsEditing(false);
-
-  const handleSave = async () => {
-    if (!editContent.trim() || saving) return;
-    setSaving(true);
-    try {
-      await db.posts.update(getBrowserClient(), post.id, editContent.trim(), 'news');
-      setDisplayContent(editContent.trim());
-      setIsEditing(false);
-    } catch {
-      showError('수정에 실패했습니다.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
-      className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden flex flex-col cursor-pointer"
-      onClick={() => { if (!isEditing) onOpen(); }}
-    >
-      {/* Cover image */}
-      {!isEditing && (
-        coverImage ? (
-          <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 flex-shrink-0">
-            <Image src={coverImage} alt="" fill className="object-cover" unoptimized />
-          </div>
-        ) : (
-          <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
-            <Newspaper className="w-10 h-10 text-blue-200 dark:text-gray-600" />
-          </div>
-        )
-      )}
-
-      {/* Body */}
-      <div className="flex flex-col flex-1 p-4 gap-3">
-        {/* Admin action buttons */}
-        {isAdmin && !isEditing && (
-          <div className="flex justify-end gap-2">
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={(e) => { e.stopPropagation(); startEdit(); }}
-              className="text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-400 transition-colors"
-              title="수정"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.85 }}
-              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-              disabled={deleting}
-              className="text-gray-300 hover:text-red-400 dark:text-gray-700 dark:hover:text-red-500 transition-colors"
-              title="삭제"
-            >
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            </motion.button>
-          </div>
+      {/* 댓글/좋아요 */}
+      <div className="flex items-center gap-2.5 shrink-0 justify-end">
+        {post.commentCount > 0 && (
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <MessageCircle className="w-3.5 h-3.5" />
+            {post.commentCount}
+          </span>
         )}
-
-        {/* Edit mode */}
-        {isEditing ? (
-          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              autoFocus
-              rows={5}
-              className="w-full resize-none bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none leading-relaxed border border-gray-200 dark:border-gray-700"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-                if (e.key === 'Escape') cancelEdit();
-              }}
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={cancelEdit}
-                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-3 py-1.5 transition-colors"
-              >
-                취소
-              </button>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSave}
-                disabled={!editContent.trim() || saving}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 disabled:opacity-30 transition-opacity"
-              >
-                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                저장
-              </motion.button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed line-clamp-4 flex-1 whitespace-pre-wrap break-words">
-            <RichText text={displayContent} />
-          </p>
+        {post.likeCount > 0 && (
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <Heart className="w-3.5 h-3.5" />
+            {post.likeCount}
+          </span>
         )}
-
-        {/* Footer */}
-        {!isEditing && (
-          <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 min-w-0">
-              <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
-                <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <motion.button
-                whileTap={{ scale: 0.8 }}
-                onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                disabled={!user || liking}
-                className="flex items-center gap-1 group disabled:cursor-default"
-              >
-                <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600 dark:group-hover:text-red-500'}`} />
-                {likeCount > 0 && (
-                  <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-600'}`}>{likeCount}</span>
-                )}
-              </motion.button>
-
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowComments((v) => !v); }}
-                className={`flex items-center gap-1 transition-colors ${
-                  showComments || commentCount > 0
-                    ? 'text-blue-500 dark:text-blue-400'
-                    : 'text-gray-400 hover:text-blue-500 dark:text-gray-600'
-                }`}
-              >
-                <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
-                {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
-              </button>
-            </div>
-          </div>
-        )}
+        <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-700 group-hover:text-gray-400 transition-colors" />
       </div>
-
-      {/* Comments */}
-      <AnimatePresence>
-        {showComments && !isEditing && (
-          <div className="px-4 pb-4" onClick={(e) => e.stopPropagation()}>
-            <CommentsSection
-              key={post.id}
-              postId={post.id}
-              onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
-            />
-          </div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-// ─── NewsLightbox ─────────────────────────────────────────────
-
-const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? '55%' : '-55%', opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? '-55%' : '55%', opacity: 0 }),
-};
-
-function NewsLightbox({ posts, index, onClose, onNavigate }: {
-  posts: Post[];
-  index: number;
-  onClose: () => void;
-  onNavigate: (index: number) => void;
-}) {
-  const { user, isAdmin } = useAuth();
-  const { showError } = useToast();
-  const post = posts[index];
-  const canPrev = index > 0;
-  const canNext = index < posts.length - 1;
-  const [direction, setDirection] = useState(0);
-  const [liked, setLiked] = useState(() => post.likes.includes(user?.id || ''));
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [liking, setLiking] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState(post.commentCount);
-  const [deleting, setDeleting] = useState(false);
-
-  const navigate = (newIndex: number) => {
-    setDirection(newIndex > index ? 1 : -1);
-    setShowComments(false);
-    onNavigate(newIndex);
-  };
-
-  useEffect(() => {
-    setLiked(post.likes.includes(user?.id || ''));
-    setLikeCount(post.likeCount);
-    setCommentCount(post.commentCount);
-  }, [post, user]);
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft' && canPrev) navigate(index - 1);
-      if (e.key === 'ArrowRight' && canNext) navigate(index + 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [index, canPrev, canNext]);
-
-  const handleLike = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user || liking) return;
-    const wasLiked = liked;
-    setLiked(!wasLiked);
-    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
-    setLiking(true);
-    try {
-      const client = getBrowserClient();
-      wasLiked
-        ? await db.posts.unlike(client, post.id, user.id)
-        : await db.posts.like(client, post.id, user.id);
-    } catch {
-      setLiked(wasLiked);
-      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
-      showError('오류가 발생했습니다.');
-    } finally {
-      setLiking(false);
-    }
-  };
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isAdmin || deleting) return;
-    setDeleting(true);
-    try {
-      await db.posts.remove(getBrowserClient(), post.id);
-      onClose();
-    } catch {
-      showError('삭제에 실패했습니다.');
-      setDeleting(false);
-    }
-  };
-
-  const showDots = posts.length <= 9;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-4"
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-      >
-        <X className="w-5 h-5" />
-      </button>
-
-      {/* Prev */}
-      <button
-        onClick={(e) => { e.stopPropagation(); if (canPrev) navigate(index - 1); }}
-        disabled={!canPrev}
-        className="absolute left-3 sm:left-6 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-colors"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
-
-      {/* Next */}
-      <button
-        onClick={(e) => { e.stopPropagation(); if (canNext) navigate(index + 1); }}
-        disabled={!canNext}
-        className="absolute right-3 sm:right-6 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-20 transition-colors"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
-
-      {/* Card */}
-      <motion.div
-        className="relative z-10 w-full max-w-lg overflow-hidden"
-        onPanEnd={(_, info) => {
-          if (info.offset.x < -50 || info.velocity.x < -300) { if (canNext) navigate(index + 1); }
-          else if (info.offset.x > 50 || info.velocity.x > 300) { if (canPrev) navigate(index - 1); }
-        }}
-      >
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          <motion.div
-            key={post.id}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden flex flex-col max-h-[85vh]"
-          >
-            {/* Images */}
-            {post.images.length > 0 && (
-              <div className="overflow-y-auto flex-shrink-0 max-h-[55vh]">
-                {post.images.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`이미지 ${i + 1}`}
-                    className="w-full block"
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap break-words">
-                <RichText text={post.content} />
-              </p>
-
-              {/* Author */}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                <Avatar name={post.authorName} avatarUrl={post.authorAvatarUrl} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{post.authorName}</p>
-                  <p className="text-xs text-gray-400">{formatRelativeTime(post.createdAt)}</p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <motion.button whileTap={{ scale: 0.8 }} onClick={handleLike} disabled={!user || liking} className="flex items-center gap-1 group disabled:cursor-default">
-                    <Heart className={`w-4 h-4 transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-400 dark:text-gray-600'}`} />
-                    {likeCount > 0 && <span className={`text-xs tabular-nums ${liked ? 'text-red-500' : 'text-gray-400'}`}>{likeCount}</span>}
-                  </motion.button>
-
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowComments((v) => !v); }}
-                    className={`flex items-center gap-1 transition-colors ${showComments || commentCount > 0 ? 'text-blue-500' : 'text-gray-400 hover:text-blue-500'}`}
-                  >
-                    <MessageCircle className={`w-4 h-4 ${commentCount > 0 ? 'fill-blue-100 dark:fill-blue-900/40' : ''}`} />
-                    {commentCount > 0 && <span className="text-xs">{commentCount}</span>}
-                  </button>
-
-                  {isAdmin && (
-                    <motion.button whileTap={{ scale: 0.85 }} onClick={handleDelete} disabled={deleting} className="text-gray-300 hover:text-red-400 transition-colors">
-                      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    </motion.button>
-                  )}
-                </div>
-              </div>
-
-              {/* Comments */}
-              <AnimatePresence>
-                {showComments && (
-                  <CommentsSection
-                    key={post.id}
-                    postId={post.id}
-                    onCountChange={(delta) => setCommentCount((c) => Math.max(0, c + delta))}
-                  />
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Pagination */}
-      <div className="relative z-10 flex items-center gap-2 mt-4">
-        {showDots ? (
-          posts.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => navigate(i)}
-              className={`rounded-full transition-all ${i === index ? 'w-5 h-2 bg-white' : 'w-2 h-2 bg-white/35 hover:bg-white/60'}`}
-            />
-          ))
-        ) : (
-          <span className="text-white/60 text-xs tabular-nums">{index + 1} / {posts.length}</span>
-        )}
-      </div>
-    </motion.div>
+    </div>
   );
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────
 
-function Sidebar({ active, onChange, counts }: {
-  active: TopicFilter;
-  onChange: (t: TopicFilter) => void;
-  counts: Record<string, number>;
-}) {
+function Sidebar({ active, onChange, counts }: { active: TopicFilter; onChange: (t: TopicFilter) => void; counts: Record<string, number> }) {
   return (
     <aside className="hidden lg:block w-48 shrink-0 sticky top-24 self-start">
-      <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-3 px-3">
-        Topics
-      </p>
+      <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-3 px-3">게시판</p>
       <nav className="space-y-0.5">
         {TOPICS.map(({ value, label, Icon }) => {
           const isActive = active === value;
@@ -1400,9 +378,7 @@ function Sidebar({ active, onChange, counts }: {
               <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-gray-900 dark:text-white' : ''}`} />
               <span className="flex-1">{label}</span>
               {count > 0 && (
-                <span className={`text-xs tabular-nums ${isActive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
-                  {count}
-                </span>
+                <span className={`text-xs tabular-nums ${isActive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>{count}</span>
               )}
             </button>
           );
@@ -1412,10 +388,9 @@ function Sidebar({ active, onChange, counts }: {
   );
 }
 
-// 모바일용 가로 스크롤 탭
 function MobileTabs({ active, onChange }: { active: TopicFilter; onChange: (t: TopicFilter) => void }) {
   return (
-    <div className="lg:hidden flex gap-2 overflow-x-auto scrollbar-hide px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+    <div className="lg:hidden flex gap-2 overflow-x-auto scrollbar-hide py-3 mb-2">
       {TOPICS.map(({ value, label }) => (
         <button
           key={value}
@@ -1435,13 +410,12 @@ function MobileTabs({ active, onChange }: { active: TopicFilter; onChange: (t: T
 
 // ─── Main ─────────────────────────────────────────────────────
 
-type ContentClientProps = { initialPosts: Post[] };
-
-export default function ContentClient({ initialPosts }: ContentClientProps) {
-  const { isAdmin } = useAuth();
+export default function ContentClient({ initialPosts }: { initialPosts: Post[] }) {
+  const router = useRouter();
+  const { user, isAdmin } = useAuth();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [activeTopic, setActiveTopic] = useState<TopicFilter>('all');
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
 
   const filtered = activeTopic === 'all' ? posts : posts.filter((p) => p.topic === activeTopic);
 
@@ -1453,103 +427,88 @@ export default function ContentClient({ initialPosts }: ContentClientProps) {
 
   const handleNewPost = useCallback((post: Post) => {
     setPosts((prev) => [post, ...prev]);
-  }, []);
-
-  const handleDelete = useCallback((id: string) => {
-    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setShowComposer(false);
   }, []);
 
   return (
     <div className="min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
+        {/* Header */}
         <div className="pt-10 pb-6">
-          <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1">
-            Community
-          </p>
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-1">Community</p>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">커뮤니티</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
-            만든 것들을 자유롭게 자랑하고 공유해보세요
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">만든 것들을 자유롭게 자랑하고 공유해보세요</p>
         </div>
 
         <div className="flex gap-8">
           {/* Sidebar */}
           <Sidebar active={activeTopic} onChange={setActiveTopic} counts={counts} />
 
-          {/* Feed */}
+          {/* Main */}
           <div className="flex-1 min-w-0">
-            {/* Composer */}
-            {activeTopic === 'news' && !isAdmin ? (
-              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 mb-4 px-4 py-5 flex items-center gap-3 text-gray-400 dark:text-gray-600">
-                <Newspaper className="w-4 h-4 flex-shrink-0" />
-                <p className="text-sm">AI 소식은 관리자만 게시할 수 있습니다.</p>
-              </div>
+
+            {/* 글쓰기 버튼 or composer */}
+            {showComposer ? (
+              <BlogComposer onPost={handleNewPost} onCancel={() => setShowComposer(false)} isAdmin={isAdmin} />
             ) : (
-              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 mb-4">
-                <PostComposer onPost={handleNewPost} isAdmin={isAdmin} />
+              <div className="flex items-center justify-between mb-4">
+                <MobileTabs active={activeTopic} onChange={setActiveTopic} />
+                {user ? (
+                  <button
+                    onClick={() => setShowComposer(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shrink-0"
+                  >
+                    <PenLine className="w-4 h-4" />
+                    글쓰기
+                  </button>
+                ) : null}
               </div>
             )}
 
-            {/* Mobile topic tabs */}
-            <MobileTabs active={activeTopic} onChange={setActiveTopic} />
+            {/* 게시판 헤더 */}
+            <div className="border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 overflow-hidden">
+              {/* 컬럼 헤더 (sm 이상) */}
+              <div className="hidden sm:grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-16">게시판</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">제목</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-20 text-right">작성자</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-14 text-right">날짜</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 w-16 text-right">반응</span>
+              </div>
 
-            {/* Posts */}
-            {activeTopic === 'news' ? (
-              filtered.length === 0 ? (
-                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 py-20 text-center">
-                  <p className="text-4xl mb-3">📰</p>
-                  <p className="text-sm text-gray-400 dark:text-gray-600">AI 소식 카테고리에 아직 글이 없습니다.</p>
+              {/* 글 목록 */}
+              {filtered.length === 0 ? (
+                <div className="py-20 text-center">
+                  <p className="text-3xl mb-3">✨</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-600">
+                    {activeTopic === 'all'
+                      ? '아직 글이 없습니다. 첫 번째 이야기를 올려보세요!'
+                      : `${TOPIC_LABELS[activeTopic as PostTopic]} 게시판에 아직 글이 없습니다.`}
+                  </p>
+                  {user && !showComposer && (
+                    <button
+                      onClick={() => setShowComposer(true)}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                      <PenLine className="w-4 h-4" />
+                      첫 글 쓰기
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <AnimatePresence initial mode="popLayout">
-                    {filtered.map((post, i) => (
-                      <NewsCard key={post.id} post={post} index={i} onDelete={handleDelete} onOpen={() => setLightboxIndex(i)} />
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )
-            ) : (
-              <div className="border border-gray-100 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900/50 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
-                <AnimatePresence initial mode="popLayout">
-                  {filtered.length === 0 ? (
-                    <motion.div
-                      key="empty"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="py-20 text-center"
-                    >
-                      <p className="text-4xl mb-3">✨</p>
-                      <p className="text-sm text-gray-400 dark:text-gray-600">
-                        {activeTopic === 'all'
-                          ? '아직 포스트가 없습니다.\n첫 번째 이야기를 올려보세요!'
-                          : `${TOPIC_LABELS[activeTopic as PostTopic]} 카테고리에 아직 글이 없습니다.`}
-                      </p>
-                    </motion.div>
-                  ) : (
-                    filtered.map((post, i) => (
-                      <PostCard key={post.id} post={post} index={i} onDelete={handleDelete} />
-                    ))
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+                filtered.map((post) => (
+                  <PostRow
+                    key={post.id}
+                    post={post}
+                    onClick={() => router.push(`/content/${post.id}`)}
+                  />
+                ))
+              )}
+            </div>
+
           </div>
         </div>
       </div>
-
-      {/* News Lightbox */}
-      <AnimatePresence>
-        {lightboxIndex !== null && (
-          <NewsLightbox
-            posts={filtered}
-            index={lightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-            onNavigate={setLightboxIndex}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
