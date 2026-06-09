@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { db, getBrowserClient } from '@/lib/database';
-import type { AIApp, Prompt, Comment, Category, UserProfile, Collection } from '@/types/database';
+import type { AIApp, Prompt, Comment, Category, UserProfile, Collection, Post, PostTopic } from '@/types/database';
 import { appCategoryDefaults, appColorOptions, appIconOptions, promptCategoryDefaults, promptColorOptions, promptIconOptions } from '@/lib/categoryOptions';
 import { FaUsers, FaRobot, FaRegCommentDots, FaListUl, FaLock, FaPlus, FaTrash, FaEdit, FaLayerGroup } from 'react-icons/fa';
 import Link from 'next/link';
@@ -20,7 +20,7 @@ interface CreatorStat {
   comments: number;
 }
 
-type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales' | 'classes' | 'comments';
+type TabKey = 'creators' | 'apps' | 'prompts' | 'users' | 'categories' | 'collections' | 'sales' | 'classes' | 'comments' | 'posts';
 
 interface OneTimeInfo {
   id: string;
@@ -113,6 +113,11 @@ function AdminPageContent({
   const [commentPage, setCommentPage] = useState(1);
   const [editingComment, setEditingComment] = useState<{ id: string; content: string } | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
+  const [adminPosts, setAdminPosts] = useState<Post[]>([]);
+  const [postsLoaded, setPostsLoaded] = useState(false);
+  const [loadingAdminPosts, setLoadingAdminPosts] = useState(false);
+  const [postPage, setPostPage] = useState(1);
+  const [postTopicFilter, setPostTopicFilter] = useState<'all' | PostTopic>('all');
   const [appCategoryForm, setAppCategoryForm] = useState({
     value: '',
     label: '',
@@ -311,6 +316,36 @@ function AdminPageContent({
     };
     load();
   }, [activeTab, commentsLoaded, loadingAllComments, session]);
+
+  useEffect(() => {
+    if (activeTab !== 'posts' || postsLoaded || loadingAdminPosts) return;
+    const load = async () => {
+      setLoadingAdminPosts(true);
+      try {
+        const supabase = getBrowserClient();
+        const data = await db.posts.getAll(supabase);
+        setAdminPosts(data);
+        setPostsLoaded(true);
+      } catch (e) {
+        showError(e instanceof Error ? e.message : '커뮤니티 글 로드 실패');
+      } finally {
+        setLoadingAdminPosts(false);
+      }
+    };
+    load();
+  }, [activeTab, postsLoaded, loadingAdminPosts, showError]);
+
+  const handleAdminDeletePost = async (id: string, title: string) => {
+    if (!window.confirm(`"${title}" 글을 삭제하시겠습니까? 댓글과 좋아요도 함께 삭제됩니다.`)) return;
+    try {
+      const supabase = getBrowserClient();
+      await db.posts.remove(supabase, id);
+      setAdminPosts((prev) => prev.filter((p) => p.id !== id));
+      showSuccess('글이 삭제되었습니다.');
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '글 삭제 실패');
+    }
+  };
 
   const handleAdminDeleteComment = async (id: string) => {
     if (!session || !window.confirm('이 댓글을 삭제하시겠습니까?')) return;
@@ -963,6 +998,7 @@ function AdminPageContent({
                 { key: 'sales', label: '판매 설정' },
                 { key: 'classes', label: '🎓 클래스 관리' },
                 { key: 'comments', label: '💬 댓글 관리' },
+                { key: 'posts', label: '📝 커뮤니티 글' },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -1200,6 +1236,102 @@ function AdminPageContent({
             )}
             {activeTab === 'classes' && (
               <ClassManagementPanel />
+            )}
+
+            {activeTab === 'posts' && (
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                    커뮤니티 글 관리
+                    {postsLoaded && <span className="ml-2 text-sm font-normal text-gray-400">({adminPosts.length}개)</span>}
+                  </h3>
+                  <div className="ml-auto flex gap-2 flex-wrap">
+                    {(['all', 'news', 'showcase', 'idea', 'tip', 'question', 'chat'] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => { setPostTopicFilter(t); setPostPage(1); }}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${postTopicFilter === t ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
+                      >
+                        {t === 'all' ? '전체' : t === 'news' ? 'AI소식' : t === 'showcase' ? '앱자랑' : t === 'idea' ? '아이디어' : t === 'tip' ? '팁' : t === 'question' ? '질문' : '자유'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {loadingAdminPosts ? (
+                  <div className="py-10 text-center text-sm text-gray-400">불러오는 중...</div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-800">
+                        <thead className="bg-gray-50 dark:bg-gray-800">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-20">게시판</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">제목 / 내용</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-24">작성자</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-28">날짜</th>
+                            <th className="px-3 py-2 w-16 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">반응</th>
+                            <th className="px-3 py-2 w-16"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                          {paginated(
+                            adminPosts.filter((p) => postTopicFilter === 'all' || p.topic === postTopicFilter),
+                            postPage
+                          ).map((p) => {
+                            const displayTitle = p.title || p.content.replace(/[#*`>\-_~\[\]()!]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) + (p.content.length > 60 ? '…' : '');
+                            return (
+                              <tr key={p.id}>
+                                <td className="px-3 py-2.5">
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                    {p.topic}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 max-w-xs">
+                                  <a
+                                    href={`/content/${p.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-800 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 line-clamp-2 transition-colors"
+                                  >
+                                    {displayTitle}
+                                  </a>
+                                </td>
+                                <td className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">{p.authorName}</td>
+                                <td className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
+                                  {p.createdAt.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td className="px-3 py-2.5 text-xs text-gray-400 text-center">
+                                  ♥{p.likeCount} 💬{p.commentCount}
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <button
+                                    onClick={() => handleAdminDeletePost(p.id, displayTitle)}
+                                    className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                                    title="삭제"
+                                  >
+                                    <FaTrash className="text-xs" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {adminPosts.filter((p) => postTopicFilter === 'all' || p.topic === postTopicFilter).length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">게시글이 없습니다.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pager
+                      page={postPage}
+                      totalPages={Math.ceil(adminPosts.filter((p) => postTopicFilter === 'all' || p.topic === postTopicFilter).length / pageSize)}
+                      onPageChange={setPostPage}
+                    />
+                  </>
+                )}
+              </div>
             )}
 
             {activeTab === 'comments' && (

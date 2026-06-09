@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, Send, Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -32,6 +33,7 @@ function formatDate(date: Date) {
 }
 
 export default function ContentDetailClient({ post, initialComments }: Props) {
+  const router = useRouter();
   const { user, isAdmin } = useAuth();
   const { showError } = useToast();
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -40,7 +42,24 @@ export default function ContentDetailClient({ post, initialComments }: Props) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingPost, setDeletingPost] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const canDeletePost = !!user && (user.id === post.authorId || isAdmin);
+
+  const handleDeletePost = async () => {
+    if (!canDeletePost || deletingPost) return;
+    if (!window.confirm('이 글을 삭제하시겠습니까? 댓글과 좋아요도 함께 삭제됩니다.')) return;
+    setDeletingPost(true);
+    const client = getBrowserClient();
+    try {
+      await db.posts.remove(client, post.id);
+      router.push('/content');
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '글 삭제 실패');
+      setDeletingPost(false);
+    }
+  };
 
   const handleLike = async () => {
     if (!user || likeLoading) return;
@@ -109,8 +128,8 @@ export default function ContentDetailClient({ post, initialComments }: Props) {
 
   return (
     <div className="mt-8 space-y-6">
-      {/* 좋아요 버튼 */}
-      <div className="flex items-center gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+      {/* 좋아요 + 삭제 */}
+      <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
         <button
           onClick={handleLike}
           disabled={!user || likeLoading}
@@ -131,6 +150,17 @@ export default function ContentDetailClient({ post, initialComments }: Props) {
           <MessageCircle className="w-4 h-4" />
           댓글 {comments.length}
         </span>
+
+        {canDeletePost && (
+          <button
+            onClick={handleDeletePost}
+            disabled={deletingPost}
+            className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 border border-transparent hover:border-rose-200 dark:hover:border-rose-800 transition-all disabled:opacity-40"
+          >
+            {deletingPost ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <span>글 삭제</span>
+          </button>
+        )}
       </div>
 
       {/* 댓글 섹션 */}
