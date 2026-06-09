@@ -292,14 +292,18 @@ function BlogComposer({ onPost, onCancel, isAdmin }: {
 
 // ─── PostRow ──────────────────────────────────────────────────
 
-function PostRow({ post, onClick }: { post: Post; onClick: () => void }) {
+function PostRow({ post, onClick, loading }: { post: Post; onClick: () => void; loading: boolean }) {
   const displayTitle = post.title || getExcerpt(post.content, 70);
   const hasImages = post.images.length > 0;
 
   return (
     <div
-      onClick={onClick}
-      className="group grid grid-cols-[1fr_auto] sm:grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 px-4 py-3.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+      onClick={loading ? undefined : onClick}
+      className={`group grid grid-cols-[1fr_auto] sm:grid-cols-[auto_1fr_auto_auto_auto] items-center gap-x-3 gap-y-1 px-4 py-3.5 cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-b-0 transition-all duration-150 ${
+        loading
+          ? 'bg-blue-50/60 dark:bg-blue-900/10'
+          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+      }`}
     >
       {/* 토픽 배지 (sm 이상) */}
       <span className={`hidden sm:inline-flex shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${TOPIC_COLORS[post.topic]}`}>
@@ -309,10 +313,10 @@ function PostRow({ post, onClick }: { post: Post; onClick: () => void }) {
       {/* 제목 영역 */}
       <div className="min-w-0 col-span-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+          <span className={`text-sm font-medium truncate transition-colors ${loading ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
             {displayTitle}
           </span>
-          {hasImages && <ImageIcon className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />}
+          {hasImages && !loading && <ImageIcon className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />}
         </div>
         {/* 모바일: 토픽 + 메타 인라인 */}
         <div className="sm:hidden flex items-center gap-2 mt-0.5">
@@ -335,21 +339,24 @@ function PostRow({ post, onClick }: { post: Post; onClick: () => void }) {
         {formatDate(post.createdAt)}
       </span>
 
-      {/* 댓글/좋아요 */}
+      {/* 댓글/좋아요 + 로딩 */}
       <div className="flex items-center gap-2.5 shrink-0 justify-end">
-        {post.commentCount > 0 && (
+        {!loading && post.commentCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-gray-400">
             <MessageCircle className="w-3.5 h-3.5" />
             {post.commentCount}
           </span>
         )}
-        {post.likeCount > 0 && (
+        {!loading && post.likeCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-gray-400">
             <Heart className="w-3.5 h-3.5" />
             {post.likeCount}
           </span>
         )}
-        <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-700 group-hover:text-gray-400 transition-colors" />
+        {loading
+          ? <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+          : <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-700 group-hover:text-gray-400 transition-colors" />
+        }
       </div>
     </div>
   );
@@ -416,6 +423,7 @@ export default function ContentClient({ initialPosts }: { initialPosts: Post[] }
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [activeTopic, setActiveTopic] = useState<TopicFilter>('all');
   const [showComposer, setShowComposer] = useState(false);
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
   const filtered = activeTopic === 'all' ? posts : posts.filter((p) => p.topic === activeTopic);
 
@@ -500,7 +508,11 @@ export default function ContentClient({ initialPosts }: { initialPosts: Post[] }
                   <PostRow
                     key={post.id}
                     post={post}
-                    onClick={() => router.push(`/content/${post.id}`)}
+                    loading={navigatingId === post.id}
+                    onClick={() => {
+                      setNavigatingId(post.id);
+                      router.push(`/content/${post.id}`);
+                    }}
                   />
                 ))
               )}
