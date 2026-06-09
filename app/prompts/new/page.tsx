@@ -664,7 +664,7 @@ export default function NewPromptPage() {
               placeholder="https://example.com/image.jpg"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              입력하지 않으면 카테고리 아이콘이 표시됩니다.
+              검색 결과 · 카카오/SNS 공유 시 표시되는 이미지입니다. 입력하지 않으면 기본 이미지가 사용됩니다
             </p>
           </div>
 
