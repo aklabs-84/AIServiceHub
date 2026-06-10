@@ -48,9 +48,9 @@ export default function Header() {
                 priority
               />
             </div>
-            <h1 className="text-lg md:text-xl font-black tracking-tighter text-gray-900 dark:text-white hidden sm:block font-sans">
+            <span className="text-lg md:text-xl font-black tracking-tighter text-gray-900 dark:text-white hidden sm:block font-sans">
               아크의실험실
-            </h1>
+            </span>
           </Link>
 
           {/* 데스크톱 네비게이션 */}
