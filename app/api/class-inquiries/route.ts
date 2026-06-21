@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/database';
 import { sendSlack } from '@/lib/slack';
+import { sendAdminPush } from '@/lib/push';
 
 export const runtime = 'nodejs';
 
@@ -92,6 +93,11 @@ export async function POST(request: Request) {
   await sendSlack(
     `🏫 클래스 수업 신청 문의\n• 클래스: ${course?.title ?? courseId}\n• 기관: ${organization.trim()}\n• 담당자: ${contactName.trim()}\n• 이메일: ${contactEmail.trim()}${contactPhone ? `\n• 연락처: ${contactPhone.trim()}` : ''}${studentCount ? `\n• 예상 학생 수: ${studentCount}명` : ''}\n• 문의 내용:\n${message.trim()}`
   ).catch(() => {});
+  await sendAdminPush({
+    title: '🏫 클래스 수업 문의',
+    body: `${course?.title ?? ''} | ${organization.trim()} | ${contactName.trim()}`,
+    url: '/admin?tab=inquiries',
+  }).catch(() => {});
 
   return NextResponse.json({ inquiry: data }, { status: 201 });
 }

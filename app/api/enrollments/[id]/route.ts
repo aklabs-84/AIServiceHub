@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import { sendSlack } from '@/lib/slack';
+import { sendAdminPush } from '@/lib/push';
 
 export const runtime = 'nodejs';
 
@@ -101,6 +102,11 @@ export async function DELETE(
   await sendSlack(
     `❌ 클래스 수강 취소\n• 클래스: ${courseTitle}\n• 신청자: ${row.user_email || user.email}\n${isPaid && price > 0 ? `• 금액: ${price.toLocaleString()}원 (입금 여부 확인 필요)\n` : ''}• 취소 전 상태: ${row.status}`
   ).catch(() => {});
+  await sendAdminPush({
+    title: '❌ 클래스 수강 취소',
+    body: `${courseTitle} | ${row.user_email || user.email}`,
+    url: '/admin?tab=enrollments',
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import { purchases } from '@/lib/database/purchases';
 import { sendSlack } from '@/lib/slack';
+import { sendAdminPush } from '@/lib/push';
 
 export const runtime = 'nodejs';
 
@@ -121,6 +122,11 @@ export async function POST(request: Request) {
     : `📚 클래스 수강 신청 (무료)\n• 클래스: ${course.title}\n• 신청자: ${userEmail}\n${isWaitlist ? '⏳ 대기자로 등록됨\n' : ''}⚠️ 관리자 대시보드에서 승인해 주세요.`;
 
   await sendSlack(slackMsg).catch(() => {});
+  await sendAdminPush({
+    title: isWaitlist ? '⏳ 클래스 수강 신청 (대기)' : `📚 클래스 수강 신청${course.isPaid && course.price > 0 ? ' (유료)' : ' (무료)'}`,
+    body: `${course.title} | ${userEmail}`,
+    url: '/admin?tab=enrollments',
+  }).catch(() => {});
 
   return NextResponse.json({
     ok: true,

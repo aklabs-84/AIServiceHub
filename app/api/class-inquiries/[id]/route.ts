@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/database';
 import { sendSlack } from '@/lib/slack';
+import { sendAdminPush } from '@/lib/push';
 
 export const runtime = 'nodejs';
 
@@ -100,6 +101,11 @@ export async function DELETE(
   await sendSlack(
     `❌ 클래스 수업 문의 취소\n• 클래스: ${course?.title ?? existing.course_id}\n• 기관: ${existing.organization}\n• 담당자: ${existing.contact_name}`
   ).catch(() => {});
+  await sendAdminPush({
+    title: '❌ 클래스 문의 취소',
+    body: `${course?.title ?? ''} | ${existing.organization} | ${existing.contact_name}`,
+    url: '/admin?tab=inquiries',
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

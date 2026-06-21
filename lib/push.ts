@@ -1,6 +1,19 @@
 import webpush from 'web-push';
 import { getAdminClient } from '@/lib/database';
 
+const ADMIN_EMAIL = 'mosebb@gmail.com';
+
+export async function sendAdminPush(payload: { title: string; body: string; url?: string }) {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', ADMIN_EMAIL)
+    .maybeSingle();
+  if (!data?.id) return;
+  await sendPushToUser(data.id, { ...payload, url: payload.url ?? '/admin' });
+}
+
 export async function sendPushToUser(
   userId: string,
   payload: { title: string; body: string; url?: string },

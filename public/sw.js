@@ -127,17 +127,35 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    (async () => {
+      await self.registration.showNotification(data.title, options)
+      // 현재 표시 중인 알림 수로 배지 업데이트
+      const notifications = await self.registration.getNotifications()
+      if ('setAppBadge' in self.navigator) {
+        await self.navigator.setAppBadge(notifications.length)
+      }
+    })()
   )
 })
 
-// 알림 클릭 → 해당 URL로 이동
+// 알림 클릭 → 해당 URL로 이동 + 배지 초기화
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const targetUrl = (event.notification.data && event.notification.data.url) || '/apps'
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    (async () => {
+      // 남은 알림 확인 후 배지 업데이트 (닫힌 알림은 이미 제외됨)
+      const remaining = await self.registration.getNotifications()
+      if ('setAppBadge' in self.navigator) {
+        if (remaining.length === 0) {
+          await self.navigator.clearAppBadge()
+        } else {
+          await self.navigator.setAppBadge(remaining.length)
+        }
+      }
+
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       // 이미 열린 탭이 있으면 포커스
       for (const client of clients) {
         if (client.url.includes(self.location.origin)) {
@@ -148,7 +166,7 @@ self.addEventListener('notificationclick', (event) => {
       }
       // 없으면 새 탭
       return self.clients.openWindow(targetUrl)
-    })
+    })()
   )
 })
 
