@@ -6,9 +6,22 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit, FaTimesCircle, FaTrash, FaCommentAlt } from 'react-icons/fa';
+import { FaLock, FaUsers, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaArrowLeft, FaCheckCircle, FaHourglassHalf, FaEdit, FaTimesCircle, FaTrash, FaCommentAlt, FaSchool, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+
+interface ClassInquiry {
+  id: string;
+  organization: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string | null;
+  student_count: number | null;
+  message: string;
+  status: 'pending' | 'replied' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+}
 
 interface CourseComment {
   id: string;
@@ -73,6 +86,15 @@ export default function ClassDetailClient({ course }: Props) {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
 
+  // 수업 문의
+  const [inquiry, setInquiry] = useState<ClassInquiry | null>(null);
+  const [showInquiryForm, setShowInquiryForm] = useState(false);
+  const [editingInquiry, setEditingInquiry] = useState(false);
+  const [inquiryForm, setInquiryForm] = useState({ organization: '', contactName: '', contactEmail: '', contactPhone: '', studentCount: '', message: '' });
+  const [inquirySubmitting, setInquirySubmitting] = useState(false);
+  const [inquiryError, setInquiryError] = useState('');
+  const [cancellingInquiry, setCancellingInquiry] = useState(false);
+
   const [comments, setComments] = useState<CourseComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -110,6 +132,20 @@ export default function ClassDetailClient({ course }: Props) {
     }
     loadComments();
   }, [course.id]);
+
+  useEffect(() => {
+    if (!user || !session) return;
+    async function loadInquiry() {
+      const res = await fetch(`/api/class-inquiries?courseId=${course.id}`, {
+        headers: { Authorization: `Bearer ${session!.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInquiry(data.inquiry ?? null);
+      }
+    }
+    loadInquiry();
+  }, [user, session, course.id]);
 
   const handleCommentSubmit = async () => {
     if (!user || !session || !commentText.trim()) return;
@@ -171,6 +207,63 @@ export default function ClassDetailClient({ course }: Props) {
       setEnrollment(null);
     } catch { setCancelError('네트워크 오류가 발생했습니다'); }
     finally { setCancelling(false); }
+  };
+
+  const handleInquirySubmit = async () => {
+    if (!user || !session) return;
+    if (!inquiryForm.organization.trim() || !inquiryForm.contactName.trim() || !inquiryForm.contactEmail.trim() || !inquiryForm.message.trim()) {
+      setInquiryError('필수 항목(*)을 모두 입력해 주세요'); return;
+    }
+    setInquirySubmitting(true);
+    setInquiryError('');
+    try {
+      const url = editingInquiry && inquiry ? `/api/class-inquiries/${inquiry.id}` : '/api/class-inquiries';
+      const method = editingInquiry ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ courseId: course.id, ...inquiryForm }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setInquiryError(data.error || '제출 실패'); return; }
+      setInquiry(data.inquiry);
+      setShowInquiryForm(false);
+      setEditingInquiry(false);
+      setInquiryForm({ organization: '', contactName: '', contactEmail: '', contactPhone: '', studentCount: '', message: '' });
+    } catch { setInquiryError('네트워크 오류가 발생했습니다'); }
+    finally { setInquirySubmitting(false); }
+  };
+
+  const handleInquiryEdit = () => {
+    if (!inquiry) return;
+    setInquiryForm({
+      organization: inquiry.organization,
+      contactName: inquiry.contact_name,
+      contactEmail: inquiry.contact_email,
+      contactPhone: inquiry.contact_phone ?? '',
+      studentCount: inquiry.student_count ? String(inquiry.student_count) : '',
+      message: inquiry.message,
+    });
+    setEditingInquiry(true);
+    setShowInquiryForm(true);
+  };
+
+  const handleInquiryCancel = async () => {
+    if (!inquiry || !session) return;
+    if (!confirm('문의를 취소하시겠습니까?')) return;
+    setCancellingInquiry(true);
+    try {
+      const res = await fetch(`/api/class-inquiries/${inquiry.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { setInquiryError(data.error || '취소 실패'); return; }
+      setInquiry(null);
+      setShowInquiryForm(false);
+      setEditingInquiry(false);
+    } catch { setInquiryError('네트워크 오류가 발생했습니다'); }
+    finally { setCancellingInquiry(false); }
   };
 
   const handleBankEnroll = async () => {
@@ -479,6 +572,157 @@ export default function ClassDetailClient({ course }: Props) {
             )}
           </div>
         </div>
+
+        {/* 학교 수업 신청 문의 섹션 */}
+        <section className="mt-12">
+          {/* 배너 */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-6 md:p-8">
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+            <div className="relative flex flex-col md:flex-row md:items-center gap-5">
+              <div className="flex-none w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+                <FaSchool className="text-white text-2xl" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg md:text-xl font-black text-white mb-1">이 클래스를 학교에서 진행하고 싶으신가요?</h2>
+                <p className="text-blue-100 text-sm">학교·기관 담당자이신가요? 수업 진행 여부를 문의해 주세요. 빠르게 확인 후 연락드립니다.</p>
+              </div>
+              {!inquiry && (
+                <button
+                  onClick={() => { setShowInquiryForm(v => !v); setEditingInquiry(false); setInquiryError(''); }}
+                  className="flex-none flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-indigo-700 font-black text-sm hover:bg-blue-50 transition-all shadow-lg shadow-indigo-900/30 whitespace-nowrap"
+                >
+                  {showInquiryForm ? <><FaChevronUp className="text-xs" /> 닫기</> : '수업 문의하기'}
+                </button>
+              )}
+            </div>
+
+            {/* 기존 문의가 있는 경우 */}
+            {inquiry && (
+              <div className="relative mt-5 p-4 rounded-2xl bg-white/10 border border-white/20 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    {inquiry.status === 'pending' && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-400/90 text-amber-900">검토 중</span>}
+                    {inquiry.status === 'replied' && <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-400/90 text-emerald-900">답변 완료</span>}
+                    <span className="text-xs text-blue-100">{new Date(inquiry.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 문의</span>
+                  </div>
+                  {inquiry.status === 'pending' && (
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleInquiryEdit} className="text-xs font-bold text-white/80 hover:text-white underline underline-offset-2 transition-colors">수정</button>
+                      <span className="text-white/30">|</span>
+                      <button onClick={handleInquiryCancel} disabled={cancellingInquiry} className="text-xs font-bold text-red-300 hover:text-red-200 underline underline-offset-2 transition-colors disabled:opacity-50">
+                        {cancellingInquiry ? '취소 중...' : '문의 취소'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-100">
+                  <div><span className="text-white/50">기관</span> <span className="font-bold text-white">{inquiry.organization}</span></div>
+                  <div><span className="text-white/50">담당자</span> <span className="font-bold text-white">{inquiry.contact_name}</span></div>
+                  <div><span className="text-white/50">이메일</span> <span className="font-bold text-white">{inquiry.contact_email}</span></div>
+                  {inquiry.student_count && <div><span className="text-white/50">학생 수</span> <span className="font-bold text-white">{inquiry.student_count}명</span></div>}
+                </div>
+                <p className="text-sm text-blue-100 whitespace-pre-wrap border-t border-white/10 pt-3">{inquiry.message}</p>
+                {inquiryError && <p className="text-xs text-red-300 font-bold">{inquiryError}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* 문의 폼 (인라인 확장) */}
+          {showInquiryForm && (
+            <div className="mt-4 p-6 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-4">
+              <h3 className="text-sm font-black text-indigo-700 dark:text-indigo-400">
+                {editingInquiry ? '문의 내용 수정' : '수업 신청 문의'}
+              </h3>
+              {inquiryError && <p className="text-xs text-red-500 font-bold">{inquiryError}</p>}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">기관명 (학교명) *</label>
+                  <input
+                    type="text"
+                    value={inquiryForm.organization}
+                    onChange={e => setInquiryForm(f => ({ ...f, organization: e.target.value }))}
+                    placeholder="예: OO초등학교, OO교육청"
+                    className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">담당자명 *</label>
+                  <input
+                    type="text"
+                    value={inquiryForm.contactName}
+                    onChange={e => setInquiryForm(f => ({ ...f, contactName: e.target.value }))}
+                    placeholder="성함을 입력해 주세요"
+                    className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">이메일 *</label>
+                  <input
+                    type="email"
+                    value={inquiryForm.contactEmail}
+                    onChange={e => setInquiryForm(f => ({ ...f, contactEmail: e.target.value }))}
+                    placeholder="example@school.ac.kr"
+                    className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">연락처</label>
+                  <input
+                    type="tel"
+                    value={inquiryForm.contactPhone}
+                    onChange={e => setInquiryForm(f => ({ ...f, contactPhone: e.target.value }))}
+                    placeholder="010-0000-0000"
+                    className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">예상 학생 수</label>
+                <input
+                  type="number"
+                  value={inquiryForm.studentCount}
+                  onChange={e => setInquiryForm(f => ({ ...f, studentCount: e.target.value }))}
+                  placeholder="예: 30"
+                  min={1}
+                  className="w-32 px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">문의 내용 *</label>
+                <textarea
+                  value={inquiryForm.message}
+                  onChange={e => setInquiryForm(f => ({ ...f, message: e.target.value }))}
+                  placeholder="희망 수업 일정, 형태, 기타 문의 사항을 자유롭게 적어 주세요."
+                  rows={4}
+                  className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+
+              {!user && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-bold">⚠️ 문의 제출은 로그인 후 가능합니다.</p>
+              )}
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setShowInquiryForm(false); setEditingInquiry(false); setInquiryError(''); }}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleInquirySubmit}
+                  disabled={inquirySubmitting || !user}
+                  className="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-sm transition-colors"
+                >
+                  {inquirySubmitting ? '제출 중...' : editingInquiry ? '수정 저장' : '문의 제출'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* 댓글 섹션 */}
         <section className="mt-12 border-t border-gray-100 dark:border-gray-800 pt-10">
