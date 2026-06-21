@@ -241,6 +241,7 @@ async function getEnrollmentByUser(
     .select('*, education_courses(title, price, is_paid)')
     .eq('course_id', courseId)
     .eq('user_id', userId)
+    .neq('status', 'cancelled')
     .maybeSingle();
   if (error) throw error;
   return data ? mapEnrollmentFromDB(data as EnrollmentRow) : null;
