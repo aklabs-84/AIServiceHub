@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Course, CourseMaterial, CourseType } from '@/types/database';
+import type { Course, CourseMaterial, CourseType, CourseCurriculumItem } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import TagInput from '@/components/TagInput';
 import MarkdownEditor from '@/components/MarkdownEditor';
@@ -43,6 +43,7 @@ interface FormData {
   location: string;
   materials: CourseMaterial[];
   materialUrl: string;
+  curriculum: CourseCurriculumItem[];
   tags: string[];
   maxParticipants: string;
   price: number;
@@ -60,6 +61,7 @@ const DEFAULT_FORM: FormData = {
   location: '',
   materials: [],
   materialUrl: '',
+  curriculum: [],
   tags: [],
   maxParticipants: '',
   price: 0,
@@ -206,6 +208,7 @@ export default function CourseFormPage({ mode, initialData }: Props) {
         location: initialData.location,
         materials: initialData.materials,
         materialUrl: initialData.materialUrl,
+        curriculum: initialData.curriculum,
         tags: initialData.tags,
         maxParticipants: initialData.maxParticipants != null ? String(initialData.maxParticipants) : '',
         price: initialData.price,
@@ -232,6 +235,32 @@ export default function CourseFormPage({ mode, initialData }: Props) {
 
   const removeMaterial = (idx: number) => {
     setForm(f => ({ ...f, materials: f.materials.filter((_, i) => i !== idx) }));
+  };
+
+  const addCurriculum = () => {
+    setForm(f => ({ ...f, curriculum: [...f.curriculum, { title: '', description: '', duration: '' }] }));
+  };
+
+  const updateCurriculum = (idx: number, field: keyof CourseCurriculumItem, value: string) => {
+    setForm(f => {
+      const updated = [...f.curriculum];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...f, curriculum: updated };
+    });
+  };
+
+  const removeCurriculum = (idx: number) => {
+    setForm(f => ({ ...f, curriculum: f.curriculum.filter((_, i) => i !== idx) }));
+  };
+
+  const moveCurriculum = (idx: number, dir: -1 | 1) => {
+    setForm(f => {
+      const arr = [...f.curriculum];
+      const target = idx + dir;
+      if (target < 0 || target >= arr.length) return f;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      return { ...f, curriculum: arr };
+    });
   };
 
   // 드래그 종료 — 순서 업데이트
@@ -272,6 +301,7 @@ export default function CourseFormPage({ mode, initialData }: Props) {
       location: form.location,
       materials: form.materials.filter(m => m.url.trim()),
       materialUrl: form.materialUrl,
+      curriculum: form.curriculum.filter(c => c.title.trim()),
       tags: form.tags,
       maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : null,
       price: form.isPaid ? form.price : 0,
@@ -461,6 +491,63 @@ export default function CourseFormPage({ mode, initialData }: Props) {
               </DndContext>
             )}
           </div>
+        </section>
+
+        {/* 차시 커리큘럼 */}
+        <section className="space-y-4 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">차시 커리큘럼</h2>
+            <button type="button" onClick={addCurriculum} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold">
+              <FaPlus className="text-[10px]" /> 차시 추가
+            </button>
+          </div>
+
+          {form.curriculum.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-4">차시를 추가하면 상세 페이지 오른쪽에 표시됩니다.</p>
+          ) : (
+            <div className="space-y-3">
+              {form.curriculum.map((item, idx) => (
+                <div key={idx} className="flex gap-2 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+                  {/* 순서 번호 */}
+                  <div className="flex-none flex flex-col items-center gap-1 pt-1">
+                    <span className="text-[10px] font-black text-violet-500 w-5 text-center">{idx + 1}</span>
+                    <button type="button" onClick={() => moveCurriculum(idx, -1)} disabled={idx === 0} className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20 transition-colors">▲</button>
+                    <button type="button" onClick={() => moveCurriculum(idx, 1)} disabled={idx === form.curriculum.length - 1} className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-20 transition-colors">▼</button>
+                  </div>
+                  {/* 입력 필드 */}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={item.title}
+                        onChange={e => updateCurriculum(idx, 'title', e.target.value)}
+                        placeholder={`${idx + 1}차시 제목 *`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+                      />
+                      <input
+                        type="text"
+                        value={item.duration ?? ''}
+                        onChange={e => updateCurriculum(idx, 'duration', e.target.value)}
+                        placeholder="시간 (예: 30분)"
+                        className="w-28 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={item.description ?? ''}
+                      onChange={e => updateCurriculum(idx, 'description', e.target.value)}
+                      placeholder="차시 설명 (선택)"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-500"
+                    />
+                  </div>
+                  {/* 삭제 */}
+                  <button type="button" onClick={() => removeCurriculum(idx)} className="flex-none p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors self-start mt-1">
+                    <FaTrash className="text-xs" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 공개 여부 */}

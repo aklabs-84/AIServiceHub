@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   Course, CourseRow, Enrollment, EnrollmentRow,
   CreateCourseInput, UpdateCourseInput, EnrollmentStatus,
+  CourseCurriculumItem,
 } from '@/types/database';
 
 // ────────────────────────────────────────────────
@@ -22,6 +23,7 @@ function mapCourseFromDB(row: CourseRow): Course {
     location: row.location ?? '',
     materials: row.materials ?? [],
     materialUrl: row.material_url ?? '',
+    curriculum: (row.curriculum ?? []) as CourseCurriculumItem[],
     tags: row.tags ?? [],
     maxParticipants: row.max_participants ?? null,
     price: row.price,
@@ -111,6 +113,7 @@ async function createCourse(
       location: input.location ?? '',
       materials: input.materials ?? [],
       material_url: input.materialUrl ?? '',
+      curriculum: input.curriculum ?? [],
       tags: input.tags ?? [],
       max_participants: input.maxParticipants ?? null,
       price: input.price ?? 0,
@@ -144,6 +147,7 @@ async function updateCourse(
   if (rest.location !== undefined) patch.location = rest.location;
   if (rest.materials !== undefined) patch.materials = rest.materials;
   if (rest.materialUrl !== undefined) patch.material_url = rest.materialUrl;
+  if (rest.curriculum !== undefined) patch.curriculum = rest.curriculum;
   if (rest.tags !== undefined) patch.tags = rest.tags;
   if (rest.maxParticipants !== undefined) patch.max_participants = rest.maxParticipants;
   if (rest.price !== undefined) patch.price = rest.price;

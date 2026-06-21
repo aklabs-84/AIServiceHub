@@ -222,6 +222,13 @@ export interface CourseMaterial {
   desc?: string;
 }
 
+/** curriculum JSONB 배열의 각 차시 항목 */
+export interface CourseCurriculumItem {
+  title: string;
+  description?: string;
+  duration?: string; // 예: "30분", "1시간 30분"
+}
+
 export interface CourseRow {
   id: string;
   title: string;
@@ -234,6 +241,7 @@ export interface CourseRow {
   location: string | null;
   materials: CourseMaterial[] | null;
   material_url: string | null;
+  curriculum: CourseCurriculumItem[] | null;
   tags: string[];
   max_participants: number | null;
   price: number;
@@ -260,6 +268,7 @@ export interface Course {
   location: string;
   materials: CourseMaterial[];
   materialUrl: string;
+  curriculum: CourseCurriculumItem[];
   tags: string[];
   maxParticipants: number | null;
   price: number;
@@ -317,6 +326,7 @@ export interface CreateCourseInput {
   location?: string;
   materials?: CourseMaterial[];
   materialUrl?: string;
+  curriculum?: CourseCurriculumItem[];
   tags?: string[];
   maxParticipants?: number | null;
   price?: number;

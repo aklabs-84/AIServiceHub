@@ -402,6 +402,31 @@ export default function ClassDetailClient({ course }: Props) {
                 )}
               </>
             )}
+
+            {/* 차시 커리큘럼 */}
+            {course.curriculum.length > 0 && (
+              <div className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">커리큘럼 ({course.curriculum.length}차시)</p>
+                <ol className="space-y-2">
+                  {course.curriculum.map((item, idx) => (
+                    <li key={idx} className="flex gap-3">
+                      <span className="flex-none w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[10px] font-black flex items-center justify-center mt-0.5">{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{item.title}</p>
+                          {item.duration && (
+                            <span className="flex-none text-[10px] text-gray-400 font-medium">{item.duration}</span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{item.description}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         </div>
 
