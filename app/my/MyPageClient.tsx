@@ -860,6 +860,8 @@ function MyClassesTab({ session }: { session: Session | null }) {
     courseTitle: string; coursePrice: number; courseIsPaid: boolean; createdAt: string;
   }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     if (!session?.access_token) { setLoading(false); return; }
@@ -871,6 +873,23 @@ function MyClassesTab({ session }: { session: Session | null }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [session]);
+
+  const handleCancel = async (enrollmentId: string) => {
+    if (!session?.access_token) return;
+    if (!confirm('수강 신청을 취소하시겠습니까?')) return;
+    setCancellingId(enrollmentId);
+    setCancelError('');
+    try {
+      const res = await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { setCancelError(data.error || '취소 실패'); return; }
+      setEnrollments(prev => prev.map(e => e.id === enrollmentId ? { ...e, status: 'cancelled' } : e));
+    } catch { setCancelError('네트워크 오류가 발생했습니다'); }
+    finally { setCancellingId(null); }
+  };
 
   if (loading) return <div className="py-10 text-center text-gray-400 text-sm">수강 내역 불러오는 중...</div>;
 
@@ -888,18 +907,21 @@ function MyClassesTab({ session }: { session: Session | null }) {
   }
 
   const statusLabel = (status: string) => {
-    if (status === 'confirmed') return { text: '수강 확정', cls: 'bg-emerald-100 text-emerald-700' };
-    if (status === 'pending') return { text: '승인 대기', cls: 'bg-blue-100 text-blue-600' };
-    if (status === 'waitlist') return { text: '대기자', cls: 'bg-amber-100 text-amber-700' };
-    if (status === 'cancelled') return { text: '취소됨', cls: 'bg-red-100 text-red-500' };
+    if (status === 'confirmed') return { text: '수강 확정', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
+    if (status === 'pending') return { text: '승인 대기', cls: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' };
+    if (status === 'waitlist') return { text: '대기자', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+    if (status === 'cancelled') return { text: '취소됨', cls: 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400' };
     return { text: status, cls: 'bg-gray-100 text-gray-500' };
   };
+
+  const canCancel = (status: string) => status === 'pending' || status === 'waitlist';
 
   return (
     <div className="animate-in fade-in duration-500 space-y-3">
       <h2 className="text-base font-black text-gray-800 dark:text-gray-100 border-l-4 border-violet-400 pl-3">
         내 클래스 <span className="text-sm font-normal text-gray-400">({enrollments.length}건)</span>
       </h2>
+      {cancelError && <p className="text-xs text-red-500 font-bold px-1">{cancelError}</p>}
       <div className="space-y-2">
         {enrollments.map(e => {
           const { text: statusText, cls: statusCls } = statusLabel(e.status);
@@ -911,11 +933,15 @@ function MyClassesTab({ session }: { session: Session | null }) {
                     {e.courseTitle || '클래스'}
                   </Link>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(e.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    신청일: {new Date(e.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {e.courseIsPaid && e.coursePrice > 0 && (
+                      <span className="ml-2 text-violet-500 font-bold">{e.coursePrice.toLocaleString()}원</span>
+                    )}
                   </p>
                 </div>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-none ${statusCls}`}>{statusText}</span>
               </div>
+
               {e.status === 'confirmed' && e.entryCode && (
                 <div className="flex items-center justify-between p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
                   <div>
@@ -926,6 +952,22 @@ function MyClassesTab({ session }: { session: Session | null }) {
                     입장
                   </Link>
                 </div>
+              )}
+
+              {e.status === 'pending' && e.courseIsPaid && e.coursePrice > 0 && (
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <p className="text-[11px] text-blue-600 dark:text-blue-400">💸 입금 후 1~2 영업일 내 수강 확정됩니다.</p>
+                </div>
+              )}
+
+              {canCancel(e.status) && (
+                <button
+                  onClick={() => handleCancel(e.id)}
+                  disabled={cancellingId === e.id}
+                  className="w-full py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all disabled:opacity-50"
+                >
+                  {cancellingId === e.id ? '취소 중...' : '신청 취소'}
+                </button>
               )}
             </div>
           );

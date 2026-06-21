@@ -70,6 +70,8 @@ export default function ClassDetailClient({ course }: Props) {
   const [showBankModal, setShowBankModal] = useState(false);
   const [bankResult, setBankResult] = useState<{ bankInfo: { bankName: string; accountNumber: string; accountHolder: string }; amount: number } | null>(null);
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   const [comments, setComments] = useState<CourseComment[]>([]);
   const [commentText, setCommentText] = useState('');
@@ -154,6 +156,23 @@ export default function ClassDetailClient({ course }: Props) {
     finally { setEnrolling(false); }
   };
 
+  const handleCancel = async () => {
+    if (!enrollment || !session) return;
+    if (!confirm('수강 신청을 취소하시겠습니까?')) return;
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const res = await fetch(`/api/enrollments/${enrollment.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { setCancelError(data.error || '취소 실패'); return; }
+      setEnrollment(null);
+    } catch { setCancelError('네트워크 오류가 발생했습니다'); }
+    finally { setCancelling(false); }
+  };
+
   const handleBankEnroll = async () => {
     if (!user || !session || !depositorName.trim()) return;
     setEnrolling(true);
@@ -202,22 +221,53 @@ export default function ClassDetailClient({ course }: Props) {
     }
     if (enrollment.status === 'waitlist') {
       return (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-          <FaHourglassHalf className="text-amber-600 text-xl flex-none" />
-          <div>
-            <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">대기자 명단에 등록됨</p>
-            <p className="text-xs text-amber-600 dark:text-amber-500">자리가 나면 관리자가 순서대로 확정합니다.</p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <FaHourglassHalf className="text-amber-600 text-xl flex-none" />
+            <div>
+              <p className="font-bold text-amber-700 dark:text-amber-400 text-sm">대기자 명단에 등록됨</p>
+              <p className="text-xs text-amber-600 dark:text-amber-500">자리가 나면 관리자가 순서대로 확정합니다.</p>
+            </div>
           </div>
+          {cancelError && <p className="text-xs text-red-500 font-bold">{cancelError}</p>}
+          <button onClick={handleCancel} disabled={cancelling} className="w-full py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all disabled:opacity-50">
+            {cancelling ? '취소 중...' : '신청 취소'}
+          </button>
         </div>
       );
     }
     return (
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-        <FaHourglassHalf className="text-blue-600 text-xl flex-none" />
-        <div>
-          <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">신청 완료 — 승인 대기 중</p>
-          <p className="text-xs text-blue-600 dark:text-blue-500">{isPaid ? '입금 확인 후 관리자가 승인합니다.' : '관리자 승인 후 확정됩니다.'}</p>
+      <div className="space-y-2">
+        <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 space-y-3">
+          <div className="flex items-center gap-3">
+            <FaHourglassHalf className="text-blue-600 text-xl flex-none" />
+            <div>
+              <p className="font-bold text-blue-700 dark:text-blue-400 text-sm">신청 완료 — 승인 대기 중</p>
+              <p className="text-xs text-blue-600 dark:text-blue-500">{isPaid ? '입금 확인 후 관리자가 승인합니다.' : '관리자 승인 후 확정됩니다.'}</p>
+            </div>
+          </div>
+          {isPaid && (
+            <div className="pt-3 border-t border-blue-200 dark:border-blue-800 space-y-1.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-blue-400">다음 단계</p>
+              <ol className="space-y-1">
+                {[
+                  '위 안내 계좌로 수강료 입금',
+                  '관리자 입금 확인 (1~2 영업일)',
+                  '수강 확정 후 이 페이지에서 교실 입장 버튼 활성화',
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-blue-700 dark:text-blue-300">
+                    <span className="flex-none w-4 h-4 rounded-full bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300 text-[10px] font-black flex items-center justify-center mt-0.5">{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
+        {cancelError && <p className="text-xs text-red-500 font-bold">{cancelError}</p>}
+        <button onClick={handleCancel} disabled={cancelling} className="w-full py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all disabled:opacity-50">
+          {cancelling ? '취소 중...' : '신청 취소'}
+        </button>
       </div>
     );
   };
@@ -536,19 +586,48 @@ export default function ClassDetailClient({ course }: Props) {
       {/* 입금 안내 모달 */}
       {bankResult && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl p-6 space-y-5">
+          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="text-center">
               <div className="text-4xl mb-3">🏦</div>
               <h2 className="text-lg font-black text-gray-900 dark:text-white mb-1">입금 안내</h2>
-              <p className="text-sm text-gray-500">아래 계좌로 입금해 주세요</p>
+              <p className="text-sm text-gray-500">아래 계좌로 수강료를 입금해 주세요</p>
             </div>
+
+            {/* 계좌 정보 */}
             <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800 space-y-3">
               <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">은행</span><span className="text-sm font-black">{bankResult.bankInfo.bankName}</span></div>
-              <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">계좌번호</span><span className="text-sm font-black font-mono">{bankResult.bankInfo.accountNumber}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-500">계좌번호</span>
+                <span className="text-sm font-black font-mono">{bankResult.bankInfo.accountNumber}</span>
+              </div>
               <div className="flex justify-between"><span className="text-xs font-bold text-gray-500">예금주</span><span className="text-sm font-black">{bankResult.bankInfo.accountHolder}</span></div>
               <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-3"><span className="text-xs font-bold text-gray-500">입금 금액</span><span className="text-base font-black text-violet-600 dark:text-violet-400">{bankResult.amount.toLocaleString()}원</span></div>
             </div>
-            <button onClick={() => setBankResult(null)} className="w-full py-3 rounded-2xl bg-violet-600 text-white font-black text-sm">확인했습니다</button>
+
+            {/* 다음 단계 안내 */}
+            <div className="p-4 rounded-2xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-violet-500">입금 후 진행 순서</p>
+              <ol className="space-y-2">
+                {[
+                  { icon: '💸', text: '위 계좌로 수강료 입금' },
+                  { icon: '✅', text: '관리자 입금 확인 (1~2 영업일)' },
+                  { icon: '🎓', text: '수강 확정 알림 수신' },
+                  { icon: '🚪', text: '클래스 상세 페이지에서 "교실 입장" 버튼으로 입장' },
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className="flex-none w-5 h-5 rounded-full bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 text-[10px] font-black flex items-center justify-center mt-0.5">{i + 1}</span>
+                    <span className="text-xs text-violet-800 dark:text-violet-200">{step.icon} {step.text}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-[11px] text-violet-500 dark:text-violet-400 pt-1 border-t border-violet-200 dark:border-violet-800">
+                입금 전 신청을 취소하려면 이 페이지의 "신청 취소" 버튼을 이용하세요.
+              </p>
+            </div>
+
+            <button onClick={() => setBankResult(null)} className="w-full py-3 rounded-2xl bg-violet-600 text-white font-black text-sm hover:bg-violet-700 transition-colors">
+              확인했습니다
+            </button>
           </div>
         </div>
       )}
