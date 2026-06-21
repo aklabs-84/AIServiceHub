@@ -83,6 +83,7 @@ function AdminPageContent({
   const [pageApps, setPageApps] = useState(1);
   const [pagePrompts, setPagePrompts] = useState(1);
   const [pageUsers, setPageUsers] = useState(1);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loadingCollections, setLoadingCollections] = useState(false);
   const [collectionsLoaded, setCollectionsLoaded] = useState(false);
@@ -695,11 +696,27 @@ function AdminPageContent({
   }, [apps, prompts, comments, now]);
 
   const topCreators = useMemo(() => creatorStats.slice(0, 10), [creatorStats]);
+
+  const handleDeleteUser = async (targetId: string, targetEmail: string | null) => {
+    if (!session?.access_token) return;
+    if (!confirm(`정말 "${targetEmail || targetId}" 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    setDeletingUserId(targetId);
+    try {
+      const res = await fetch(`/api/admin/users/${targetId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || '삭제 실패'); return; }
+      setUsers(prev => prev.filter(u => u.id !== targetId));
+      showSuccess('사용자가 삭제되었습니다.');
+    } catch { showError('네트워크 오류가 발생했습니다'); }
+    finally { setDeletingUserId(null); }
+  };
+
   const recentUsers = useMemo(
     () =>
-      [...users]
-        .sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0))
-        .slice(0, 12),
+      [...users].sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0)),
     [users]
   );
 
@@ -1090,15 +1107,63 @@ function AdminPageContent({
 
             {activeTab === 'users' && (
               <div>
-                <ListCard
-                  title="신규 가입자"
-                  items={paginated(recentUsers, pageUsers).map((u) => ({
-                    id: u.id,
-                    title: u.displayName || u.email || '이름 없음',
-                    subtitle: u.email || '이메일 없음',
-                    meta: u.createdAt ? formatDate(u.createdAt) : '가입일 정보 없음',
-                  }))}
-                />
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      전체 가입자
+                      <span className="ml-2 text-xs font-normal text-gray-400">({recentUsers.length}명)</span>
+                    </span>
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {paginated(recentUsers, pageUsers).map((u) => (
+                      <div key={u.id} className="px-4 py-3 flex items-center gap-3">
+                        {/* 아바타 */}
+                        <div className="w-8 h-8 rounded-full flex-none bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center overflow-hidden">
+                          {u.avatarUrl ? (
+                            <img src={u.avatarUrl} alt={u.displayName || ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-xs font-black text-blue-600 dark:text-blue-400">
+                              {(u.displayName || u.email || '?')[0].toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        {/* 정보 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                            {u.displayName || u.email || '이름 없음'}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate">
+                            {u.email || '이메일 없음'} · {u.createdAt ? formatDate(u.createdAt) : '가입일 미상'}
+                          </div>
+                        </div>
+                        {/* 역할 뱃지 */}
+                        {u.role === 'admin' && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex-none">
+                            관리자
+                          </span>
+                        )}
+                        {/* 삭제 버튼 — 관리자 본인 제외 */}
+                        {u.role !== 'admin' && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            disabled={deletingUserId === u.id}
+                            className="flex-none p-1.5 rounded-lg text-gray-300 dark:text-gray-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-40"
+                            title="사용자 삭제"
+                          >
+                            {deletingUserId === u.id ? (
+                              <span className="text-[10px]">...</span>
+                            ) : (
+                              <FaTrash className="text-xs" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {recentUsers.length === 0 && (
+                      <div className="px-4 py-6 text-center text-sm text-gray-400">가입자가 없습니다.</div>
+                    )}
+                  </div>
+                </div>
                 <Pager page={pageUsers} totalPages={totalPagesUsers} onPageChange={setPageUsers} />
               </div>
             )}
