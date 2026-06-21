@@ -28,18 +28,21 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // 상품명 조회 (app/prompt 테이블에서 name 가져오기)
+  // 상품명 조회 (product_type에 따라 테이블 분기)
   const list = await Promise.all(
     (data ?? []).map(async (row) => {
       let productName: string | null = null;
       if (row.product_id) {
-        const table = row.product_type === 'app' ? 'apps' : 'prompts';
-        const { data: product } = await admin
-          .from(table)
-          .select('name')
-          .eq('id', row.product_id)
-          .single();
-        productName = product?.name ?? null;
+        if (row.product_type === 'app') {
+          const { data: product } = await admin.from('apps').select('name').eq('id', row.product_id).single();
+          productName = product?.name ?? null;
+        } else if (row.product_type === 'prompt') {
+          const { data: product } = await admin.from('prompts').select('name').eq('id', row.product_id).single();
+          productName = product?.name ?? null;
+        } else if (row.product_type === 'education') {
+          const { data: product } = await admin.from('education_courses').select('title').eq('id', row.product_id).single();
+          productName = product?.title ?? null;
+        }
       }
       return { ...row, product_name: productName };
     }),

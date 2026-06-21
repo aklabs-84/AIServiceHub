@@ -1909,7 +1909,7 @@ function PendingBankTransfersPanel() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                    {item.productType === 'app' ? '앱' : '프롬프트'}
+                    {item.productType === 'app' ? '앱' : item.productType === 'education' ? '클래스' : '프롬프트'}
                   </span>
                   <span className="text-sm font-bold text-gray-900 dark:text-white truncate">
                     {item.productName ?? item.productId}
