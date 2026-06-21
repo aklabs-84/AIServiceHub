@@ -8,7 +8,7 @@ import { FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { RiKakaoTalkFill } from 'react-icons/ri';
 import { FcGoogle } from 'react-icons/fc';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import PWAInstallButton from '@/components/PWAInstallButton';
 
 export default function Header() {
@@ -60,12 +60,7 @@ export default function Header() {
             <NavLink href="/classes">클래스</NavLink>
             <NavLink href="/content">커뮤니티</NavLink>
             <NavLink href="/guide">Q&A</NavLink>
-            <Link
-              href="/request"
-              className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none transition-all"
-            >
-              제작 의뢰
-            </Link>
+            <NavLink href="/request">제작 의뢰</NavLink>
 
             <PWAInstallButton variant="ghost" size="sm" />
 
@@ -197,7 +192,7 @@ export default function Header() {
               <MobileNavLink href="/classes" onClick={() => setMobileMenuOpen(false)}>클래스</MobileNavLink>
               <MobileNavLink href="/content" onClick={() => setMobileMenuOpen(false)}>커뮤니티</MobileNavLink>
               <MobileNavLink href="/guide" onClick={() => setMobileMenuOpen(false)}>Q&A</MobileNavLink>
-              <MobileNavLink href="/request" onClick={() => setMobileMenuOpen(false)} highlight>제작 의뢰</MobileNavLink>
+              <MobileNavLink href="/request" onClick={() => setMobileMenuOpen(false)}>제작 의뢰</MobileNavLink>
               <MobileNavLink href="/my" onClick={() => setMobileMenuOpen(false)}>마이페이지</MobileNavLink>
               {user?.email === 'mosebb@gmail.com' && (
                 <MobileNavLink href="/admin" onClick={() => setMobileMenuOpen(false)}>관리자 설정</MobileNavLink>
@@ -246,25 +241,34 @@ export default function Header() {
 }
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(href + '/');
   return (
     <Link
       href={href}
-      className="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300"
+      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+        isActive
+          ? 'bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none'
+          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+      }`}
     >
       {children}
     </Link>
   );
 }
 
-function MobileNavLink({ href, children, onClick, highlight }: { href: string; children: React.ReactNode; onClick: () => void; highlight?: boolean }) {
+function MobileNavLink({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(href + '/');
   return (
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-bold transition-all ${highlight
-        ? "bg-blue-600 text-white shadow-lg"
-        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-        }`}
+      className={`flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+        isActive
+          ? 'bg-blue-600 text-white shadow-lg'
+          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+      }`}
     >
       {children}
     </Link>
