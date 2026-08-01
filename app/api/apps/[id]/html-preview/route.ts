@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { getAdminClient } from '@/lib/database';
+import { htmlPreviewCacheTag } from '../../html-preview/cache';
 
 export const runtime = 'nodejs';
 
@@ -12,14 +14,28 @@ export const runtime = 'nodejs';
  *   - Supabase Storage signed URL은 Content-Disposition: attachment를 붙여
  *     브라우저가 HTML을 렌더링하지 않고 코드를 그대로 표시함.
  *
- * 왜 캐시를 금지하는가:
- *   - 앱 소유자가 HTML을 수정했을 때 즉시 반영되어야 함.
- *   - Cache-Control: no-store → 브라우저/Vercel CDN 캐시 모두 차단.
- *
- * 업스트림 캐시 우회:
- *   - download() 대신 매번 새 short-lived signed URL(60초)을 생성 후 fetch.
- *   - URL에 타임스탬프 쿼리 파라미터를 붙여 Supabase/Cloudflare CDN도 우회.
+ * 캐싱 전략:
+ *   - 앱 ID별로 unstable_cache에 HTML을 캐싱해 평소 조회는 Storage 왕복 없이 응답.
+ *   - 앱 소유자가 HTML을 수정/삭제하면 업로드 라우트(app/api/apps/html-preview/route.ts)에서
+ *     revalidateTag(htmlPreviewCacheTag(appId))를 호출해 해당 앱 캐시만 즉시 무효화함.
+ *     → "즉시 반영" 요구사항을 지키면서도 대부분의 조회는 캐시 히트로 빠르게 응답.
  */
+async function fetchHtmlFromStorage(appId: string, bucket: string): Promise<string | null> {
+  const admin = getAdminClient();
+  const storagePath = `html-preview/${appId}.html`;
+
+  const { data, error } = await admin.storage.from(bucket).download(storagePath);
+  if (error) {
+    // "파일 없음"만 null로 캐시. 그 외 일시적 오류는 throw해서 캐시되지 않게 함
+    // (Supabase Storage error에는 표준 status 코드가 없어 메시지로 구분)
+    if (/not[ _]?found/i.test(error.message)) return null;
+    throw error;
+  }
+  if (!data) return null;
+
+  return data.text();
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,29 +47,15 @@ export async function GET(
     return new NextResponse('Storage not configured', { status: 500 });
   }
 
-  const storagePath = `html-preview/${appId}.html`;
-  const admin = getAdminClient();
+  const getCachedHtml = unstable_cache(
+    () => fetchHtmlFromStorage(appId, bucket),
+    ['app-html-preview', appId],
+    { tags: [htmlPreviewCacheTag(appId)] }
+  );
 
-  // 60초짜리 단기 signed URL 생성 → CDN 캐시 우회용
-  const { data: signed, error: signError } = await admin.storage
-    .from(bucket)
-    .createSignedUrl(storagePath, 60);
-
-  if (signError || !signed?.signedUrl) {
-    return new NextResponse(
-      '<!DOCTYPE html><html><body><p>HTML 미리보기를 찾을 수 없습니다.</p></body></html>',
-      { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-    );
-  }
-
-  // 타임스탬프 쿼리 파라미터로 CDN 캐시도 강제 우회
-  const bustUrl = `${signed.signedUrl}&_t=${Date.now()}`;
-
-  let html: string;
+  let html: string | null;
   try {
-    const res = await fetch(bustUrl, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`Storage fetch failed: ${res.status}`);
-    html = await res.text();
+    html = await getCachedHtml();
   } catch (err) {
     console.error('[html-preview GET] fetch error:', err);
     return new NextResponse(
@@ -62,14 +64,19 @@ export async function GET(
     );
   }
 
+  if (html == null) {
+    return new NextResponse(
+      '<!DOCTYPE html><html><body><p>HTML 미리보기를 찾을 수 없습니다.</p></body></html>',
+      { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    );
+  }
+
   return new NextResponse(html, {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      // 브라우저·Vercel CDN 캐시 모두 차단
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      // 브라우저/CDN에는 짧게만 캐시 허용 (실제 신선도는 revalidateTag가 보장)
+      'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300',
     },
   });
 }

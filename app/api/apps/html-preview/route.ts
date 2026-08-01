@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getAdminClient } from '@/lib/database';
+import { htmlPreviewCacheTag } from './cache';
 
 export const runtime = 'nodejs';
 
@@ -56,6 +58,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 });
   }
 
+  // 프록시 GET 라우트가 캐시해둔 이전 버전을 즉시 무효화
+  revalidateTag(htmlPreviewCacheTag(appId), 'max');
+
   // 10년짜리 signed URL (사실상 영구 접근)
   const { data: signed, error: signedError } = await admin.storage
     .from(bucket)
@@ -92,6 +97,8 @@ export async function DELETE(request: Request) {
     .remove([`html-preview/${appId}.html`]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  revalidateTag(htmlPreviewCacheTag(appId), 'max');
 
   return NextResponse.json({ success: true });
 }
