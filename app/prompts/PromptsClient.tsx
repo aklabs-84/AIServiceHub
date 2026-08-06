@@ -9,7 +9,7 @@ import { usePromptCategories } from '@/lib/useCategories';
 import PromptCard from '@/components/PromptCard';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaArrowUp, FaFire, FaPlus, FaRegClock, FaRocket, FaSearch, FaTimes, FaFeatherAlt, FaHeart, FaLock } from 'react-icons/fa';
+import { FaFire, FaPlus, FaRegClock, FaRocket, FaSearch, FaTimes, FaFeatherAlt, FaHeart, FaLock } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
@@ -100,7 +100,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
   const selectedTag = searchParams.get('tag') || null;
   const selectedPricing = (searchParams.get('pricing') as 'all' | 'free' | 'paid') || 'all';
 
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchInput, setSearchInput] = useState(searchTerm);
   const composingRef = useRef(false);
   const searchDebounceRef = useRef<number | null>(null);
@@ -109,7 +108,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
   const isFirstMount = useRef(true);
 
   useEffect(() => { setPrompts(initialPrompts); }, [initialPrompts]);
@@ -150,21 +148,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
     if (!promptCategories.find((cat) => cat.value === selectedCategory)) onCategoryChange('all');
   }, [promptCategories, selectedCategory, loadingCategories]);
 
-  useEffect(() => {
-    const updateVisibility = () => {
-      const node = headerRef.current;
-      if (!node) { setShowScrollTop(false); return; }
-      const rect = node.getBoundingClientRect();
-      setShowScrollTop(window.scrollY > rect.bottom + window.scrollY + 50);
-    };
-    updateVisibility();
-    window.addEventListener('scroll', updateVisibility, { passive: true });
-    window.addEventListener('resize', updateVisibility);
-    return () => {
-      window.removeEventListener('scroll', updateVisibility);
-      window.removeEventListener('resize', updateVisibility);
-    };
-  }, []);
 
   const visiblePrompts = useMemo(() => {
     if (hasOneTimeAccess) return prompts;
@@ -234,8 +217,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
     return () => window.clearTimeout(timeoutId);
   }, [currentPage]);
 
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
   const clearAllFilters = () => {
     updateParams({ category: null, search: null, tag: null, pricing: null, page: '1' });
     setSearchInput('');
@@ -294,7 +275,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
 
       {/* ── Sticky Nav ─────────────────────────────────────────────────── */}
       <div
-        ref={headerRef}
         className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800 transition-all duration-300 shadow-sm"
       >
         <div className="container mx-auto px-4 sm:px-6">
@@ -650,16 +630,6 @@ export default function PromptsClient({ initialPrompts }: PromptsClientProps) {
           <FaPlus className="text-xl" />
         </Link>
       </div>
-
-      {/* 스크롤 상단 */}
-      {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-24 sm:bottom-8 right-6 sm:right-8 w-11 h-11 rounded-2xl bg-gray-950 dark:bg-white text-white dark:text-gray-950 shadow-2xl flex items-center justify-center hover:scale-110 hover:-translate-y-1 transition-all z-50 animate-fadeIn"
-        >
-          <FaArrowUp className="text-sm" />
-        </button>
-      )}
 
       <Footer />
     </div>

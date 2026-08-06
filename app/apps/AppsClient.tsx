@@ -9,7 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getCategoryInfo } from '@/lib/categories';
 import { useAppCategories } from '@/lib/useCategories';
-import { FaArrowUp, FaFire, FaHome, FaPlus, FaRegClock, FaRocket, FaSearch, FaTimes } from 'react-icons/fa';
+import { FaFire, FaHome, FaPlus, FaRegClock, FaRocket, FaSearch, FaTimes } from 'react-icons/fa';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOneTimeAccess } from '@/contexts/OneTimeAccessContext';
@@ -34,7 +34,6 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   const selectedTag = searchParams.get('tag') || null;
   const selectedPricing = (searchParams.get('pricing') as 'all' | 'free' | 'paid') || 'all';
 
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchInput, setSearchInput] = useState(searchTerm);
   const composingRef = useRef(false);
   const searchDebounceRef = useRef<number | null>(null);
@@ -43,7 +42,6 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
   const { user } = useAuth();
   const { isActive: hasOneTimeAccess } = useOneTimeAccess();
   const listTopRef = useRef<HTMLDivElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
   const isFirstMount = useRef(true);
 
   useEffect(() => { setApps(initialApps); }, [initialApps]);
@@ -97,21 +95,6 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
     }
   }, [categories, selectedCategory, loadingCategories]);
 
-  useEffect(() => {
-    const updateVisibility = () => {
-      const node = headerRef.current;
-      if (!node) { setShowScrollTop(false); return; }
-      const rect = node.getBoundingClientRect();
-      setShowScrollTop(window.scrollY > rect.bottom + window.scrollY + 50);
-    };
-    updateVisibility();
-    window.addEventListener('scroll', updateVisibility, { passive: true });
-    window.addEventListener('resize', updateVisibility);
-    return () => {
-      window.removeEventListener('scroll', updateVisibility);
-      window.removeEventListener('resize', updateVisibility);
-    };
-  }, []);
 
   const visibleApps = useMemo(() => {
     if (hasOneTimeAccess) return apps;
@@ -183,8 +166,6 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
     return () => window.clearTimeout(timeoutId);
   }, [currentPage]);
 
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
   const clearAllFilters = () => {
     updateParams({ category: null, search: null, tag: null, pricing: null, page: '1' });
     setSearchInput('');
@@ -246,8 +227,7 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
       )}
 
       {/* [Sticky Combined Navigation] */}
-      <div 
-        ref={headerRef} 
+      <div
         className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800 transition-all duration-300 shadow-sm"
       >
         <div className="container mx-auto px-4 sm:px-6">
@@ -650,16 +630,6 @@ export default function AppsClient({ initialApps, initialCollections = [] }: App
             <FaPlus className="text-xl" />
          </Link>
       </div>
-
-      {/* Scroll to top */}
-      {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-24 sm:bottom-8 right-6 sm:right-8 w-11 h-11 rounded-2xl bg-gray-950 dark:bg-white text-white dark:text-gray-950 shadow-2xl flex items-center justify-center hover:scale-110 hover:-translate-y-1 transition-all z-50 animate-fadeIn"
-        >
-          <FaArrowUp className="text-sm" />
-        </button>
-      )}
 
       <Footer />
     </div>

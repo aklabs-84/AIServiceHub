@@ -1,5 +1,5 @@
-import LoadingDots from '@/components/LoadingDots';
+import AppSplash from '@/components/AppSplash';
 
 export default function Loading() {
-  return <LoadingDots message="불러오는 중..." />;
+  return <AppSplash />;
 }
