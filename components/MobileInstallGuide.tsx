@@ -21,7 +21,7 @@ export default function MobileInstallGuide({ appName, appUrl, onClose }: MobileI
   }, [])
 
   const isAppShortcut = !!appUrl
-  const targetName = appName || 'AI LABS'
+  const targetName = appName || '아크의실험실'
   const targetUrl = appUrl || (typeof window !== 'undefined' ? window.location.origin : '')
 
   const isSafariIOS = platform === 'ios' && browser === 'safari'

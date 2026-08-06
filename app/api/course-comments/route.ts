@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/database/client';
 import { getServerClient } from '@/lib/database/server';
+import { sendAdminPush } from '@/lib/push';
 
 // GET /api/course-comments?courseId=xxx
 export async function GET(req: NextRequest) {
@@ -55,6 +56,19 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: course } = await admin
+    .from('education_courses')
+    .select('title')
+    .eq('id', courseId)
+    .maybeSingle();
+
+  await sendAdminPush({
+    title: '새 댓글',
+    body: `${data.created_by_name}님이 "${course?.title ?? '클래스'}"에 댓글을 남겼어요`,
+    url: `/classes/${courseId}`,
+  });
+
   return NextResponse.json(data);
 }
 

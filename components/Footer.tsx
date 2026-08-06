@@ -22,7 +22,7 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white p-1.5 transform group-hover:scale-110 transition-transform shadow-sm">
                 <Image
                   src="/favicon_io/android-chrome-192x192.png"
-                  alt="AI LABS"
+                  alt="아크의실험실"
                   width={40}
                   height={40}
                   className="w-full h-full object-contain"

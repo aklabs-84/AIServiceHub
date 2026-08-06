@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sendAdminPush } from '@/lib/push';
 
 const slackWebhook = process.env.SLACK_WEBHOOK_URL;
 
@@ -15,9 +16,19 @@ export async function POST(request: Request) {
     switch (type) {
       case 'app':
         text = `🆕 새 앱 등록: ${body.name} (작성자: ${body.author}${body.url ? `, URL: ${body.url}` : ''})`;
+        await sendAdminPush({
+          title: '새 앱 등록',
+          body: `${body.author}님이 "${body.name}" 앱을 등록했어요`,
+          url: `/apps/${body.id}`,
+        });
         break;
       case 'prompt':
         text = `🆕 새 프롬프트 등록: ${body.name} (작성자: ${body.author}${body.category ? `, 카테고리: ${body.category}` : ''})`;
+        await sendAdminPush({
+          title: '새 프롬프트 등록',
+          body: `${body.author}님이 "${body.name}" 프롬프트를 등록했어요`,
+          url: `/prompts/${body.id}`,
+        });
         break;
       case 'signup':
         text = `🆕 새 회원 가입: ${body.name || '신규 사용자'} (${body.email ?? body.uid})`;

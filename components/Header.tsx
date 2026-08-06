@@ -10,6 +10,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import PWAInstallButton from '@/components/PWAInstallButton';
+import PushNotificationToggle from '@/components/PushNotificationToggle';
 
 export default function Header() {
   const router = useRouter();
@@ -118,6 +119,7 @@ export default function Header() {
                         >
                           마이페이지
                         </Link>
+                        <PushNotificationToggle className="w-full justify-start px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800" />
                         {user.email === 'mosebb@gmail.com' && (
                           <Link
                             href="/admin"
@@ -197,6 +199,17 @@ export default function Header() {
               {user?.email === 'mosebb@gmail.com' && (
                 <MobileNavLink href="/admin" onClick={() => setMobileMenuOpen(false)}>관리자 설정</MobileNavLink>
               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <PWAInstallButton
+                variant="secondary"
+                size="md"
+                className="w-full justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl py-3 font-bold"
+              />
+              <PushNotificationToggle
+                className="w-full justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl py-3 font-bold"
+              />
             </div>
 
             {!loading && !user && (

@@ -1,13 +1,13 @@
 // ===================================================
 // AI LABS Service Worker v2
 // 캐싱 전략:
-//   Cache-First   : /_next/static/**, /favicon_io/**, /android-chrome-*.png
+//   Cache-First   : /_next/static/**, /favicon_io/** (아이콘 포함)
 //   SWR           : 페이지 HTML (/, /apps, /prompts ...)
 //   Network-First : 기타 GET 요청
 //   Network-Only  : /api/**, POST/PUT/DELETE
 // ===================================================
 
-const CACHE_VERSION = 'v3'
+const CACHE_VERSION = 'v4'
 const STATIC_CACHE  = `ai-labs-static-${CACHE_VERSION}`
 const PAGE_CACHE    = `ai-labs-pages-${CACHE_VERSION}`
 const IMAGE_CACHE   = `ai-labs-images-${CACHE_VERSION}`
@@ -74,7 +74,6 @@ self.addEventListener('fetch', (event) => {
   // ── 2. Cache-First: 파비콘 / 아이콘 / 오프라인 HTML
   if (
     url.pathname.startsWith('/favicon_io/') ||
-    url.pathname.startsWith('/android-chrome') ||
     url.pathname === '/offline.html'
   ) {
     event.respondWith(cacheFirst(request, STATIC_CACHE))
@@ -118,7 +117,7 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/android-chrome-192x192.png',
+    icon: '/favicon_io/android-chrome-192x192.png',
     badge: '/favicon_io/favicon-32x32.png',
     data: { url: data.url || '/apps' },
     vibrate: [100, 50, 100],

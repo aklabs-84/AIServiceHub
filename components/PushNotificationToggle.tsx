@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FaBell, FaBellSlash } from 'react-icons/fa'
 import { usePushNotification } from '@/hooks/usePushNotification'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface PushNotificationToggleProps {
   variant?: 'button' | 'banner'
@@ -13,12 +14,13 @@ export default function PushNotificationToggle({
   variant = 'button',
   className = '',
 }: PushNotificationToggleProps) {
-  const { permission, isSubscribed, isSupported, loading, subscribe, unsubscribe } =
+  const { user } = useAuth()
+  const { permission, isSubscribed, isSupported, ready, loading, subscribe, unsubscribe } =
     usePushNotification()
   const [dismissed, setDismissed] = useState(false)
 
-  // 미지원 또는 거부됨
-  if (!isSupported || permission === 'denied') return null
+  // 로그인 전, 미지원, 거부됨, 초기 상태 확인 전에는 표시하지 않음(깜빡임 방지)
+  if (!user || !isSupported || permission === 'denied' || !ready) return null
 
   const handleToggle = async () => {
     if (isSubscribed) {
@@ -76,7 +78,7 @@ export default function PushNotificationToggle({
       } disabled:opacity-60 ${className}`}
     >
       {isSubscribed ? <FaBell className="text-indigo-500" /> : <FaBellSlash />}
-      <span>{isSubscribed ? '알림 ON' : '알림'}</span>
+      <span>{isSubscribed ? '알림 ON' : '알림 OFF'}</span>
     </button>
   )
 }
