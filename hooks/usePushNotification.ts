@@ -154,11 +154,12 @@ export function usePushNotification() {
 
       setSubscriptionSynced(sub)
 
-      // 서버(현재 로그인 계정)에 구독 등록/재등록
+      // 서버(현재 로그인 계정)에 구독 등록/재등록. vapidKey를 같이 보내서
+      // 서버가 "이 구독이 어떤 공개키로 만들어졌는지" 대조 검증할 수 있게 한다.
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub.toJSON()),
+        body: JSON.stringify({ ...sub.toJSON(), vapidKey }),
       })
 
       const ok = res.ok
@@ -167,7 +168,11 @@ export function usePushNotification() {
       if (!ok) {
         const body = await res.text().catch(() => '')
         console.error('[usePushNotification] subscribe register failed:', res.status, body)
-        showError(`알림 등록 중 오류가 발생했어요 (${res.status}). 잠시 후 다시 시도해주세요`)
+        if (res.status === 409) {
+          showError('앱이 최신 버전이 아니에요. 앱을 완전히 종료했다가 다시 열고 다시 시도해주세요')
+        } else {
+          showError(`알림 등록 중 오류가 발생했어요 (${res.status}). 잠시 후 다시 시도해주세요`)
+        }
       }
       return ok
     } catch (e) {

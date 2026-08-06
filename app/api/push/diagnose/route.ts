@@ -40,6 +40,20 @@ export async function GET() {
   const vapidKeyPairMatches =
     privateKey && publicKey ? derivedPublicKeyMatches(privateKey, publicKey) : null;
 
+  // Apple의 BadJwtToken은 subject(mailto:) 값에 공백/개행 등 보이지 않는 문자가
+  // 섞여 있을 때도 발생하는 것으로 알려져 있음(다른 푸시 서비스는 관대하게 넘어감).
+  // Vercel 대시보드에 실제로 어떤 값이 들어있는지 여기서 직접 확인한다.
+  const rawSubject = process.env.VAPID_SUBJECT ?? null;
+  const vapidSubjectInfo = rawSubject
+    ? {
+        value: rawSubject,
+        length: rawSubject.length,
+        hasLeadingOrTrailingWhitespace: rawSubject !== rawSubject.trim(),
+        startsWithMailtoOrHttps: rawSubject.startsWith('mailto:') || rawSubject.startsWith('https:'),
+        charCodes: [...rawSubject].map((c) => c.charCodeAt(0)),
+      }
+    : null;
+
   const result = await sendPushToUser(user.id, {
     title: '테스트 알림',
     body: '이 알림이 왔다면 푸시 연동이 정상 동작하는 거예요',
@@ -50,6 +64,7 @@ export async function GET() {
     userId: user.id,
     subscriptionsInDb: subs ?? [],
     vapidKeyPairMatches,
+    vapidSubjectInfo,
     ...result,
   });
 }
