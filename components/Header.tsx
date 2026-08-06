@@ -21,6 +21,19 @@ export default function Header() {
   const [avatarError, setAvatarError] = useState(false);
   const [diagnoseResult, setDiagnoseResult] = useState<string | null>(null);
   const [diagnosing, setDiagnosing] = useState(false);
+  const [copyLabel, setCopyLabel] = useState('복사하기');
+
+  const copyDiagnoseResult = async () => {
+    if (!diagnoseResult) return;
+    try {
+      await navigator.clipboard.writeText(diagnoseResult);
+      setCopyLabel('복사됨!');
+    } catch {
+      setCopyLabel('복사 실패');
+    } finally {
+      setTimeout(() => setCopyLabel('복사하기'), 2000);
+    }
+  };
 
   // 관리자 전용: 로그인된 앱 컨텍스트 그대로 진단 API를 호출(별도 탭/브라우저로
   // URL을 열면 iOS 홈화면 앱과 세션이 분리돼 로그인 안 된 상태로 요청될 수 있음)
@@ -299,14 +312,22 @@ export default function Header() {
             className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <p className="font-bold text-sm">푸시 진단 결과</p>
-              <button
-                onClick={() => setDiagnoseResult(null)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-              >
-                <FaTimes />
-              </button>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 gap-2">
+              <p className="font-bold text-sm flex-shrink-0">푸시 진단 결과</p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={copyDiagnoseResult}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                >
+                  {copyLabel}
+                </button>
+                <button
+                  onClick={() => setDiagnoseResult(null)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                >
+                  <FaTimes />
+                </button>
+              </div>
             </div>
             <pre className="p-4 text-xs overflow-auto whitespace-pre-wrap break-all select-text text-gray-800 dark:text-gray-200">
               {diagnoseResult}
