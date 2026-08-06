@@ -66,7 +66,11 @@ export async function sendPushToUser(
     const endpoint = subs[i].endpoint;
     console.error('[sendPushToUser] send failed:', endpoint, reason?.statusCode, reason?.body ?? reason?.message);
     failed.push({ endpoint, statusCode: reason?.statusCode, message: reason?.body ?? reason?.message ?? 'unknown error' });
-    if ([410, 404].includes(reason?.statusCode ?? 0)) expired.push(endpoint);
+    // 410/404(만료)뿐 아니라, 403 BadJwtToken(구독이 예전 VAPID 키로 생성돼
+    // 지금 키로는 영원히 서명 검증 실패)도 재시도로 복구 불가능하므로 함께 정리한다.
+    const body = reason?.body ?? '';
+    const isBadJwt = reason?.statusCode === 403 && body.includes('BadJwtToken');
+    if ([410, 404].includes(reason?.statusCode ?? 0) || isBadJwt) expired.push(endpoint);
   });
 
   if (expired.length) {
