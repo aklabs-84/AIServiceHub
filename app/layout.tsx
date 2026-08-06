@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -38,6 +38,11 @@ export const metadata: Metadata = {
     shortcut: "/favicon_io/favicon.ico",
   },
   manifest: "/favicon_io/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "아크의실험실",
+  },
   openGraph: {
     title: "아크의실험실 | 바이브코딩 연구소",
     description: "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
@@ -56,6 +61,10 @@ export const metadata: Metadata = {
     description: "바이브코딩으로 AI 앱을 만들고 실험하는 아크의실험실 — AI 교육, 프롬프트 아카이브, 앱 제작 의뢰까지",
     images: ["/ai-labs-og.png"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#6366f1",
 };
 
 export default function RootLayout({
@@ -120,6 +129,23 @@ export default function RootLayout({
                   document.documentElement.classList.remove('dark');
                 }
               })();
+
+              // 홈 화면 아이콘 배지: 알림을 눌러서 확인하지 않고 알림 센터에서
+              // 그냥 지운 경우 배지가 안 지워지는 문제가 있어(Service Worker의
+              // notificationclick에서만 clearAppBadge 호출), 앱을 열거나 다시
+              // 포그라운드로 돌아올 때마다 배지를 지워 확실히 초기화한다.
+              (function() {
+                function clearAppBadge() {
+                  if ('clearAppBadge' in navigator) {
+                    navigator.clearAppBadge().catch(function() {});
+                  }
+                }
+                clearAppBadge();
+                document.addEventListener('visibilitychange', function() {
+                  if (document.visibilityState === 'visible') clearAppBadge();
+                });
+              })();
+
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {

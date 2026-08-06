@@ -7,7 +7,7 @@
 //   Network-Only  : /api/**, POST/PUT/DELETE
 // ===================================================
 
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 const STATIC_CACHE  = `ai-labs-static-${CACHE_VERSION}`
 const PAGE_CACHE    = `ai-labs-pages-${CACHE_VERSION}`
 const IMAGE_CACHE   = `ai-labs-images-${CACHE_VERSION}`
@@ -165,6 +165,21 @@ self.addEventListener('notificationclick', (event) => {
       }
       // 없으면 새 탭
       return self.clients.openWindow(targetUrl)
+    })()
+  )
+})
+
+// 알림을 누르지 않고 알림 센터에서 스와이프로 지운 경우에도 배지 갱신
+self.addEventListener('notificationclose', (event) => {
+  if (!('setAppBadge' in self.navigator)) return
+  event.waitUntil(
+    (async () => {
+      const remaining = await self.registration.getNotifications()
+      if (remaining.length === 0) {
+        await self.navigator.clearAppBadge()
+      } else {
+        await self.navigator.setAppBadge(remaining.length)
+      }
     })()
   )
 })
