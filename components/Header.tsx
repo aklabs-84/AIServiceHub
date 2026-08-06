@@ -8,6 +8,7 @@ import { FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { RiKakaoTalkFill } from 'react-icons/ri';
 import { FcGoogle } from 'react-icons/fc';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import PushNotificationToggle from '@/components/PushNotificationToggle';
@@ -42,7 +43,16 @@ export default function Header() {
     try {
       const res = await fetch('/api/push/diagnose');
       const data = await res.json().catch(() => ({ error: `응답 파싱 실패 (${res.status})` }));
-      setDiagnoseResult(JSON.stringify(data, null, 2));
+      const text = JSON.stringify(data, null, 2);
+      setDiagnoseResult(text);
+      // 모달을 열자마자 자동으로 복사도 시도(iOS에서 모달 안 텍스트 선택이 잘 안 되는 경우 대비)
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopyLabel('복사됨!');
+        setTimeout(() => setCopyLabel('복사하기'), 2000);
+      } catch {
+        // 자동 복사 실패는 무시 — 모달의 "복사하기" 버튼으로 다시 시도 가능
+      }
     } catch {
       setDiagnoseResult('요청 실패 (네트워크 오류)');
     } finally {
@@ -303,7 +313,7 @@ export default function Header() {
         )}
       </div>
 
-      {diagnoseResult && (
+      {typeof document !== 'undefined' && diagnoseResult && createPortal(
         <div
           className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
           onClick={() => setDiagnoseResult(null)}
@@ -313,7 +323,7 @@ export default function Header() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 gap-2">
-              <p className="font-bold text-sm flex-shrink-0">푸시 진단 결과</p>
+              <p className="font-bold text-sm flex-shrink-0">푸시 진단 결과 (자동 복사됨)</p>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={copyDiagnoseResult}
@@ -333,7 +343,8 @@ export default function Header() {
               {diagnoseResult}
             </pre>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );

@@ -134,12 +134,23 @@ export function usePushNotification() {
         return false
       }
 
-      const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({
+      // 기존 구독이 남아있어도, 그게 지금 서버가 쓰는 VAPID 키와 다른 키로
+      // 만들어진 것이면 그대로 재사용하지 않고 폐기 후 새로 구독한다.
+      // (예전 키로 만들어진 구독을 재사용하면 발송 시 Apple이 BadJwtToken으로 거부함)
+      let sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        const existingKey = arrayBufferToBase64Url(sub.options.applicationServerKey)
+        if (existingKey !== vapidKey) {
+          await sub.unsubscribe()
+          sub = null
+        }
+      }
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
-        }))
+        })
+      }
 
       setSubscriptionSynced(sub)
 
@@ -215,4 +226,13 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     outputArray[i] = rawData.charCodeAt(i)
   }
   return outputArray
+}
+
+/** ArrayBuffer → Base64 URL 변환 (기존 구독의 applicationServerKey와 현재 VAPID 키 비교용) */
+function arrayBufferToBase64Url(buffer: ArrayBuffer | null): string {
+  if (!buffer) return ''
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
