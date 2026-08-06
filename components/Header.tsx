@@ -8,7 +8,6 @@ import { FaMoon, FaSun, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { RiKakaoTalkFill } from 'react-icons/ri';
 import { FcGoogle } from 'react-icons/fc';
 import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import PushNotificationToggle from '@/components/PushNotificationToggle';
@@ -20,45 +19,7 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  const [diagnoseResult, setDiagnoseResult] = useState<string | null>(null);
-  const [diagnosing, setDiagnosing] = useState(false);
-  const [copyLabel, setCopyLabel] = useState('복사하기');
 
-  const copyDiagnoseResult = async () => {
-    if (!diagnoseResult) return;
-    try {
-      await navigator.clipboard.writeText(diagnoseResult);
-      setCopyLabel('복사됨!');
-    } catch {
-      setCopyLabel('복사 실패');
-    } finally {
-      setTimeout(() => setCopyLabel('복사하기'), 2000);
-    }
-  };
-
-  // 관리자 전용: 로그인된 앱 컨텍스트 그대로 진단 API를 호출(별도 탭/브라우저로
-  // URL을 열면 iOS 홈화면 앱과 세션이 분리돼 로그인 안 된 상태로 요청될 수 있음)
-  const runPushDiagnose = async () => {
-    setDiagnosing(true);
-    try {
-      const res = await fetch('/api/push/diagnose');
-      const data = await res.json().catch(() => ({ error: `응답 파싱 실패 (${res.status})` }));
-      const text = JSON.stringify(data, null, 2);
-      setDiagnoseResult(text);
-      // 모달을 열자마자 자동으로 복사도 시도(iOS에서 모달 안 텍스트 선택이 잘 안 되는 경우 대비)
-      try {
-        await navigator.clipboard.writeText(text);
-        setCopyLabel('복사됨!');
-        setTimeout(() => setCopyLabel('복사하기'), 2000);
-      } catch {
-        // 자동 복사 실패는 무시 — 모달의 "복사하기" 버튼으로 다시 시도 가능
-      }
-    } catch {
-      setDiagnoseResult('요청 실패 (네트워크 오류)');
-    } finally {
-      setDiagnosing(false);
-    }
-  };
   // avatarError는 user가 바뀔 때(로그인·로그아웃) 반드시 초기화
   // 그렇지 않으면 한번 실패한 이미지가 세션 내내 fallback으로 고정됨
   useEffect(() => {
@@ -161,25 +122,13 @@ export default function Header() {
                         </Link>
                         <PushNotificationToggle className="w-fit" />
                         {user.email === 'mosebb@gmail.com' && (
-                          <>
-                            <Link
-                              href="/admin"
-                              onClick={() => setProfileMenuOpen(false)}
-                              className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                            >
-                              관리자 설정
-                            </Link>
-                            <button
-                              onClick={() => {
-                                setProfileMenuOpen(false);
-                                runPushDiagnose();
-                              }}
-                              disabled={diagnosing}
-                              className="w-full flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left disabled:opacity-60"
-                            >
-                              {diagnosing ? '진단 중...' : '푸시 진단 테스트'}
-                            </button>
-                          </>
+                          <Link
+                            href="/admin"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            관리자 설정
+                          </Link>
                         )}
                         <button
                           onClick={async () => {
@@ -253,19 +202,6 @@ export default function Header() {
               )}
             </div>
 
-            {user?.email === 'mosebb@gmail.com' && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  runPushDiagnose();
-                }}
-                disabled={diagnosing}
-                className="w-full flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-60"
-              >
-                {diagnosing ? '진단 중...' : '푸시 진단 테스트'}
-              </button>
-            )}
-
             <div className="grid grid-cols-2 gap-3">
               <PWAInstallButton
                 variant="secondary"
@@ -312,40 +248,6 @@ export default function Header() {
           </div>
         )}
       </div>
-
-      {typeof document !== 'undefined' && diagnoseResult && createPortal(
-        <div
-          className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setDiagnoseResult(null)}
-        >
-          <div
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 gap-2">
-              <p className="font-bold text-sm flex-shrink-0">푸시 진단 결과 (자동 복사됨)</p>
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={copyDiagnoseResult}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
-                >
-                  {copyLabel}
-                </button>
-                <button
-                  onClick={() => setDiagnoseResult(null)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-                >
-                  <FaTimes />
-                </button>
-              </div>
-            </div>
-            <pre className="p-4 text-xs overflow-auto whitespace-pre-wrap break-all select-text text-gray-800 dark:text-gray-200">
-              {diagnoseResult}
-            </pre>
-          </div>
-        </div>,
-        document.body
-      )}
     </header>
   );
 }
