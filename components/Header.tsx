@@ -19,6 +19,23 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [diagnoseResult, setDiagnoseResult] = useState<string | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
+
+  // 관리자 전용: 로그인된 앱 컨텍스트 그대로 진단 API를 호출(별도 탭/브라우저로
+  // URL을 열면 iOS 홈화면 앱과 세션이 분리돼 로그인 안 된 상태로 요청될 수 있음)
+  const runPushDiagnose = async () => {
+    setDiagnosing(true);
+    try {
+      const res = await fetch('/api/push/diagnose');
+      const data = await res.json().catch(() => ({ error: `응답 파싱 실패 (${res.status})` }));
+      setDiagnoseResult(JSON.stringify(data, null, 2));
+    } catch {
+      setDiagnoseResult('요청 실패 (네트워크 오류)');
+    } finally {
+      setDiagnosing(false);
+    }
+  };
   // avatarError는 user가 바뀔 때(로그인·로그아웃) 반드시 초기화
   // 그렇지 않으면 한번 실패한 이미지가 세션 내내 fallback으로 고정됨
   useEffect(() => {
@@ -121,13 +138,25 @@ export default function Header() {
                         </Link>
                         <PushNotificationToggle className="w-fit" />
                         {user.email === 'mosebb@gmail.com' && (
-                          <Link
-                            href="/admin"
-                            onClick={() => setProfileMenuOpen(false)}
-                            className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                          >
-                            관리자 설정
-                          </Link>
+                          <>
+                            <Link
+                              href="/admin"
+                              onClick={() => setProfileMenuOpen(false)}
+                              className="flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                            >
+                              관리자 설정
+                            </Link>
+                            <button
+                              onClick={() => {
+                                setProfileMenuOpen(false);
+                                runPushDiagnose();
+                              }}
+                              disabled={diagnosing}
+                              className="w-full flex items-center px-3 py-2 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left disabled:opacity-60"
+                            >
+                              {diagnosing ? '진단 중...' : '푸시 진단 테스트'}
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={async () => {
@@ -201,6 +230,19 @@ export default function Header() {
               )}
             </div>
 
+            {user?.email === 'mosebb@gmail.com' && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  runPushDiagnose();
+                }}
+                disabled={diagnosing}
+                className="w-full flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-60"
+              >
+                {diagnosing ? '진단 중...' : '푸시 진단 테스트'}
+              </button>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <PWAInstallButton
                 variant="secondary"
@@ -247,6 +289,31 @@ export default function Header() {
           </div>
         )}
       </div>
+
+      {diagnoseResult && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
+          onClick={() => setDiagnoseResult(null)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <p className="font-bold text-sm">푸시 진단 결과</p>
+              <button
+                onClick={() => setDiagnoseResult(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <pre className="p-4 text-xs overflow-auto whitespace-pre-wrap break-all select-text text-gray-800 dark:text-gray-200">
+              {diagnoseResult}
+            </pre>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
