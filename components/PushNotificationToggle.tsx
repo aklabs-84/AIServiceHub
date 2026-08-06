@@ -71,14 +71,14 @@ export default function PushNotificationToggle({
       onClick={handleToggle}
       disabled={loading}
       title={isSubscribed ? '알림 끄기' : '알림 받기'}
-      className={`inline-flex items-center gap-1.5 text-sm font-medium transition-all ${
+      className={`inline-flex items-center gap-1.5 text-sm font-bold transition-all rounded-full px-3 py-1.5 ${
         isSubscribed
-          ? 'text-indigo-600 dark:text-indigo-400 hover:text-gray-500 dark:hover:text-gray-400'
-          : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-      } disabled:opacity-60 ${className}`}
+          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+          : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
+      } disabled:opacity-60 disabled:cursor-wait ${className}`}
     >
-      {isSubscribed ? <FaBell className="text-indigo-500" /> : <FaBellSlash />}
-      <span>{isSubscribed ? '알림 ON' : '알림 OFF'}</span>
+      {isSubscribed ? <FaBell /> : <FaBellSlash />}
+      <span>{loading ? '처리 중...' : isSubscribed ? '알림 ON' : '알림 OFF'}</span>
     </button>
   )
 }

@@ -122,9 +122,36 @@ export default function RootLayout({
               })();
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function() {});
+                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    document.addEventListener('visibilitychange', function() {
+                      if (document.visibilityState === 'visible') reg.update().catch(function() {});
+                    });
+                  }).catch(function() {});
+
+                  var refreshing = false;
+                  navigator.serviceWorker.addEventListener('controllerchange', function() {
+                    if (refreshing) return;
+                    refreshing = true;
+                    window.location.reload();
+                  });
                 });
               }
+
+              // iOS 홈 화면에 추가한 PWA는 새로고침 버튼이 없고, 백그라운드에서
+              // 복귀해도 페이지가 자동으로 다시 불러와지지 않아 새 배포 내용이 반영되지 않음.
+              // 일정 시간 이상 백그라운드에 있다가 돌아오면 최신 배포본을 강제로 다시 받아온다.
+              (function() {
+                var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+                if (!isStandalone) return;
+                var hiddenAt = null;
+                document.addEventListener('visibilitychange', function() {
+                  if (document.visibilityState === 'hidden') {
+                    hiddenAt = Date.now();
+                  } else if (document.visibilityState === 'visible' && hiddenAt && Date.now() - hiddenAt > 15000) {
+                    window.location.reload();
+                  }
+                });
+              })();
             `,
           }}
         />

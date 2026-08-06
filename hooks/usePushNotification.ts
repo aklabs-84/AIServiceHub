@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getBrowserClient } from '@/lib/database'
+import { useToast } from '@/contexts/ToastContext'
 
 type PermissionState = 'default' | 'granted' | 'denied' | 'unsupported'
 
 export function usePushNotification() {
   const { user } = useAuth()
+  const { showError, showInfo } = useToast()
   const [permission, setPermission] = useState<PermissionState>('default')
   const [subscription, setSubscription] = useState<PushSubscription | null>(null)
   // 브라우저 구독 존재 여부와 별개로, 이 계정으로 DB에 실제 등록돼 있는지(진짜 ON 여부)
@@ -15,10 +17,13 @@ export function usePushNotification() {
   const [ready, setReady] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // ref는 setter와 항상 같은 틱에 동기화(useEffect로 하면 realtime 이벤트가
+  // effect 실행 전에 도착해 stale한 null을 읽고 isRegistered를 잘못 false로 되돌릴 수 있음)
   const subscriptionRef = useRef<PushSubscription | null>(null)
-  useEffect(() => {
-    subscriptionRef.current = subscription
-  }, [subscription])
+  const setSubscriptionSynced = useCallback((sub: PushSubscription | null) => {
+    subscriptionRef.current = sub
+    setSubscription(sub)
+  }, [])
 
   const isSupported =
     typeof window !== 'undefined' &&
@@ -58,7 +63,7 @@ export function usePushNotification() {
     setPermission(Notification.permission as PermissionState)
 
     if (!user) {
-      setSubscription(null)
+      setSubscriptionSynced(null)
       setIsRegistered(false)
       setReady(true)
       return
@@ -66,11 +71,11 @@ export function usePushNotification() {
 
     navigator.serviceWorker.ready.then((reg) => {
       reg.pushManager.getSubscription().then((sub) => {
-        setSubscription(sub)
+        setSubscriptionSynced(sub)
         checkRegistration(sub)
       })
     })
-  }, [isSupported, user, checkRegistration])
+  }, [isSupported, user, checkRegistration, setSubscriptionSynced])
 
   // 실시간 반영: 다른 기기/탭에서 구독을 켜거나 끄거나, 만료된 구독이 서버에서
   // 자동 정리되는 경우에도 메뉴의 ON/OFF 표시가 즉시 갱신되도록 postgres_changes 구독
@@ -103,16 +108,29 @@ export function usePushNotification() {
     setLoading(true)
 
     try {
+      // 브라우저 네이티브 권한 팝업은 놓치기 쉬우므로 먼저 안내
+      if (Notification.permission === 'default') {
+        showInfo('브라우저 상단의 알림 권한 요청 팝업에서 "허용"을 눌러주세요')
+      }
+
       const permission = await Notification.requestPermission()
       setPermission(permission as PermissionState)
 
-      if (permission !== 'granted') return false
+      if (permission !== 'granted') {
+        showError(
+          permission === 'denied'
+            ? '알림이 차단되어 있어요. 브라우저 설정에서 이 사이트의 알림 권한을 허용해주세요'
+            : '알림 권한 요청이 취소됐어요'
+        )
+        return false
+      }
 
       const reg = await navigator.serviceWorker.ready
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
       if (!vapidKey) {
         console.error('VAPID public key not set')
+        showError('알림 설정 중 오류가 발생했어요 (설정 누락)')
         return false
       }
 
@@ -123,7 +141,7 @@ export function usePushNotification() {
           applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
         }))
 
-      setSubscription(sub)
+      setSubscriptionSynced(sub)
 
       // 서버(현재 로그인 계정)에 구독 등록/재등록
       const res = await fetch('/api/push/subscribe', {
@@ -135,14 +153,20 @@ export function usePushNotification() {
       const ok = res.ok
       setIsRegistered(ok)
       setReady(true)
+      if (!ok) {
+        const body = await res.text().catch(() => '')
+        console.error('[usePushNotification] subscribe register failed:', res.status, body)
+        showError(`알림 등록 중 오류가 발생했어요 (${res.status}). 잠시 후 다시 시도해주세요`)
+      }
       return ok
     } catch (e) {
       console.error('[usePushNotification] subscribe error:', e)
+      showError('알림 설정 중 오류가 발생했어요')
       return false
     } finally {
       setLoading(false)
     }
-  }, [isSupported, user])
+  }, [isSupported, user, showError, showInfo, setSubscriptionSynced])
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     if (!subscription) return false
@@ -151,7 +175,7 @@ export function usePushNotification() {
     try {
       const endpoint = subscription.endpoint
       await subscription.unsubscribe()
-      setSubscription(null)
+      setSubscriptionSynced(null)
 
       await fetch('/api/push/unsubscribe', {
         method: 'POST',
@@ -163,11 +187,12 @@ export function usePushNotification() {
       return true
     } catch (e) {
       console.error('[usePushNotification] unsubscribe error:', e)
+      showError('알림 끄기 중 오류가 발생했어요')
       return false
     } finally {
       setLoading(false)
     }
-  }, [subscription])
+  }, [subscription, showError, setSubscriptionSynced])
 
   return {
     permission,

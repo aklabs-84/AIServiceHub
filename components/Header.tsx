@@ -119,7 +119,7 @@ export default function Header() {
                         >
                           마이페이지
                         </Link>
-                        <PushNotificationToggle className="w-full justify-start px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800" />
+                        <PushNotificationToggle className="w-fit" />
                         {user.email === 'mosebb@gmail.com' && (
                           <Link
                             href="/admin"
@@ -207,9 +207,7 @@ export default function Header() {
                 size="md"
                 className="w-full justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl py-3 font-bold"
               />
-              <PushNotificationToggle
-                className="w-full justify-center bg-gray-100 dark:bg-gray-800 rounded-2xl py-3 font-bold"
-              />
+              <PushNotificationToggle className="w-full justify-center !rounded-2xl !py-3" />
             </div>
 
             {!loading && !user && (
