@@ -129,6 +129,7 @@ export default function NewAppPage() {
     appUrls: AppUrlItem[];
     category: string;
     isPublic: boolean;
+    classlogOnly: boolean;
     thumbnailUrl: string;
     thumbnailPositionX: number;
     thumbnailPositionY: number;
@@ -145,6 +146,7 @@ export default function NewAppPage() {
     appUrls: [{ url: '', isPublic: true, label: '' }],
     category: 'chatbot',
     isPublic: true,
+    classlogOnly: false,
     thumbnailUrl: '',
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
@@ -340,6 +342,7 @@ export default function NewAppPage() {
                 snsUrls: buildSnsUrls(),
                 category: formData.category,
                 isPublic: formData.isPublic,
+                classlogOnly: formData.classlogOnly,
                 thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
                 thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
                 thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
@@ -800,6 +803,22 @@ export default function NewAppPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               비공개로 설정하면 작성자만 볼 수 있습니다.
             </p>
+            {!formData.isPublic && (
+              <label className="mt-3 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={formData.classlogOnly}
+                  onChange={(e) => setFormData({ ...formData, classlogOnly: e.target.checked })}
+                  className="mt-0.5"
+                />
+                <span>
+                  classlog 전용으로 공유
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    AIServiceHub 사이트에는 계속 비공개로 유지되지만, classlog의 앱 연동 API에는 노출됩니다.
+                  </span>
+                </span>
+              </label>
+            )}
           </div>
 
           {/* 판매 설정 (관리자 전용) */}
