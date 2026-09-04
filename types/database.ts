@@ -92,6 +92,7 @@ export interface PromptRow {
   sns_urls: string[];
   category: string | null;
   is_public: boolean;
+  classlog_only: boolean;
   thumbnail_url: string | null;
   thumbnail_pos: { x: number; y: number } | null;
   tags: string[];
@@ -196,6 +197,7 @@ export interface Prompt {
   snsUrls: string[];
   category: string;
   isPublic: boolean;
+  classlogOnly: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
@@ -511,6 +513,7 @@ export interface CreatePromptInput {
   snsUrls: string[];
   category: string;
   isPublic?: boolean;
+  classlogOnly?: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;

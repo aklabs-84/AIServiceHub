@@ -591,7 +591,7 @@ export default function AppDetailClient({
         snsUrls: buildSnsUrls(),
         category: formData.category,
         isPublic: formData.isPublic,
-        classlogOnly: formData.classlogOnly,
+        classlogOnly: isAdmin ? formData.classlogOnly : false,
         isPaid: formData.isPaid,
         price: formData.isPaid ? formData.price : 0,
         thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
@@ -895,7 +895,7 @@ export default function AppDetailClient({
                       </div>
                     </div>
 
-                    {!formData.isPublic && (
+                    {!formData.isPublic && isAdmin && (
                       <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                         <input
                           type="checkbox"
@@ -904,7 +904,7 @@ export default function AppDetailClient({
                           className="mt-0.5"
                         />
                         <span>
-                          classlog 전용으로 공유
+                          classlog 전용으로 공유 (관리자 전용)
                           <span className="block text-xs text-gray-500 dark:text-gray-400">
                             AIServiceHub 사이트에는 계속 비공개로 유지되지만, classlog의 앱 연동 API에는 노출됩니다.
                           </span>
