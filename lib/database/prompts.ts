@@ -13,6 +13,7 @@ function mapPromptFromDB(data: PromptRow): Prompt {
     snsUrls: data.sns_urls || [],
     category: data.category || '',
     isPublic: data.is_public ?? true,
+    classlogOnly: data.classlog_only ?? false,
     thumbnailUrl: data.thumbnail_url || undefined,
     thumbnailPositionX: data.thumbnail_pos?.x,
     thumbnailPositionY: data.thumbnail_pos?.y,
@@ -114,6 +115,49 @@ export async function getByTag(client: SupabaseClient, tag: string): Promise<Pro
   return attachAttachments(client, prompts);
 }
 
+export interface PublicListOptions {
+  category?: string;
+  tag?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// is_public=true는 AIServiceHub 사이트에도 노출되는 일반 공개 프롬프트,
+// classlog_only=true는 사이트에는 숨기고 classlog 연동에만 내보내는 프롬프트.
+export async function getPublicList(client: SupabaseClient, opts: PublicListOptions = {}): Promise<Prompt[]> {
+  const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
+  const offset = Math.max(opts.offset ?? 0, 0);
+
+  let query = client
+    .from('prompts')
+    .select(PROMPT_SELECT)
+    .or('is_public.eq.true,classlog_only.eq.true')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (opts.category) query = query.eq('category', opts.category);
+  if (opts.tag) query = query.contains('tags', [opts.tag]);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const prompts = (data as PromptRow[]).map(mapPromptFromDB);
+  return attachAttachments(client, prompts);
+}
+
+export async function getPublicById(client: SupabaseClient, id: string): Promise<Prompt | null> {
+  const { data, error } = await client
+    .from('prompts')
+    .select(PROMPT_SELECT)
+    .eq('id', id)
+    .or('is_public.eq.true,classlog_only.eq.true')
+    .single();
+
+  if (error || !data) return null;
+  const prompt = mapPromptFromDB(data as PromptRow);
+  const result = await attachAttachments(client, [prompt]);
+  return result[0];
+}
+
 export async function getByUser(client: SupabaseClient, userId: string): Promise<Prompt[]> {
   const { data, error } = await client
     .from('prompts')
@@ -156,6 +200,7 @@ export async function create(
     sns_urls: input.snsUrls,
     category: input.category,
     is_public: input.isPublic ?? true,
+    classlog_only: input.classlogOnly ?? false,
     thumbnail_url: input.thumbnailUrl,
     thumbnail_pos: input.thumbnailPositionX != null
       ? { x: input.thumbnailPositionX, y: input.thumbnailPositionY }
@@ -197,6 +242,7 @@ export async function update(client: SupabaseClient, input: UpdatePromptInput): 
   if (fields.snsUrls !== undefined) payload.sns_urls = fields.snsUrls;
   if (fields.category !== undefined) payload.category = fields.category;
   if (fields.isPublic !== undefined) payload.is_public = fields.isPublic;
+  if (fields.classlogOnly !== undefined) payload.classlog_only = fields.classlogOnly;
   if (fields.thumbnailUrl !== undefined) payload.thumbnail_url = fields.thumbnailUrl;
   if (fields.tags !== undefined) payload.tags = fields.tags;
   if (fields.thumbnailPositionX !== undefined || fields.thumbnailPositionY !== undefined) {
