@@ -115,6 +115,47 @@ export async function getByTag(client: SupabaseClient, tag: string): Promise<AIA
   return attachAttachments(client, apps);
 }
 
+export interface PublicListOptions {
+  category?: string;
+  tag?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function getPublicList(client: SupabaseClient, opts: PublicListOptions = {}): Promise<AIApp[]> {
+  const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
+  const offset = Math.max(opts.offset ?? 0, 0);
+
+  let query = client
+    .from('apps')
+    .select(APP_SELECT)
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (opts.category) query = query.eq('category', opts.category);
+  if (opts.tag) query = query.contains('tags', [opts.tag]);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const apps = (data as AppRow[]).map(mapAppFromDB);
+  return attachAttachments(client, apps);
+}
+
+export async function getPublicById(client: SupabaseClient, id: string): Promise<AIApp | null> {
+  const { data, error } = await client
+    .from('apps')
+    .select(APP_SELECT)
+    .eq('id', id)
+    .eq('is_public', true)
+    .single();
+
+  if (error || !data) return null;
+  const app = mapAppFromDB(data as AppRow);
+  const result = await attachAttachments(client, [app]);
+  return result[0];
+}
+
 export async function getByUser(client: SupabaseClient, userId: string): Promise<AIApp[]> {
   const { data, error } = await client
     .from('apps')
