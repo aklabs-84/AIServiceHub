@@ -31,6 +31,9 @@ function mapCourseFromDB(row: CourseRow): Course {
     isPublished: row.is_published,
     likeCount: row.like_count,
     classEntryCode: row.class_entry_code ?? null,
+    classlogSyncEnabled: row.classlog_sync_enabled ?? false,
+    classlogClassId: row.classlog_class_id ?? null,
+    classlogEntryCode: row.classlog_entry_code ?? null,
     createdBy: row.created_by,
     createdByName: row.created_by_name ?? '',
     createdAt: new Date(row.created_at),
@@ -120,6 +123,7 @@ async function createCourse(
       is_paid: input.isPaid ?? false,
       is_published: input.isPublished ?? false,
       class_entry_code: generateCode(8), // 클래스 단일 입장코드 자동 생성
+      classlog_sync_enabled: input.classlogSyncEnabled ?? false,
       created_by: userId,
       created_by_name: userName,
     })
@@ -191,6 +195,23 @@ async function setClassEntryCode(
     .eq('id', courseId);
   if (error) throw error;
   return code;
+}
+
+async function setClasslogSyncResult(
+  client: SupabaseClient,
+  courseId: string,
+  classlogClassId: string,
+  classlogEntryCode: string
+): Promise<void> {
+  const { error } = await client
+    .from('education_courses')
+    .update({
+      classlog_class_id: classlogClassId,
+      classlog_entry_code: classlogEntryCode,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', courseId);
+  if (error) throw error;
 }
 
 async function deleteCourse(client: SupabaseClient, id: string): Promise<void> {
@@ -383,6 +404,7 @@ export const education = {
   getCourseById,
   getCourseByClassEntryCode,
   setClassEntryCode,
+  setClasslogSyncResult,
   createCourse,
   updateCourse,
   deleteCourse,

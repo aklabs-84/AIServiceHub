@@ -49,6 +49,7 @@ interface FormData {
   price: number;
   isPaid: boolean;
   isPublished: boolean;
+  classlogSyncEnabled: boolean;
 }
 
 const DEFAULT_FORM: FormData = {
@@ -67,6 +68,7 @@ const DEFAULT_FORM: FormData = {
   price: 0,
   isPaid: false,
   isPublished: false,
+  classlogSyncEnabled: false,
 };
 
 function toDatetimeLocal(date: Date): string {
@@ -214,6 +216,7 @@ export default function CourseFormPage({ mode, initialData }: Props) {
         price: initialData.price,
         isPaid: initialData.isPaid,
         isPublished: initialData.isPublished,
+        classlogSyncEnabled: initialData.classlogSyncEnabled,
       });
     }
   }, [initialData]);
@@ -307,6 +310,7 @@ export default function CourseFormPage({ mode, initialData }: Props) {
       price: form.isPaid ? form.price : 0,
       isPaid: form.isPaid,
       isPublished: form.isPublished,
+      ...(mode === 'new' ? { classlogSyncEnabled: form.classlogSyncEnabled } : {}),
     };
 
     try {
@@ -547,6 +551,31 @@ export default function CourseFormPage({ mode, initialData }: Props) {
                 </div>
               ))}
             </div>
+          )}
+        </section>
+
+        {/* ClassLog 연동 */}
+        <section className="space-y-3 p-5 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <h2 className="text-xs font-black uppercase tracking-widest text-gray-400">ClassLog 연동</h2>
+          {mode === 'new' ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => set('classlogSyncEnabled', !form.classlogSyncEnabled)}
+                className={`relative inline-flex items-center h-6 w-11 rounded-full transition-colors ${form.classlogSyncEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+              >
+                <span className={`inline-block w-4 h-4 bg-white rounded-full shadow transition-transform ${form.classlogSyncEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                {form.classlogSyncEnabled ? 'ClassLog에 클래스 자동 생성' : 'ClassLog 미연동'}
+              </span>
+            </div>
+          ) : initialData?.classlogSyncEnabled ? (
+            <p className="text-xs font-bold text-gray-500">
+              ✅ ClassLog 연동됨{initialData.classlogEntryCode ? ` (입장코드: ${initialData.classlogEntryCode})` : ''}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400">이 강좌는 ClassLog와 연동되어 있지 않습니다.</p>
           )}
         </section>
 

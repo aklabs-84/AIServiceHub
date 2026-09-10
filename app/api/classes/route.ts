@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
+import { classlog } from '@/lib/classlog';
 import type { CreateCourseInput } from '@/types/database';
 
 export const runtime = 'nodejs';
@@ -45,5 +46,21 @@ export async function POST(request: Request) {
   const userName = profile?.display_name || user.email || 'Admin';
 
   const course = await db.education.createCourse(admin, body, user.id, userName);
+
+  // ClassLog 동기화가 켜진 강좌면 ClassLog에 클래스를 생성/연결한다.
+  // 실패해도 강좌 생성 자체는 이미 완료된 상태이므로 에러를 삼키고 로그만 남긴다.
+  if (body.classlogSyncEnabled) {
+    try {
+      const result = await classlog.syncClass({
+        externalRefId: course.id,
+        teacherEmail: user.email!,
+        className: course.title,
+      });
+      await db.education.setClasslogSyncResult(admin, course.id, result.class_id, result.entry_code);
+    } catch (err) {
+      console.error('[api/classes] ClassLog sync failed:', (err as Error).message);
+    }
+  }
+
   return NextResponse.json({ course }, { status: 201 });
 }

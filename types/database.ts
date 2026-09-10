@@ -249,6 +249,9 @@ export interface CourseRow {
   is_published: boolean;
   like_count: number;
   class_entry_code: string | null;   // 클래스 단일 입장코드 (전원 공용)
+  classlog_sync_enabled: boolean;
+  classlog_class_id: string | null;
+  classlog_entry_code: string | null;
   created_by: string | null;
   created_by_name: string | null;
   created_at: string;
@@ -276,6 +279,9 @@ export interface Course {
   isPublished: boolean;
   likeCount: number;
   classEntryCode: string | null;     // 클래스 단일 입장코드
+  classlogSyncEnabled: boolean;
+  classlogClassId: string | null;
+  classlogEntryCode: string | null;
   createdBy: string | null;
   createdByName: string;
   createdAt: Date;
@@ -332,6 +338,7 @@ export interface CreateCourseInput {
   price?: number;
   isPaid?: boolean;
   isPublished?: boolean;
+  classlogSyncEnabled?: boolean;
 }
 
 export interface UpdateCourseInput extends Partial<CreateCourseInput> {

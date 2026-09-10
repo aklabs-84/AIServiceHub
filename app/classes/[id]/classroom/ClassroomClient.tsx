@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Course, Enrollment } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import { FaArrowLeft, FaLock, FaKey, FaExternalLinkAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaArrowLeft, FaLock, FaKey, FaExternalLinkAlt, FaEye, FaEyeSlash, FaRocket } from 'react-icons/fa';
 import { HiAcademicCap } from 'react-icons/hi';
 import NotionPageViewer from '@/components/NotionPageViewer';
+
+const STUDIO_URL = 'https://vibecoding-akstudio.vercel.app';
 
 function isNotionUrl(url: string) {
   try {
@@ -263,6 +265,31 @@ export default function ClassroomClient({ course }: Props) {
           <h1 className="text-2xl font-black mb-1">{course.title}</h1>
           <p className="text-sm text-white/80">수강 교실에 오신 걸 환영합니다!</p>
         </div>
+
+        {/* 바이브코딩 스튜디오 (ClassLog 연동된 강좌만) */}
+        {course.classlogSyncEnabled && course.classlogEntryCode && (
+          <a
+            href={`${STUDIO_URL}/?entryCode=${encodeURIComponent(course.classlogEntryCode)}&studentName=${encodeURIComponent(
+              user?.user_metadata?.full_name || user?.email || '학생'
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-violet-200 dark:border-violet-800
+              hover:border-violet-400 dark:hover:border-violet-600
+              bg-violet-50 dark:bg-violet-900/20 transition-all group"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-violet-600 flex items-center justify-center flex-none text-xl text-white">
+              <FaRocket />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-gray-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                바이브코딩 스튜디오 열기
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">기획부터 코드 작성까지, 결과물은 자동으로 이 클래스에 제출됩니다.</p>
+            </div>
+            <FaExternalLinkAlt className="text-violet-400 text-sm flex-none" />
+          </a>
+        )}
 
         {/* 자료 없음 */}
         {tabs.length === 0 && (
