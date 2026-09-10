@@ -37,9 +37,10 @@ export async function GET(request: Request) {
   const tag = searchParams.get('tag') || undefined;
   const limit = Number(searchParams.get('limit')) || undefined;
   const offset = Number(searchParams.get('offset')) || undefined;
+  const classlogOnly = searchParams.get('classlogOnly') === 'true';
 
   const admin = getAdminClient();
-  const apps = await db.apps.getPublicList(admin, { category, tag, limit, offset });
+  const apps = await db.apps.getPublicList(admin, { category, tag, limit, offset, classlogOnly });
 
   return NextResponse.json({ apps: apps.map(serializeApp) });
 }

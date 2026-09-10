@@ -121,6 +121,7 @@ export interface PublicListOptions {
   tag?: string;
   limit?: number;
   offset?: number;
+  classlogOnly?: boolean;
 }
 
 export async function getPublicList(client: SupabaseClient, opts: PublicListOptions = {}): Promise<AIApp[]> {
@@ -129,12 +130,17 @@ export async function getPublicList(client: SupabaseClient, opts: PublicListOpti
 
   // is_public=true는 AIServiceHub 사이트에도 노출되는 일반 공개 앱,
   // classlog_only=true는 사이트에는 숨기고 classlog 연동에만 내보내는 앱.
+  // classlogOnly 옵션이 true면(ClassLog 학습 도구 카탈로그 전용 호출) classlog_only=true인 앱만 좁혀서 반환한다 —
+  // 그렇지 않으면 마켓플레이스에 공개된 모든 앱(is_public=true)까지 함께 노출되어 버린다.
   let query = client
     .from('apps')
     .select(APP_SELECT)
-    .or('is_public.eq.true,classlog_only.eq.true')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
+
+  query = opts.classlogOnly
+    ? query.eq('classlog_only', true)
+    : query.or('is_public.eq.true,classlog_only.eq.true');
 
   if (opts.category) query = query.eq('category', opts.category);
   if (opts.tag) query = query.contains('tags', [opts.tag]);
