@@ -7,8 +7,9 @@ export const runtime = 'nodejs';
 // AIServiceHub가 대신 호출해주는 프록시. 스튜디오는 STUDIO_API_KEY만 알면 된다.
 function isAuthorized(request: Request): boolean {
   const key = request.headers.get('x-api-key');
-  const expected = process.env.STUDIO_API_KEY;
-  return !!expected && key === expected;
+  if (!key) return false;
+  const allowedKeys = [process.env.STUDIO_API_KEY, process.env.CODECANVAS_API_KEY].filter(Boolean);
+  return allowedKeys.includes(key);
 }
 
 // POST /api/classlog/submission
