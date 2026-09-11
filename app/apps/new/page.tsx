@@ -803,7 +803,7 @@ export default function NewAppPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               비공개로 설정하면 작성자만 볼 수 있습니다.
             </p>
-            {!formData.isPublic && isAdmin && (
+            {isAdmin && (
               <label className="mt-3 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input
                   type="checkbox"
@@ -814,7 +814,9 @@ export default function NewAppPage() {
                 <span>
                   classlog 전용으로 공유 (관리자 전용)
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    AIServiceHub 사이트에는 계속 비공개로 유지되지만, classlog의 앱 연동 API에는 노출됩니다.
+                    {formData.isPublic
+                      ? 'AIServiceHub 사이트에도 계속 공개되며, classlog의 앱 연동 API에도 노출됩니다.'
+                      : 'AIServiceHub 사이트에는 계속 비공개로 유지되지만, classlog의 앱 연동 API에는 노출됩니다.'}
                   </span>
                 </span>
               </label>
