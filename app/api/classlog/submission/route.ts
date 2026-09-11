@@ -8,7 +8,13 @@ export const runtime = 'nodejs';
 function isAuthorized(request: Request): boolean {
   const key = request.headers.get('x-api-key');
   if (!key) return false;
-  const allowedKeys = [process.env.STUDIO_API_KEY, process.env.CODECANVAS_API_KEY].filter(Boolean);
+  // CLASS_TOOL_API_KEY: 앞으로 만드는 모든 수업 도구 앱이 공유하는 키.
+  // STUDIO_API_KEY/CODECANVAS_API_KEY는 이미 배포된 기존 앱과의 하위호환을 위해 유지.
+  const allowedKeys = [
+    process.env.CLASS_TOOL_API_KEY,
+    process.env.STUDIO_API_KEY,
+    process.env.CODECANVAS_API_KEY,
+  ].filter(Boolean);
   return allowedKeys.includes(key);
 }
 
