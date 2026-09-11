@@ -17,6 +17,18 @@ interface AppCardProps {
   rank?: number;
 }
 
+function resolveImageUrl(url: string): string {
+  // drive.google.com/file/d/{id}/view 또는 /d/{id}/view → thumbnail URL로 변환
+  const fileMatch = url.match(/drive\.google\.com\/(?:file\/)?d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch && !url.includes('thumbnail')) {
+    return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w1600`;
+  }
+  if (url.includes('drive.google.com/thumbnail') && !url.includes('sz=')) {
+    return url + '&sz=w1600';
+  }
+  return url;
+}
+
 const getCategoryBg = (category: string) => {
   switch (category) {
     case 'chatbot': return 'bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600';
@@ -92,7 +104,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
         <div className="flex-none relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shadow-sm shadow-blue-500/5 group-hover:shadow-md transition-all duration-500">
           {app.thumbnailUrl && app.thumbnailUrl.trim() !== '' && !imageError ? (
             <Image
-              src={app.thumbnailUrl}
+              src={resolveImageUrl(app.thumbnailUrl)}
               alt={app.name}
               fill
               sizes="80px"
@@ -157,7 +169,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
       }`}>
         {app.thumbnailUrl && app.thumbnailUrl.trim() !== '' && !imageError ? (
           <Image
-            src={app.thumbnailUrl}
+            src={resolveImageUrl(app.thumbnailUrl)}
             alt={app.name}
             fill
             sizes={isCompact ? '128px' : '(max-width: 640px) 30vw, (max-width: 1024px) 20vw, 14vw'}
