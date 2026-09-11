@@ -80,6 +80,7 @@ export interface AppRow {
   created_at: string;
   updated_at: string;
   html_preview_url?: string | null;
+  preview_enabled: boolean;
   // Joined data
   app_likes?: { user_id: string }[];
 }
@@ -187,6 +188,7 @@ export interface AIApp {
   price: number;
   isPaid: boolean;
   htmlPreviewUrl?: string;
+  previewEnabled: boolean;
 }
 
 export interface Prompt {
@@ -506,6 +508,7 @@ export interface CreateAppInput {
   tags?: string[];
   price?: number;
   isPaid?: boolean;
+  previewEnabled?: boolean;
 }
 
 export interface UpdateAppInput extends Partial<CreateAppInput> {

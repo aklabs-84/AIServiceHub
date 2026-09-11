@@ -130,6 +130,7 @@ export default function NewAppPage() {
     category: string;
     isPublic: boolean;
     classlogOnly: boolean;
+    previewEnabled: boolean;
     thumbnailUrl: string;
     thumbnailPositionX: number;
     thumbnailPositionY: number;
@@ -147,6 +148,7 @@ export default function NewAppPage() {
     category: 'chatbot',
     isPublic: true,
     classlogOnly: false,
+    previewEnabled: false,
     thumbnailUrl: '',
     thumbnailPositionX: 50,
     thumbnailPositionY: 50,
@@ -343,6 +345,7 @@ export default function NewAppPage() {
                 category: formData.category,
                 isPublic: formData.isPublic,
                 classlogOnly: isAdmin ? formData.classlogOnly : false,
+                previewEnabled: formData.previewEnabled,
                 thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
                 thumbnailPositionX: hasThumbnail ? formData.thumbnailPositionX : undefined,
                 thumbnailPositionY: hasThumbnail ? formData.thumbnailPositionY : undefined,
@@ -821,6 +824,20 @@ export default function NewAppPage() {
                 </span>
               </label>
             )}
+            <label className="mt-3 flex items-start gap-2 text-sm text-gray-700 dark:text-gray-200">
+              <input
+                type="checkbox"
+                checked={formData.previewEnabled}
+                onChange={(e) => setFormData({ ...formData, previewEnabled: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span>
+                미리보기 기능 사용
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  로그인이나 구매 여부와 상관없이 누구나 앱 화면을 모달로 미리 볼 수 있게 합니다. (조작은 불가)
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* 판매 설정 (관리자 전용) */}

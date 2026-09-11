@@ -21,7 +21,8 @@ import MarkdownEditor from '@/components/MarkdownEditor';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
-  FaPaperclip, FaDownload, FaLock, FaSave, FaPlus, FaGlobe, FaGripVertical, FaLink
+  FaPaperclip, FaDownload, FaLock, FaSave, FaPlus, FaGlobe, FaGripVertical, FaLink,
+  FaEye, FaTimes
 } from 'react-icons/fa';
 
 const COMMENTS_PER_PAGE = 5;
@@ -203,6 +204,8 @@ export default function AppDetailClient({
   const [canAccessUrls, setCanAccessUrls] = useState<boolean | null>(null);
   const [checkingAccess, setCheckingAccess] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
 
   // --- Inline Edit States ---
   const [isEditing, setIsEditing] = useState(false);
@@ -213,6 +216,7 @@ export default function AppDetailClient({
     category: string;
     isPublic: boolean;
     classlogOnly: boolean;
+    previewEnabled: boolean;
     isPaid: boolean;
     price: number;
     thumbnailUrl: string;
@@ -256,6 +260,13 @@ export default function AppDetailClient({
   const thumbnailPosition = app
     ? { objectPosition: `${app.thumbnailPositionX ?? 50}% ${app.thumbnailPositionY ?? 50}%` }
     : undefined;
+
+  // 미리보기 모달에 띄울 iframe 소스: 자체 호스팅 HTML 우선, 없으면 공개된 첫 앱 링크 사용
+  const livePreviewUrl = app
+    ? (app.htmlPreviewUrl
+        ? `/api/apps/${app.id}/html-preview`
+        : app.appUrls?.find((u) => u.isPublic && u.url.trim())?.url || '')
+    : '';
 
   const loadApp = useCallback(async () => {
     setLoading(true);
@@ -395,6 +406,7 @@ export default function AppDetailClient({
         category: app.category,
         isPublic: app.isPublic ?? true,
         classlogOnly: app.classlogOnly ?? false,
+        previewEnabled: app.previewEnabled ?? false,
         isPaid: app.isPaid ?? false,
         price: app.price ?? 0,
         thumbnailUrl: app.thumbnailUrl || '',
@@ -616,6 +628,7 @@ export default function AppDetailClient({
         category: formData.category,
         isPublic: formData.isPublic,
         classlogOnly: isAdmin ? formData.classlogOnly : false,
+        previewEnabled: formData.previewEnabled,
         isPaid: formData.isPaid,
         price: formData.isPaid ? formData.price : 0,
         thumbnailUrl: hasThumbnail ? formData.thumbnailUrl : undefined,
@@ -790,6 +803,45 @@ export default function AppDetailClient({
           onSuccess={() => { setShowPurchaseModal(false); setCanAccessUrls(true); }}
         />
       )}
+      {showPreviewModal && app && livePreviewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative w-full max-w-4xl h-[85vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-2 text-sm font-black text-gray-700 dark:text-gray-200">
+                <FaEye className="text-gray-400" />
+                <span>{app.name} 미리보기</span>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                aria-label="닫기"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="relative flex-1 bg-gray-50 dark:bg-gray-950">
+              {previewLoadFailed ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+                  <FaLock className="text-3xl text-gray-300" />
+                  <div>
+                    <p className="font-bold text-gray-600 dark:text-gray-300">이 앱은 미리보기 화면으로 표시할 수 없어요</p>
+                    <p className="text-xs text-gray-400 mt-1">배포된 사이트가 외부 화면 삽입을 막고 있을 수 있습니다.</p>
+                  </div>
+                </div>
+              ) : (
+                <iframe
+                  key={livePreviewUrl}
+                  src={livePreviewUrl}
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock"
+                  allow="camera; microphone; fullscreen"
+                  onError={() => setPreviewLoadFailed(true)}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top Navigation */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -937,6 +989,21 @@ export default function AppDetailClient({
                         </span>
                       </label>
                     )}
+
+                    <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={formData.previewEnabled}
+                        onChange={(e) => setFormData({ ...formData, previewEnabled: e.target.checked })}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        미리보기 기능 사용
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                          로그인이나 구매 여부와 상관없이 누구나 앱 화면을 모달로 미리 볼 수 있게 합니다. (조작은 불가)
+                        </span>
+                      </span>
+                    </label>
 
                     {/* 유료/무료 설정 — 관리자만 */}
                     {isAdmin && (
@@ -1223,6 +1290,18 @@ export default function AppDetailClient({
                           <FaExternalLinkAlt className="text-xs opacity-70" />
                         </a>
                         <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">새 탭에서 HTML 앱이 실행됩니다</p>
+                      </div>
+                    )}
+                    {app.previewEnabled && livePreviewUrl && (
+                      <div>
+                        <button
+                          onClick={() => { setPreviewLoadFailed(false); setShowPreviewModal(true); }}
+                          className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-black text-sm shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-all"
+                        >
+                          <FaEye />
+                          <span>미리보기</span>
+                        </button>
+                        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">누구나 화면만 살펴볼 수 있어요 (조작 불가)</p>
                       </div>
                     )}
                     {app.tags && app.tags.length > 0 && (
