@@ -34,12 +34,14 @@ function HtmlPreviewSection({
   htmlCode,
   onChange,
   uploading,
+  loadingExisting,
 }: {
   existingUrl?: string;
   previewHref: string;
   htmlCode: string;
   onChange: (v: string) => void;
   uploading: boolean;
+  loadingExisting?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,7 +88,7 @@ function HtmlPreviewSection({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
-            {existingUrl ? 'HTML 코드 교체 (비워두면 기존 유지)' : 'HTML 코드 입력'}
+            {existingUrl ? 'HTML 코드 (수정 후 저장하면 반영됩니다)' : 'HTML 코드 입력'}
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -119,9 +121,16 @@ function HtmlPreviewSection({
           value={htmlCode}
           onChange={(e) => onChange(e.target.value)}
           rows={10}
-          className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-violet-500 outline-none font-mono text-xs text-gray-800 dark:text-gray-200 resize-y"
-          placeholder={'<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
+          disabled={loadingExisting}
+          className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-violet-500 outline-none font-mono text-xs text-gray-800 dark:text-gray-200 resize-y disabled:opacity-60"
+          placeholder={loadingExisting ? '기존 코드를 불러오는 중...' : '<!DOCTYPE html>\n<html>\n  <head>...\n  </head>\n  <body>...\n  </body>\n</html>'}
         />
+        {loadingExisting && (
+          <p className="mt-2 text-xs text-violet-500 flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+            기존 HTML 코드를 불러오는 중...
+          </p>
+        )}
         <p className="mt-2 text-xs text-gray-400">
           최대 2MB · 저장 시 자동 업로드됩니다 · 파일 선택 또는 직접 붙여넣기 모두 가능
         </p>
@@ -223,8 +232,10 @@ export default function AppDetailClient({
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [htmlPreviewUploading, setHtmlPreviewUploading] = useState(false);
+  const [htmlCodeLoading, setHtmlCodeLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const urlDragIndexRef = useRef<number | null>(null);
+  const originalHtmlCodeRef = useRef<string>(''); // 수정 진입 시 불러온 기존 코드 (변경 여부 비교용)
 
   const previewUrl = useMemo(() => {
     if (!formData?.thumbnailUrl) return '';
@@ -390,13 +401,26 @@ export default function AppDetailClient({
         thumbnailPositionX: typeof app.thumbnailPositionX === 'number' ? app.thumbnailPositionX : 50,
         thumbnailPositionY: typeof app.thumbnailPositionY === 'number' ? app.thumbnailPositionY : 50,
         tags: app.tags || [],
-        htmlCode: '', // 수정 시 비워두면 기존 URL 유지
+        htmlCode: '', // 기존 코드 로딩 완료 전 임시값 (비어있으면 기존 유지)
       });
       // tags는 formData.tags에 이미 설정됨
       hydrateSnsForm(app.snsUrls || []);
       setExistingAttachments(app.attachments || []);
       setAttachments([]);
       setAttachmentError(null);
+
+      originalHtmlCodeRef.current = '';
+      if (app.htmlPreviewUrl) {
+        setHtmlCodeLoading(true);
+        fetch(`/api/apps/${app.id}/html-preview`)
+          .then((res) => (res.ok ? res.text() : ''))
+          .then((text) => {
+            originalHtmlCodeRef.current = text;
+            setFormData((prev) => (prev ? { ...prev, htmlCode: text } : prev));
+          })
+          .catch(() => {})
+          .finally(() => setHtmlCodeLoading(false));
+      }
     }
     setIsEditing(!isEditing);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -559,9 +583,9 @@ export default function AppDetailClient({
         ? await Promise.all(attachments.map((file) => db.attachments.uploadFile(file, 'app', idToken)))
         : [];
 
-      // HTML 미리보기 업로드 (로그인 유저 + 코드 입력 시)
+      // HTML 미리보기 업로드 (코드가 기존과 달라졌을 때만 — 안 건드리면 재업로드 안 함)
       let htmlPreviewUrl: string | null | undefined = undefined;
-      if (formData.htmlCode.trim()) {
+      if (formData.htmlCode.trim() && formData.htmlCode !== originalHtmlCodeRef.current) {
         setHtmlPreviewUploading(true);
         try {
           const res = await fetch('/api/apps/html-preview', {
@@ -1065,6 +1089,7 @@ export default function AppDetailClient({
                   htmlCode={formData.htmlCode}
                   onChange={(v) => setFormData({ ...formData, htmlCode: v })}
                   uploading={htmlPreviewUploading}
+                  loadingExisting={htmlCodeLoading}
                 />
               </div>
 
