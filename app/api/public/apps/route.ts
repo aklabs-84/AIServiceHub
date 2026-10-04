@@ -10,7 +10,19 @@ function isAuthorized(request: Request): boolean {
   return !!expected && key === expected;
 }
 
-function serializeApp(app: AIApp) {
+// 공개 URL이 없고 HTML 코드로만 등록된 앱은 사이트가 직접 서빙하는 프록시 주소를 대신 내려준다.
+// (htmlPreviewUrl은 signed URL이라 브라우저에서 렌더링되지 않고 다운로드되므로 그대로 쓰지 않는다.)
+function resolveAppUrls(app: AIApp, origin: string) {
+  const urls = app.appUrls
+    .filter((u) => u.isPublic && u.url.trim())
+    .map((u) => ({ url: u.url, label: u.label }));
+  if (urls.length === 0 && app.htmlPreviewUrl) {
+    return [{ url: `${origin}/api/apps/${app.id}/html-preview`, label: 'HTML 앱' }];
+  }
+  return urls;
+}
+
+function serializeApp(app: AIApp, origin: string) {
   return {
     id: app.id,
     name: app.name,
@@ -18,7 +30,7 @@ function serializeApp(app: AIApp) {
     category: app.category,
     tags: app.tags,
     thumbnailUrl: app.thumbnailUrl,
-    appUrls: app.appUrls.filter((u) => u.isPublic).map((u) => ({ url: u.url, label: u.label })),
+    appUrls: resolveAppUrls(app, origin),
     price: app.price,
     isPaid: app.isPaid,
     likeCount: app.likeCount,
@@ -42,5 +54,6 @@ export async function GET(request: Request) {
   const admin = getAdminClient();
   const apps = await db.apps.getPublicList(admin, { category, tag, limit, offset, classlogOnly });
 
-  return NextResponse.json({ apps: apps.map(serializeApp) });
+  const { origin } = new URL(request.url);
+  return NextResponse.json({ apps: apps.map((app) => serializeApp(app, origin)) });
 }
