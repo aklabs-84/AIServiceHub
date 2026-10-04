@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { FaHeart, FaRegHeart, FaLock } from 'react-icons/fa';
 import { useAuth } from '@/contexts/AuthContext';
 import { db, getBrowserClient } from '@/lib/database';
+import { stripMarkdown } from '@/lib/stripMarkdown';
 
 interface AppCardProps {
   app: AIApp;
@@ -137,7 +138,7 @@ export default function AppCard({ app, onLikeChange, categoryInfo: providedCateg
           </div>
           {app.description && (
             <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-1 font-medium opacity-80">
-              {app.description}
+              {stripMarkdown(app.description)}
             </p>
           )}
         </div>

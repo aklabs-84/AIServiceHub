@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminClient, db } from '@/lib/database';
 import type { AIApp } from '@/types/database';
+import { stripMarkdown } from '@/lib/stripMarkdown';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +27,7 @@ function serializeApp(app: AIApp, origin: string) {
   return {
     id: app.id,
     name: app.name,
-    description: app.description,
+    description: stripMarkdown(app.description),
     category: app.category,
     tags: app.tags,
     thumbnailUrl: app.thumbnailUrl,
