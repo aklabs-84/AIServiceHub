@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AIApp, AppCategory, Prompt, Purchase } from '@/types/database';
 import type { Session } from '@supabase/supabase-js';
+import { stripMarkdown } from '@/lib/stripMarkdown';
 import {
   FaLaptopCode, FaPenFancy, FaHeart, FaDownload, FaSpinner,
   FaList, FaThLarge, FaRocket, FaRegSmile, FaUserCircle, FaArrowRight,
@@ -139,7 +140,7 @@ function AppRow({ app, categories }: { app: AIApp; categories: any[] }) {
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">{app.name}</h3>
-        {app.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{app.description}</p>}
+        {app.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{stripMarkdown(app.description)}</p>}
         <span className="inline-block mt-1 text-xs font-semibold text-gray-400">{info.label}</span>
       </div>
       <FaArrowRight className="flex-shrink-0 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200 text-sm" />
