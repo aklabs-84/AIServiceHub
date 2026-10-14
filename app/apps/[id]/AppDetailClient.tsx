@@ -884,14 +884,7 @@ export default function AppDetailClient({
           <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Thumbnail Header */}
             <div className="relative group rounded-3xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl">
-              <div
-                ref={previewRef}
-                onPointerDown={handlePreviewPointerDown}
-                onPointerMove={handlePreviewPointerMove}
-                onPointerUp={handlePreviewPointerUp}
-                onPointerLeave={handlePreviewPointerUp}
-                className={`relative w-full aspect-[21/9] sm:aspect-[24/9] bg-gray-100 dark:bg-gray-900 ${previewUrl ? 'cursor-move' : ''} touch-none select-none`}
-              >
+              <div className="relative w-full aspect-[21/9] sm:aspect-[24/9] bg-gray-100 dark:bg-gray-900 select-none">
                 {previewUrl && !previewError ? (
                   <Image
                     src={previewImageSrc}
@@ -907,15 +900,7 @@ export default function AppDetailClient({
                     <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700">
                       <FaPlus className="text-xl opacity-50" />
                     </div>
-                    <span className="text-sm font-medium">배경 이미지 URL을 입력하고 위치를 조정하세요</span>
-                  </div>
-                )}
-                {/* Visual Guide Overlay */}
-                {previewUrl && !previewError && (
-                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/10 flex items-center justify-center">
-                    <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-white text-xs font-medium flex items-center gap-2">
-                      <FaGripVertical /> 드래그하여 배경 위치 조정
-                    </div>
+                    <span className="text-sm font-medium">배경 이미지 URL을 입력하면 미리보기가 표시됩니다</span>
                   </div>
                 )}
               </div>
@@ -1051,6 +1036,74 @@ export default function AppDetailClient({
                         placeholder="https://..."
                       />
                       <p className="mt-2 text-xs text-gray-500">Google Drive, URL 이미지를 지원합니다.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">배경 이미지 위치 (이미지에서 직접 조정)</label>
+                      <div
+                        ref={previewRef}
+                        onPointerDown={handlePreviewPointerDown}
+                        onPointerMove={handlePreviewPointerMove}
+                        onPointerUp={handlePreviewPointerUp}
+                        onPointerLeave={handlePreviewPointerUp}
+                        className={`relative w-full h-48 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden touch-none select-none ${previewUrl ? 'cursor-crosshair' : 'bg-gray-100 dark:bg-gray-800'}`}
+                      >
+                        {!previewUrl && (
+                          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                            배경 이미지 URL을 입력하면 미리보기가 표시됩니다
+                          </div>
+                        )}
+                        {previewUrl && !previewError && (
+                          <>
+                            <Image
+                              src={previewImageSrc}
+                              alt="배경 이미지 위치 미리보기"
+                              fill
+                              unoptimized
+                              referrerPolicy="no-referrer"
+                              draggable={false}
+                              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                              style={{ objectPosition: `${formData.thumbnailPositionX}% ${formData.thumbnailPositionY}%` }}
+                              onError={() => setPreviewError(true)}
+                              sizes="100vw"
+                            />
+                            <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+                            <div
+                              className="absolute w-4 h-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-md bg-blue-500/80 pointer-events-none"
+                              style={{ left: `${formData.thumbnailPositionX}%`, top: `${formData.thumbnailPositionY}%` }}
+                            />
+                          </>
+                        )}
+                        {previewUrl && previewError && (
+                          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                            이미지를 불러올 수 없습니다. URL을 확인해주세요.
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-4 mt-4">
+                        {([['X', '좌', '우'], ['Y', '상', '하']] as const).map(([axis, from, to]) => {
+                          const key = axis === 'X' ? 'thumbnailPositionX' : 'thumbnailPositionY';
+                          return (
+                            <div key={axis}>
+                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                <span>{from}</span>
+                                <span>{formData[key]}%</span>
+                                <span>{to}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={formData[key]}
+                                disabled={!formData.thumbnailUrl.trim()}
+                                onChange={(e) => setFormData({ ...formData, [key]: Number(e.target.value) })}
+                                className="w-full accent-blue-600 disabled:opacity-50"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">배경 이미지가 있을 때만 적용됩니다.</p>
                     </div>
 
                     <div>
