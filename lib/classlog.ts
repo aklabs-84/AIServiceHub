@@ -63,9 +63,11 @@ async function submitResult(params: {
   studentId?: string;
   studentName?: string;
   title: string;
-  resultType: 'link' | 'text';
+  resultType: 'link' | 'text' | 'image' | 'file';
   linkUrl?: string;
   textContent?: string;
+  fileName?: string;
+  fileData?: string;
 }): Promise<SubmissionResult> {
   return callClasslog('submission', {
     entry_code: params.entryCode,
@@ -75,6 +77,8 @@ async function submitResult(params: {
     result_type: params.resultType,
     link_url: params.linkUrl,
     text_content: params.textContent,
+    file_name: params.fileName,
+    file_data: params.fileData,
   }) as Promise<SubmissionResult>;
 }
 

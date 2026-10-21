@@ -27,7 +27,7 @@ function isAuthorized(request: Request): boolean {
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 // POST /api/classlog/submission
-// body: { entryCode, studentId?, studentName?, title, resultType:'link'|'text', linkUrl?, textContent? }
+// body: { entryCode, studentId?, studentName?, title, resultType:'link'|'text'|'image'|'file', linkUrl?, textContent?, fileName?, fileData?(base64) }
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,12 +45,18 @@ export async function POST(request: Request) {
   const resultType = raw.resultType;
   const linkUrl = str(raw.linkUrl, 2000) || undefined;
   const textContent = str(raw.textContent, 20000) || undefined;
+  const fileName = str(raw.fileName, 200) || undefined;
+  // base64 문자열: 3MB 파일이 약 4MB가 되므로 5MB 안쪽에서만 받는다. 형식·크기 최종 검사는 ClassLog가 한다.
+  const fileData = typeof raw.fileData === 'string' && raw.fileData.length <= 5_000_000 ? raw.fileData : undefined;
 
   if (!entryCode || !title || !resultType) {
     return NextResponse.json({ error: 'entryCode, title, resultType은 필수입니다' }, { status: 400 });
   }
-  if (resultType !== 'link' && resultType !== 'text') {
-    return NextResponse.json({ error: 'resultType은 link 또는 text여야 합니다' }, { status: 400 });
+  if (!['link', 'text', 'image', 'file'].includes(resultType)) {
+    return NextResponse.json({ error: 'resultType은 link, text, image, file 중 하나여야 합니다' }, { status: 400 });
+  }
+  if ((resultType === 'image' || resultType === 'file') && (!fileName || !fileData)) {
+    return NextResponse.json({ error: '파일은 3MB 이하로 올려 주세요' }, { status: 400 });
   }
   // javascript: 같은 위험한 주소를 막는다. (선생님이 링크를 눌렀을 때 실행되는 것 방지)
   if (linkUrl && !/^https:\/\//i.test(linkUrl)) {
@@ -69,6 +75,8 @@ export async function POST(request: Request) {
       resultType,
       linkUrl,
       textContent,
+      fileName,
+      fileData,
     });
     return NextResponse.json(result);
   } catch (err) {
