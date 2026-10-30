@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       step_label: str(raw.stepLabel, 60) || undefined,
       completed_pages: pages(raw.completedPages),
       submitted_pages: pages(raw.submittedPages),
+      done: raw.done === true ? true : undefined,
       online: raw.online !== false,
     });
     return NextResponse.json(result);
