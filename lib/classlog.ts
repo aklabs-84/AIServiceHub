@@ -10,15 +10,21 @@ function assertConfigured() {
   }
 }
 
-async function callClasslog(resource: 'class-sync' | 'submission', body: Record<string, unknown>) {
+async function callClasslog(
+  resource: 'class-sync' | 'submission' | 'progress',
+  body: Record<string, unknown>,
+  method: 'POST' | 'GET' = 'POST',
+) {
   assertConfigured();
-  const res = await fetch(`${CLASSLOG_BASE_URL}/api/ai-service?resource=${resource}`, {
-    method: 'POST',
+  const query = method === 'GET' ? `&${new URLSearchParams(body as Record<string, string>).toString()}` : '';
+  const res = await fetch(`${CLASSLOG_BASE_URL}/api/ai-service?resource=${resource}${query}`, {
+    method,
     headers: {
       'Content-Type': 'application/json',
       'x-webhook-secret': WEBHOOK_SECRET as string,
     },
-    body: JSON.stringify(body),
+    ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
+    cache: 'no-store',
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
@@ -82,4 +88,12 @@ async function submitResult(params: {
   }) as Promise<SubmissionResult>;
 }
 
-export const classlog = { syncClass, submitResult };
+// 스튜디오 진행 현황 (학생 한 명당 한 줄 덮어쓰기)
+async function reportProgress(params: Record<string, unknown>) {
+  return callClasslog('progress', params);
+}
+async function listProgress(entryCode: string) {
+  return callClasslog('progress', { entry_code: entryCode }, 'GET');
+}
+
+export const classlog = { syncClass, submitResult, reportProgress, listProgress };
