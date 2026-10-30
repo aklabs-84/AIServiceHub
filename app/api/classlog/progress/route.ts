@@ -26,7 +26,7 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 const int = (v: unknown, min: number, max: number) =>
   Number.isInteger(v) && (v as number) >= min && (v as number) <= max ? (v as number) : undefined;
 const pages = (v: unknown) =>
-  Array.isArray(v) ? v.filter((n) => Number.isInteger(n) && n >= 0 && n <= 3).slice(0, 4) : [];
+  Array.isArray(v) ? v.filter((n) => Number.isInteger(n) && n >= 0 && n <= 4).slice(0, 5) : [];
 
 // POST: 학생 한 명의 현재 위치 저장
 export async function POST(request: Request) {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const entryCode = str(raw.entryCode, 100);
   const studentId = str(raw.studentId, 100);
   const studentName = str(raw.studentName, 100);
-  const page = int(raw.page, 0, 3);
+  const page = int(raw.page, 0, 4);
   if (!entryCode || page === undefined || (!studentId && !studentName)) {
     return NextResponse.json({ error: 'entryCode, page, studentId 또는 studentName은 필수입니다' }, { status: 400 });
   }
