@@ -34,7 +34,9 @@ export async function POST(request: Request) {
   }
 
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const storagePath = `posts/${user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  // 썸네일은 전용 폴더에 저장 (월 1회 정리 작업이 이 폴더만 건드린다)
+  const folder = formData?.get('kind') === 'thumbnail' ? 'thumbnails' : 'posts';
+  const storagePath = `${folder}/${user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
   const admin = getAdminClient();

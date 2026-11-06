@@ -13,6 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { formatFileSize } from '@/lib/format';
 import TagInput from '@/components/TagInput';
 import MarkdownEditor from '@/components/MarkdownEditor';
+import { useImagePasteUpload } from '@/hooks/useImagePasteUpload';
 
 const detectUrls = (value: string) =>
   value
@@ -97,6 +98,10 @@ export default function NewPromptPage() {
   });
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const thumbUpload = useImagePasteUpload((url) => {
+    setFormData((prev) => ({ ...prev, thumbnailUrl: url }));
+    setPreviewError(false);
+  });
 
   useEffect(() => {
     if (user && !formData.createdByName) {
@@ -679,12 +684,15 @@ export default function NewPromptPage() {
               id="thumbnailUrl"
               value={formData.thumbnailUrl}
               onChange={(e) => setFormData({ ...formData, thumbnailUrl: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="https://example.com/image.jpg"
+              {...thumbUpload.dropProps}
+              className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${thumbUpload.dragOver ? 'border-emerald-500' : 'border-gray-300 dark:border-gray-700'}`}
+              placeholder="URL 입력 · 또는 복사한 이미지를 여기에 붙여넣기(Ctrl/⌘+V)"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               검색 결과 · 카카오/SNS 공유 시 표시되는 이미지입니다. 입력하지 않으면 기본 이미지가 사용됩니다
             </p>
+            {thumbUpload.uploading && <p className="text-xs text-emerald-600 mt-1">이미지 올리는 중…</p>}
+            {thumbUpload.error && <p className="text-xs text-red-600 mt-1">{thumbUpload.error}</p>}
           </div>
 
           <div>
@@ -697,14 +705,16 @@ export default function NewPromptPage() {
               onPointerMove={handlePreviewPointerMove}
               onPointerUp={handlePreviewPointerUp}
               onPointerLeave={handlePreviewPointerUp}
-              className={`relative w-full h-48 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${previewUrl
+              tabIndex={0}
+              {...thumbUpload.dropProps}
+              className={`relative w-full h-48 rounded-lg border overflow-hidden outline-none focus:ring-2 focus:ring-emerald-500 ${thumbUpload.dragOver ? 'border-emerald-500 ring-2 ring-emerald-400' : 'border-gray-200 dark:border-gray-700'} ${previewUrl
                 ? 'cursor-crosshair'
                 : 'bg-gray-100 dark:bg-gray-800'
                 }`}
             >
               {!previewUrl && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-                  썸네일 URL을 입력하면 미리보기가 표시됩니다
+                  이미지를 끌어다 놓거나, 클릭 후 붙여넣기(Ctrl/⌘+V) 하거나, URL을 입력하세요
                 </div>
               )}
               {previewUrl && !previewError && (

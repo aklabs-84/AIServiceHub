@@ -18,6 +18,7 @@ import PWAInstallButton from '@/components/PWAInstallButton';
 import PurchaseModal from '@/components/PurchaseModal';
 import TagInput from '@/components/TagInput';
 import MarkdownEditor from '@/components/MarkdownEditor';
+import { useImagePasteUpload } from '@/hooks/useImagePasteUpload';
 import {
   FaExternalLinkAlt, FaEdit, FaTrash, FaUser, FaHeart, FaRegHeart,
   FaCalendar, FaCommentDots, FaPaperPlane, FaChevronLeft, FaChevronRight,
@@ -235,6 +236,10 @@ export default function AppDetailClient({
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const thumbUpload = useImagePasteUpload((url) => {
+    setFormData((prev) => (prev ? { ...prev, thumbnailUrl: url } : prev));
+    setPreviewError(false);
+  });
   const [htmlPreviewUploading, setHtmlPreviewUploading] = useState(false);
   const [htmlCodeLoading, setHtmlCodeLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -900,7 +905,7 @@ export default function AppDetailClient({
                     <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-gray-700">
                       <FaPlus className="text-xl opacity-50" />
                     </div>
-                    <span className="text-sm font-medium">배경 이미지 URL을 입력하면 미리보기가 표시됩니다</span>
+                    <span className="text-sm font-medium">이미지를 끌어다 놓거나, 클릭 후 붙여넣기(Ctrl/⌘+V) 하거나, URL을 입력하세요</span>
                   </div>
                 )}
               </div>
@@ -1033,9 +1038,12 @@ export default function AppDetailClient({
                           setPreviewError(false);
                         }}
                         className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        placeholder="https://..."
+                        {...thumbUpload.dropProps}
+                        placeholder="URL 입력 · 또는 복사한 이미지를 붙여넣기(Ctrl/⌘+V)"
                       />
-                      <p className="mt-2 text-xs text-gray-500">Google Drive, URL 이미지를 지원합니다.</p>
+                      <p className="mt-2 text-xs text-gray-500">Google Drive, URL 이미지, 붙여넣기·끌어다 놓기를 지원합니다.</p>
+                      {thumbUpload.uploading && <p className="mt-1 text-xs text-blue-600">이미지 올리는 중…</p>}
+                      {thumbUpload.error && <p className="mt-1 text-xs text-red-600">{thumbUpload.error}</p>}
                     </div>
 
                     <div>
@@ -1046,7 +1054,9 @@ export default function AppDetailClient({
                         onPointerMove={handlePreviewPointerMove}
                         onPointerUp={handlePreviewPointerUp}
                         onPointerLeave={handlePreviewPointerUp}
-                        className={`relative w-full h-48 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden touch-none select-none ${previewUrl ? 'cursor-crosshair' : 'bg-gray-100 dark:bg-gray-800'}`}
+                        tabIndex={0}
+                        {...thumbUpload.dropProps}
+                        className={`relative w-full h-48 rounded-xl border overflow-hidden touch-none select-none outline-none focus:ring-2 focus:ring-blue-500 ${thumbUpload.dragOver ? 'border-blue-500 ring-2 ring-blue-400' : 'border-gray-200 dark:border-gray-700'} ${previewUrl ? 'cursor-crosshair' : 'bg-gray-100 dark:bg-gray-800'}`}
                       >
                         {!previewUrl && (
                           <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
