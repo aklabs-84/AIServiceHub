@@ -14,6 +14,7 @@ function mapAppFromDB(data: AppRow): AIApp {
     category: data.category || '',
     isPublic: data.is_public ?? true,
     classlogOnly: data.classlog_only ?? false,
+    gateMode: data.gate_mode ?? false,
     thumbnailUrl: data.thumbnail_url || undefined,
     thumbnailPositionX: data.thumbnail_pos?.x,
     thumbnailPositionY: data.thumbnail_pos?.y,
@@ -204,6 +205,7 @@ export async function create(client: SupabaseClient, input: CreateAppInput, user
     category: input.category,
     is_public: input.isPublic ?? true,
     classlog_only: input.classlogOnly ?? false,
+    gate_mode: input.gateMode ?? false,
     thumbnail_url: input.thumbnailUrl,
     thumbnail_pos: input.thumbnailPositionX != null
       ? { x: input.thumbnailPositionX, y: input.thumbnailPositionY }
@@ -239,6 +241,7 @@ export async function update(client: SupabaseClient, input: UpdateAppInput): Pro
   if (fields.category !== undefined) payload.category = fields.category;
   if (fields.isPublic !== undefined) payload.is_public = fields.isPublic;
   if (fields.classlogOnly !== undefined) payload.classlog_only = fields.classlogOnly;
+  if (fields.gateMode !== undefined) payload.gate_mode = fields.gateMode;
   if (fields.thumbnailUrl !== undefined) {
     payload.thumbnail_url = fields.thumbnailUrl;
     if (fields.thumbnailUrl === null) {

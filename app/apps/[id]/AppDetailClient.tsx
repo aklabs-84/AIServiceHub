@@ -217,6 +217,7 @@ export default function AppDetailClient({
     category: string;
     isPublic: boolean;
     classlogOnly: boolean;
+    gateMode: boolean;
     previewEnabled: boolean;
     isPaid: boolean;
     price: number;
@@ -379,6 +380,36 @@ export default function AppDetailClient({
     }
   };
 
+  // 입장권 모드 앱: 누르는 순간 입장권을 받아 주소 뒤에 붙여 연다.
+  // 빈 창을 먼저 열어 두는 이유: 기다린 뒤에 창을 열면 팝업 차단에 걸리기 때문.
+  const openGatedApp = async (e: React.MouseEvent, url: string) => {
+    e.preventDefault();
+    if (!app) return;
+    const win = window.open('', '_blank');
+    try {
+      const supabase = getBrowserClient();
+      const { data: { session: s } } = await supabase.auth.getSession();
+      const res = await fetch('/api/apps/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s?.access_token ?? ''}` },
+        body: JSON.stringify({ appId: app.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ticket) throw new Error(data.error || 'ticket_failed');
+      const target = new URL(url);
+      target.searchParams.set('t', data.ticket);
+      if (win) {
+        win.opener = null;
+        win.location.href = target.toString();
+      } else {
+        window.location.href = target.toString();
+      }
+    } catch {
+      win?.close();
+      showError('앱을 여는 중 문제가 생겼어요. 잠시 뒤에 다시 눌러 주세요.');
+    }
+  };
+
   const handleLike = async () => {
     if (!user || !app || isLiking) return;
     setIsLiking(true);
@@ -411,6 +442,7 @@ export default function AppDetailClient({
         category: app.category,
         isPublic: app.isPublic ?? true,
         classlogOnly: app.classlogOnly ?? false,
+        gateMode: app.gateMode ?? false,
         previewEnabled: app.previewEnabled ?? false,
         isPaid: app.isPaid ?? false,
         price: app.price ?? 0,
@@ -633,6 +665,7 @@ export default function AppDetailClient({
         category: formData.category,
         isPublic: formData.isPublic,
         classlogOnly: isAdmin ? formData.classlogOnly : false,
+        gateMode: isAdmin ? formData.gateMode : undefined,
         previewEnabled: formData.previewEnabled,
         isPaid: formData.isPaid,
         price: formData.isPaid ? formData.price : 0,
@@ -975,6 +1008,23 @@ export default function AppDetailClient({
                             {formData.isPublic
                               ? 'AIServiceHub 사이트에도 계속 공개되며, classlog의 앱 연동 API에도 노출됩니다.'
                               : 'AIServiceHub 사이트에는 계속 비공개로 유지되지만, classlog의 앱 연동 API에는 노출됩니다.'}
+                          </span>
+                        </span>
+                      </label>
+                    )}
+
+                    {isAdmin && (
+                      <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={formData.gateMode}
+                          onChange={(e) => setFormData({ ...formData, gateMode: e.target.checked })}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          입장권으로만 열리게 하기 (관리자 전용)
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">
+                            켜면 주소를 직접 입력해서는 열리지 않고, AI Service Hub나 클래스로그AI에서 눌러야 열려요. 앱에 문지기 파일이 설치돼 있어야 해요.
                           </span>
                         </span>
                       </label>
@@ -1388,7 +1438,7 @@ export default function AppDetailClient({
                         ) : canAccessUrls ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {app.appUrls.map((u, i) => (
-                              <Link key={i} href={u.url} target="_blank" className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border flex justify-between items-center group">
+                              <Link key={i} href={u.url} target="_blank" onClick={app.gateMode ? (e) => openGatedApp(e, u.url) : undefined} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border flex justify-between items-center group">
                                 <div>
                                   <div className="text-[10px] text-gray-400 font-bold uppercase">{getDomainLabel(u.url)}</div>
                                   <div className="font-bold dark:text-white">{u.label || '바로가기'}</div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAdminClient } from '@/lib/database';
 import { db } from '@/lib/database';
 import { purchases } from '@/lib/database/purchases';
+import { isGateConfigured, signGateTicket } from '@/lib/gate';
 
 export const runtime = 'nodejs';
 
@@ -30,10 +31,17 @@ export async function POST(request: Request) {
   const app = await db.apps.getById(admin, appId);
   if (!app) return NextResponse.json({ error: '앱을 찾을 수 없습니다' }, { status: 404 });
 
+  // 입장권 모드 앱이면 짧은 유효시간의 입장권을 함께 준다 (접근 권한을 통과한 경우에만)
+  const withTicket = async () => {
+    const urls = app.appUrls.filter((u) => u.isPublic).map((u) => u.url);
+    if (!app.gateMode) return NextResponse.json({ urls });
+    if (!isGateConfigured()) return NextResponse.json({ error: 'gate_not_configured' }, { status: 503 });
+    return NextResponse.json({ urls, ticket: await signGateTicket(app.id) }, { headers: { 'Cache-Control': 'no-store' } });
+  };
+
   // 무료 앱이거나 관리자면 바로 반환
   if (!app.isPaid || app.price === 0 || user.email === ADMIN_EMAIL) {
-    const publicUrls = app.appUrls.filter((u) => u.isPublic).map((u) => u.url);
-    return NextResponse.json({ urls: publicUrls });
+    return withTicket();
   }
 
   // 유료 앱: 구매 or 구독 여부 확인
@@ -42,6 +50,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'purchase_required', price: app.price }, { status: 403 });
   }
 
-  const publicUrls = app.appUrls.filter((u) => u.isPublic).map((u) => u.url);
-  return NextResponse.json({ urls: publicUrls });
+  return withTicket();
 }
