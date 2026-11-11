@@ -95,7 +95,6 @@ export interface PromptRow {
   category: string | null;
   is_public: boolean;
   classlog_only: boolean;
-  gate_mode: boolean;
   thumbnail_url: string | null;
   thumbnail_pos: { x: number; y: number } | null;
   tags: string[];
@@ -203,7 +202,6 @@ export interface Prompt {
   category: string;
   isPublic: boolean;
   classlogOnly: boolean;
-  gateMode: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
@@ -529,7 +527,6 @@ export interface CreatePromptInput {
   category: string;
   isPublic?: boolean;
   classlogOnly?: boolean;
-  gateMode?: boolean;
   thumbnailUrl?: string;
   thumbnailPositionX?: number;
   thumbnailPositionY?: number;
