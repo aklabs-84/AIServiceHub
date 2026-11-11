@@ -36,6 +36,7 @@ function serializeApp(app: AIApp, origin: string) {
     isPaid: app.isPaid,
     likeCount: app.likeCount,
     createdAt: app.createdAt,
+    gateMode: app.gateMode ?? false,
   };
 }
 
