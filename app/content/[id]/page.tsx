@@ -16,6 +16,7 @@ const TOPIC_LABELS: Record<string, string> = {
   idea: '아이디어',
   tip: '팁 & 노하우',
   question: '질문',
+  vibe: '바이브코딩 단어장',
   chat: '자유 토크',
 };
 
@@ -25,6 +26,7 @@ const TOPIC_COLORS: Record<string, string> = {
   idea:     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   tip:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   question: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  vibe:     'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
   chat:     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 };
 

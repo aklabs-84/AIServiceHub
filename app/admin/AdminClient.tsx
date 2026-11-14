@@ -1311,13 +1311,13 @@ function AdminPageContent({
                     {postsLoaded && <span className="ml-2 text-sm font-normal text-gray-400">({adminPosts.length}개)</span>}
                   </h3>
                   <div className="ml-auto flex gap-2 flex-wrap">
-                    {(['all', 'news', 'showcase', 'idea', 'tip', 'question', 'chat'] as const).map((t) => (
+                    {(['all', 'news', 'showcase', 'idea', 'tip', 'question', 'vibe', 'chat'] as const).map((t) => (
                       <button
                         key={t}
                         onClick={() => { setPostTopicFilter(t); setPostPage(1); }}
                         className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${postTopicFilter === t ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
                       >
-                        {t === 'all' ? '전체' : t === 'news' ? 'AI소식' : t === 'showcase' ? '앱자랑' : t === 'idea' ? '아이디어' : t === 'tip' ? '팁' : t === 'question' ? '질문' : '자유'}
+                        {t === 'all' ? '전체' : t === 'news' ? 'AI소식' : t === 'showcase' ? '앱자랑' : t === 'idea' ? '아이디어' : t === 'tip' ? '팁' : t === 'question' ? '질문' : t === 'vibe' ? '단어장' : '자유'}
                       </button>
                     ))}
                   </div>

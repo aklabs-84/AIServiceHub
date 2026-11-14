@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {
   Heart, MessageCircle, Loader2, ImageIcon, X,
   Rocket, Lightbulb, Sparkles, HelpCircle, MessageSquare,
-  LayoutGrid, Newspaper, PenLine, ChevronRight,
+  LayoutGrid, Newspaper, PenLine, ChevronRight, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -24,6 +24,7 @@ const TOPICS = [
   { value: 'idea' as const,     label: '아이디어',    Icon: Lightbulb },
   { value: 'tip' as const,      label: '팁 & 노하우', Icon: Sparkles },
   { value: 'question' as const, label: '질문',        Icon: HelpCircle },
+  { value: 'vibe' as const,     label: '바이브코딩 단어장', Icon: BookOpen },
   { value: 'chat' as const,     label: '자유 토크',   Icon: MessageSquare },
 ] as const;
 
@@ -35,6 +36,7 @@ const TOPIC_LABELS: Record<PostTopic, string> = {
   idea: '아이디어',
   tip: '팁 & 노하우',
   question: '질문',
+  vibe: '바이브코딩 단어장',
   chat: '자유 토크',
 };
 
@@ -44,6 +46,7 @@ const TOPIC_COLORS: Record<PostTopic, string> = {
   idea:     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   tip:      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   question: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  vibe:     'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
   chat:     'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
 };
 
@@ -228,7 +231,7 @@ function BlogComposer({ onPost, onCancel, isAdmin }: {
           onChange={(e) => setTopic(e.target.value as PostTopic)}
           className="text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 outline-none text-gray-700 dark:text-gray-300"
         >
-          {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || t.value !== 'news')).map((t) => (
+          {TOPICS.filter((t) => t.value !== 'all' && (isAdmin || (t.value !== 'news' && t.value !== 'vibe'))).map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>

@@ -553,7 +553,7 @@ export type CategoryType = 'app' | 'prompt';
 
 // --- Community Posts ---
 
-export type PostTopic = 'showcase' | 'idea' | 'tip' | 'question' | 'chat' | 'news';
+export type PostTopic = 'showcase' | 'idea' | 'tip' | 'question' | 'chat' | 'news' | 'vibe';
 
 export interface PostRow {
   id: string;
